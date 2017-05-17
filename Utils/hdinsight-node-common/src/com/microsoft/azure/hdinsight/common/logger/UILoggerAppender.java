@@ -21,27 +21,33 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.spark.common;
+package com.microsoft.azure.hdinsight.common.logger;
 
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
+import com.microsoft.tooling.msservices.components.DefaultLoader;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.Level;
+import org.apache.log4j.spi.LoggingEvent;
 
 /**
- * The Base Exception for all Spark Job related exceptions
+ * Wrap UIHelper logger interface as an log4j appender
  */
-public class SparkJobException extends HDIException{
-    public SparkJobException(String message) {
-        super(message);
+public class UILoggerAppender extends AppenderSkeleton {
+    @Override
+    public void append(LoggingEvent event) {
+        if (event.getLevel() == Level.ERROR) {
+            DefaultLoader.getUIHelper().logError(
+                    event.getRenderedMessage(),
+                    event.getThrowableInformation().getThrowable());
+        }
+
+        //TODO: To add other levels log functions with extending UIHelper interface API
     }
 
-    public SparkJobException(String message, int errorCode) {
-        super(message, errorCode);
-    }
+    @Override
+    public void close() { }
 
-    public SparkJobException(String message, String errorLog) {
-        super(message, errorLog);
-    }
-
-    public SparkJobException(String message, Throwable throwable) {
-        super(message, throwable);
+    @Override
+    public boolean requiresLayout() {
+        return false;
     }
 }

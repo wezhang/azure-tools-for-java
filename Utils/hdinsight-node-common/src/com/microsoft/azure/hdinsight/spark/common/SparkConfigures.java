@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SparkConfigures extends HashMap<String, Object> {
-    public SparkConfigures(Map<? extends String, ?> m) {
+    public SparkConfigures(Map<String, ?> m) {
         super(m);
     }
 

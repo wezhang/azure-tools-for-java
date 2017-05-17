@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -18,18 +18,20 @@
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package com.microsoft.azure.hdinsight.common;
+package com.microsoft.azure.hdinsight.common.logger;
 
 
-import org.slf4j.LoggerFactory;
+import cucumber.api.CucumberOptions;
+import cucumber.api.junit.Cucumber;
+import org.junit.runner.RunWith;
 
-/**
- * Base logger class
- */
-public interface ILogger {
-    default org.slf4j.Logger log() {
-        return LoggerFactory.getLogger(getClass());
-    }
+@RunWith(Cucumber.class)
+@CucumberOptions(
+        plugin = {"pretty", "html:target/cucumber"},
+        name = "UI Logger Appender for log4j test.*"
+)
+public class UILoggerAppenderTest {
 }

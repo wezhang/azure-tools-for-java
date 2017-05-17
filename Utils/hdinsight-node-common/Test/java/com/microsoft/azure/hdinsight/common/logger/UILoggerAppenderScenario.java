@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -18,37 +18,42 @@
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
-package com.microsoft.azure.hdinsight.spark.common;
+package com.microsoft.azure.hdinsight.common.logger;
 
-import com.jcraft.jsch.Session;
 import cucumber.api.java.Before;
+import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Answers.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-public class SparkBatchDebugSessionScenario {
-    private SparkBatchDebugSession debugSessionMock =
-            mock(SparkBatchDebugSession.class, CALLS_REAL_METHODS);
-    private Session jschSessionMock = mock(Session.class, CALLS_REAL_METHODS);
+public class UILoggerAppenderScenario {
+    private Logger l = Logger.getLogger("UILoggerAppenderTest");
+    private UILoggerAppender appenderMock = mock(UILoggerAppender.class, CALLS_REAL_METHODS);
+    private ArgumentCaptor<LoggingEvent> loggingEventCaptor = ArgumentCaptor.forClass(LoggingEvent.class);;
 
     @Before
     public void setUp() {
-        when(debugSessionMock.getPortForwardingSession()).thenReturn(jschSessionMock);
+        l.addAppender(appenderMock);
     }
 
-    @Then("^parsing local port from getting Port Forwarding Local result '(.+)' with host '(.+)' and (\\d+) should get local port (\\d+)$")
-    public void checkGetForwardedLocalPortResult(
-            String forwardingMock,
-            String remoteHost,
-            int remotePort,
-            int expectedPort) throws Throwable{
-        when(jschSessionMock.getPortForwardingL()).thenReturn(new String[] { forwardingMock });
+    @Given("^send ERROR '(.+)'$")
+    public void sendErrorLog(String message) throws Throwable {
+        doNothing().when(appenderMock).append(loggingEventCaptor.capture());
 
-        assertEquals(expectedPort, debugSessionMock.getForwardedLocalPort(remoteHost, remotePort));
+        l.error(message);
+    }
+
+    @Then("^get the append call with event message '(.+)'$")
+    public void checkAppendParameter(String expectedMessage) throws Throwable {
+        assertEquals(expectedMessage, loggingEventCaptor.getValue().getRenderedMessage());
     }
 }

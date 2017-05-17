@@ -22,7 +22,7 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.microsoft.azure.hdinsight.common.ILogger;
+import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;

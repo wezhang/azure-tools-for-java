@@ -26,7 +26,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
-import com.microsoft.azure.hdinsight.common.ILogger;
+import com.microsoft.azure.hdinsight.common.logger.ILogger;
 
 import java.io.File;
 import java.net.UnknownServiceException;

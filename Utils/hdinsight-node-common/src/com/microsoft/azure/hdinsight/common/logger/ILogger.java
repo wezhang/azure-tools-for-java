@@ -21,27 +21,16 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.spark.common;
+package com.microsoft.azure.hdinsight.common.logger;
 
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
+
+import org.slf4j.LoggerFactory;
 
 /**
- * The Base Exception for all Spark Job related exceptions
+ * Base logger class
  */
-public class SparkJobException extends HDIException{
-    public SparkJobException(String message) {
-        super(message);
-    }
-
-    public SparkJobException(String message, int errorCode) {
-        super(message, errorCode);
-    }
-
-    public SparkJobException(String message, String errorLog) {
-        super(message, errorLog);
-    }
-
-    public SparkJobException(String message, Throwable throwable) {
-        super(message, throwable);
+public interface ILogger {
+    default org.slf4j.Logger log() {
+        return LoggerFactory.getLogger(getClass());
     }
 }
