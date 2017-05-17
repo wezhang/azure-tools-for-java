@@ -66,13 +66,8 @@ public class SparkSubmissionParameterScenario {
         sparkConfig = config;
     }
 
-    @Given("^create SparkSubmissionParameter with the following job config$")
-    public void createSparkSubmissionParameterWithJobConfig(Map<String, Object> jobConfig) throws Throwable {
-        Map<String, Object> mergedJobConf = new HashMap<>(jobConfig);
-
-        mergedJobConf.put("conf", sparkConfig);
-
-        sparkSubmissionParameter = new SparkSubmissionParameter(
+    public SparkSubmissionParameter mockSparkSubmissionParameterWithJobConf(Map<String, Object> jobConfig) {
+        return new SparkSubmissionParameter(
                 mockSelectedClusterName,
                 mockIsLocalArtifactRadioButtionSelected,
                 mockArtifactName,
@@ -82,7 +77,16 @@ public class SparkSubmissionParameterScenario {
                 mockReferencedFiles,
                 mockReferencedJars,
                 mockArgs,
-                mergedJobConf);
+                jobConfig);
+    }
+
+    @Given("^create SparkSubmissionParameter with the following job config$")
+    public void createSparkSubmissionParameterWithJobConfig(Map<String, Object> jobConfig) throws Throwable {
+        Map<String, Object> mergedJobConf = new HashMap<>(jobConfig);
+
+        mergedJobConf.put("conf", sparkConfig);
+
+        sparkSubmissionParameter = mockSparkSubmissionParameterWithJobConf(mergedJobConf);
     }
 
     @Then("^the parameter map should include key '(.+)' with value '(.+)'$")

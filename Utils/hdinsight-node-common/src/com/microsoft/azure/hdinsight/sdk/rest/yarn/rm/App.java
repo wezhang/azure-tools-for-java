@@ -353,5 +353,16 @@ public class App implements IConvertible {
     public void setQueueUsagePercentage(float queueUsagePercentage) {
         this.queueUsagePercentage = queueUsagePercentage;
     }
+
+    /**
+     * Check if the Yarn job finish or not.
+     *
+     * @return true for finished.
+     */
+    public boolean isFinished() {
+        String state = this.getState().toUpperCase();
+
+        return state.equals("FINISHED") || state.equals("FAILED") || state.equals("KILLED");
+    }
 }
 

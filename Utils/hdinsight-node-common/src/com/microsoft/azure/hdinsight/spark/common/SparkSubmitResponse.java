@@ -21,9 +21,31 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
+
+import java.util.List;
+import java.util.Map;
+
 public class SparkSubmitResponse {
     private int id;
     private String state;
+
+    private String appId;                   // The application ID
+    private Map<String, Object> appInfo;    // The detailed application info
+    private List<String> log;               // The log lines
+
+    public String getAppId() {
+        return appId;
+    }
+
+    public Map<String, Object> getAppInfo() {
+        return appInfo;
+    }
+
+    public List<String> getLog() {
+        return log;
+    }
 
     public int getId(){
         return id;
@@ -31,5 +53,15 @@ public class SparkSubmitResponse {
 
     public String getState(){
         return state;
+    }
+
+    public boolean isAlive() {
+        return !this.getState().equals("error") &&
+                !this.getState().equals("success") &&
+                !this.getState().equals("dead");
+    }
+
+    static public SparkSubmitResponse parseJSON(String json) {
+        return new Gson().fromJson(json, new TypeToken<SparkSubmitResponse>() {}.getType());
     }
 }

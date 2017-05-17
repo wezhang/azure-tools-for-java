@@ -22,28 +22,34 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import cucumber.api.java.en.Given;
+import com.jcraft.jsch.Session;
+import cucumber.api.java.Before;
 import cucumber.api.java.en.Then;
 
-import java.util.*;
-
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-public class SubmissionTableModelScenario {
-    SubmissionTableModel tableModel = new SubmissionTableModel(new String[] {"Key", "Value", ""});
+public class SparkBatchDebugSessionScenario {
+    private SparkBatchDebugSession debugSessionMock = mock(SparkBatchDebugSession.class);
+    private Session jschSessionMock = mock(Session.class);
 
-    @Given("^create the SparkSubmissionTable with the following config$")
-    public void createSparkSubmissionTable(Map<String, Object> tableConfig) {
-        tableConfig.entrySet()
-                .forEach(entry -> tableModel.addRow(entry.getKey(), entry.getValue()));
+    @Before
+    public void setUp() {
+        when(debugSessionMock.getPortForwardingSession()).thenReturn(jschSessionMock);
     }
 
-    @Then("^check to get config map should be '(.+)'$")
-    public void checkGetConfigMapByJSON(String jsonString) throws Throwable {
-        Map<String, Object> target = new Gson().fromJson(jsonString, new TypeToken<Map<String, Object>>(){}.getType());
+    @Then("^parsing local port from getting Port Forwarding Local result '(.+)' with host '(.+)' and (\\d+) should get local port (\\d+)$")
+    public void checkGetForwardedLocalPortResult(
+            String forwardingMock,
+            String remoteHost,
+            int remotePort,
+            int expectedPort) throws Throwable{
+        when(debugSessionMock.getForwardedLocalPort(anyString(), anyInt())).thenCallRealMethod();
+        when(jschSessionMock.getPortForwardingL()).thenReturn(new String[] { forwardingMock });
 
-        assertEquals(target, tableModel.getJobConfigMap());
+        assertEquals(expectedPort, debugSessionMock.getForwardedLocalPort(remoteHost, remotePort));
     }
 }

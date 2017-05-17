@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -18,32 +18,32 @@
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
  */
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
-
-import java.util.*;
-
-import static org.junit.Assert.assertEquals;
-
-public class SubmissionTableModelScenario {
-    SubmissionTableModel tableModel = new SubmissionTableModel(new String[] {"Key", "Value", ""});
-
-    @Given("^create the SparkSubmissionTable with the following config$")
-    public void createSparkSubmissionTable(Map<String, Object> tableConfig) {
-        tableConfig.entrySet()
-                .forEach(entry -> tableModel.addRow(entry.getKey(), entry.getValue()));
+/**
+ * The Base Exception for all Spark Job related exceptions
+ */
+public class SparkJobException extends Exception{
+    public SparkJobException() {
+        super();
     }
 
-    @Then("^check to get config map should be '(.+)'$")
-    public void checkGetConfigMapByJSON(String jsonString) throws Throwable {
-        Map<String, Object> target = new Gson().fromJson(jsonString, new TypeToken<Map<String, Object>>(){}.getType());
+    public SparkJobException(String message) {
+        super(message);
+    }
 
-        assertEquals(target, tableModel.getJobConfigMap());
+    public SparkJobException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public SparkJobException(Throwable cause) {
+        super(cause);
+    }
+
+    protected SparkJobException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }

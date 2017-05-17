@@ -80,7 +80,7 @@ public class SparkSubmissionParameter {
     public static final String ExecutorCoresDefaultValue = "1";
 
     public static final String Conf = "conf";   // 	Spark configuration properties
-    public static final Map<String, Object> ConfDefaultValue = new HashMap<String, Object>();
+    public static final SparkConfigures ConfDefaultValue = new SparkConfigures();
 
     public static final String NAME = "name";
 

@@ -19,31 +19,17 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.*;
-
-import static org.junit.Assert.assertEquals;
-
-public class SubmissionTableModelScenario {
-    SubmissionTableModel tableModel = new SubmissionTableModel(new String[] {"Key", "Value", ""});
-
-    @Given("^create the SparkSubmissionTable with the following config$")
-    public void createSparkSubmissionTable(Map<String, Object> tableConfig) {
-        tableConfig.entrySet()
-                .forEach(entry -> tableModel.addRow(entry.getKey(), entry.getValue()));
+public class SparkConfigures extends HashMap<String, Object> {
+    public SparkConfigures(Map<? extends String, ?> m) {
+        super(m);
     }
 
-    @Then("^check to get config map should be '(.+)'$")
-    public void checkGetConfigMapByJSON(String jsonString) throws Throwable {
-        Map<String, Object> target = new Gson().fromJson(jsonString, new TypeToken<Map<String, Object>>(){}.getType());
-
-        assertEquals(target, tableModel.getJobConfigMap());
+    public SparkConfigures() {
+        super();
     }
 }
