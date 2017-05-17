@@ -24,6 +24,7 @@
 package com.microsoft.azure.hdinsight.common.logger;
 
 import com.microsoft.tooling.msservices.components.DefaultLoader;
+import com.microsoft.tooling.msservices.helpers.UIHelper;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Level;
 import org.apache.log4j.spi.LoggingEvent;
@@ -34,10 +35,14 @@ import org.apache.log4j.spi.LoggingEvent;
 public class UILoggerAppender extends AppenderSkeleton {
     @Override
     public void append(LoggingEvent event) {
+        UIHelper uiHelper = DefaultLoader.getUIHelper();
+
         if (event.getLevel() == Level.ERROR) {
-            DefaultLoader.getUIHelper().logError(
-                    event.getRenderedMessage(),
-                    event.getThrowableInformation().getThrowable());
+            if (uiHelper != null) {
+                uiHelper.logError(
+                        event.getRenderedMessage(),
+                        event.getThrowableInformation().getThrowable());
+            }
         }
 
         //TODO: To add other levels log functions with extending UIHelper interface API
