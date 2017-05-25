@@ -29,6 +29,11 @@ public class SparkConfigures extends HashMap<String, Object> {
         super(m);
     }
 
+    @SuppressWarnings("unchecked")
+    public SparkConfigures(Object o) {
+        this((Map<String, Object>) o);
+    }
+
     public SparkConfigures() {
         super();
     }

@@ -466,7 +466,11 @@ public class SparkBatchRemoteDebugJob implements ISparkBatchDebugJob, ILogger {
         final String jvmDebugOptionPattern = ".*\\bsuspend=(?<isSuspend>[yn]),address=(?<port>\\d+).*";
 
         Map<String, Object> jobConfig = submissionParameter.getJobConfig();
-        SparkConfigures sparkConf = (SparkConfigures)jobConfig.get(SparkSubmissionParameter.Conf);
+        Object sparkConfigEntry = jobConfig.get(SparkSubmissionParameter.Conf);
+        SparkConfigures sparkConf = (sparkConfigEntry != null && sparkConfigEntry instanceof Map) ?
+                new SparkConfigures(sparkConfigEntry) :
+                null;
+
         String carriedDriverOption = "";
         String driverOption;
 
