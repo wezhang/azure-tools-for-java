@@ -31,6 +31,7 @@ import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import org.assertj.swing.core.GenericTypeMatcher;
 import org.assertj.swing.core.matcher.JButtonMatcher;
+import org.assertj.swing.edt.GuiActionRunner;
 import org.assertj.swing.fixture.DialogFixture;
 import org.assertj.swing.fixture.JButtonFixture;
 import org.assertj.swing.timing.Condition;
@@ -165,7 +166,8 @@ public class SparkSubmissionExDialogScenario extends LightPlatformCodeInsightFix
 
         doNothing().when(submitModelMock).action(any());
 
-        edt(() -> {
+
+        GuiActionRunner.execute(() -> {
             button.target().doClick();
 
         });
