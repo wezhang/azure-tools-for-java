@@ -46,6 +46,8 @@ fi
 ./gradlew --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s
 cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/azure-toolkit-for-intellij.zip ./$ARTIFACTS_DIR/azure-toolkit-for-intellij-2017.zip
 
+./gradlew clean --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s
+
 # Build intellij 2016 plugin
 if [ $INTELLIJ_VERSION == "true" ] ; then
     ./tools/IntellijVersionHelper 2016.3
