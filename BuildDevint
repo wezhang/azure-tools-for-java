@@ -43,14 +43,14 @@ chmod +x ./tools/IntellijVersionHelper
 if [ $INTELLIJ_VERSION == "true" ] ; then
     ./tools/IntellijVersionHelper 2016.3
 fi
-./gradlew buildPlugin --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s -Pintellij_version=IU-2016.3
+./gradlew clean buildPlugin --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s -Pintellij_version=IU-2016.3
 cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/azure-toolkit-for-intellij.zip ./$ARTIFACTS_DIR/azure-toolkit-for-intellij-2016.zip
 
 # Build intellij 2017 plugin
 if [ $INTELLIJ_VERSION == "true" ] ; then
     ./tools/IntellijVersionHelper 2017.1
 fi
-./gradlew buildPlugin --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s
+./gradlew clean buildPlugin --project-dir ./PluginsAndFeatures/azure-toolkit-for-intellij -s
 cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/azure-toolkit-for-intellij.zip ./$ARTIFACTS_DIR/azure-toolkit-for-intellij-2017.zip
 
 echo "ALL BUILD SUCCESSFUL"
