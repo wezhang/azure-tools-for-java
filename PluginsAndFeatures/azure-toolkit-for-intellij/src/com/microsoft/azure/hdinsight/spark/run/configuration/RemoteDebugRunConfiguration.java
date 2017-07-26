@@ -25,6 +25,7 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.runners.RunConfigurationWithSuppressedDefaultRunAction;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
@@ -41,7 +42,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunConfigurationModule> {
+public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunConfigurationModule>
+                                         implements RunConfigurationWithSuppressedDefaultRunAction{
 
     private SparkSubmitModel submitModel;
 
