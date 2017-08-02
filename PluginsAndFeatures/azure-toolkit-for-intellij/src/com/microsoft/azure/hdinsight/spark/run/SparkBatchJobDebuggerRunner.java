@@ -33,8 +33,11 @@ import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.jcraft.jsch.JSchException;
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
@@ -42,6 +45,7 @@ import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
+import com.microsoft.azuretools.utils.Pair;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.auth.AuthScope;
@@ -52,7 +56,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import rx.Single;
 import rx.exceptions.CompositeException;
-import rx.exceptions.Exceptions;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
@@ -67,10 +70,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static rx.exceptions.Exceptions.propagate;
+
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     enum DebugAction {
         STOP
     }
+
+    public static Key<String> DebugTargetKey = new Key<>("debug-target");
+    public static String DebugDriver = "driver";
+    public static String DebugExecutor = "executor";
 
     private Optional<ProcessHandler> remoteDebuggerProcessHandler = Optional.empty();
     private PublishSubject<DebugAction> actionSubject = PublishSubject.create();
@@ -103,62 +112,128 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     }
 
     @Override
+    public void execute(@NotNull ExecutionEnvironment environment, @Nullable Callback callback) throws ExecutionException {
+        executeOnDriver(environment, callback);
+    }
+
+    private ExecutionEnvironment buildChildEnvironment(@NotNull ExecutionEnvironment environment, String name) {
+        RunConfiguration driverRunConfiguration = ((RunConfiguration) environment.getRunProfile()).clone();
+        driverRunConfiguration.setName(environment.getRunProfile().getName() + " [" + name + "]");
+
+        return new ExecutionEnvironmentBuilder(environment).runProfile(driverRunConfiguration).build();
+    }
+
+    private ExecutionEnvironment buildDriverEnvironment(@NotNull ExecutionEnvironment environment) {
+        ExecutionEnvironment driverEnv = buildChildEnvironment(environment, "Driver");
+        driverEnv.putUserData(DebugTargetKey, DebugDriver);
+
+        return driverEnv;
+    }
+
+    private ExecutionEnvironment buildExecutorEnvironment(@NotNull ExecutionEnvironment environment, String ipaddr) {
+        ExecutionEnvironment executorEnv = buildChildEnvironment(environment, "Executor " + ipaddr);
+        executorEnv.putUserData(DebugTargetKey, DebugExecutor);
+
+        return executorEnv;
+    }
+
+    private void executeOnDriver(@NotNull ExecutionEnvironment environment, @Nullable Callback callback)
+            throws ExecutionException {
+        super.execute(buildDriverEnvironment(environment), callback);
+    }
+
+    private void executeOnExecutor(@NotNull ExecutionEnvironment environment,
+                                   @Nullable Callback callback,
+                                   String ipaddr) throws ExecutionException {
+        super.execute(buildExecutorEnvironment(environment, ipaddr), callback);
+    }
+
+    @Override
     protected void execute(@NotNull ExecutionEnvironment environment, @Nullable Callback callback, @NotNull RunProfileState state) throws ExecutionException {
         SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
         SparkSubmitModel submitModel = submissionState.getSubmitModel();
         SparkSubmissionParameter submissionParameter = submitModel.getSubmissionParameter();
-        IClusterDetail clusterDetail = submitModel.getSelectedClusterDetail();
         Map<String, String> postEventProperty = new HashMap<>();
 
         submitModel
                 .buildArtifactObservable(submissionParameter.getArtifactName())
-                .flatMap((artifact) -> submitModel.deployArtifactObservable(artifact, clusterDetail)
+                .flatMap(artifact -> {
+                    IClusterDetail clusterDetail = Optional.ofNullable(submitModel.getSelectedClusterDetail())
+                            .orElseGet(() -> ClusterManagerEx.getInstance()
+                                    .getClusterDetailsWithoutAsync(true, submitModel.getProject())
+                                    .stream()
+                                    .filter(cluster -> cluster.getName().equals(submissionParameter.getClusterName()))
+                                    .findFirst()
+                                    .orElse(null));
+
+                    return Single.just(new Pair<>(artifact, clusterDetail));
+                })
+                .flatMap(pair -> submitModel.deployArtifactObservable(pair.first(), pair.second())
                                                   .subscribeOn(Schedulers.io()))
                 .map((selectedClusterDetail) -> {
                     // Create Batch Spark Debug Job
                     try {
-                        return submitModel.tryToCreateBatchSparkDebugJob(selectedClusterDetail);
+                        return new Pair<>(
+                                submitModel.tryToCreateBatchSparkDebugJob(selectedClusterDetail),
+                                selectedClusterDetail);
                     } catch (Exception e) {
                         HDInsightUtil.setJobRunningStatus(submitModel.getProject(), false);
-                        throw Exceptions.propagate(e);
+                        throw propagate(e);
                     }
                 })
-                .flatMap((remoteDebugJob) ->
-                    startDebuggerObservable(environment, callback, submissionState, remoteDebugJob)
-                            .doOnEach(debugSession ->
-                                    // Handle STOP action with subscribing actionSubject for STOP event
-                                    actionSubject.filter((action) -> action.equals(DebugAction.STOP))
-                                                 .subscribe(action -> {
-                                                     try {
-                                                         HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                                                                 submitModel.getProject(),
-                                                                 "Info: Spark batch debugging job stop, job is killed");
+                .flatMap(pair -> {
+                    SparkBatchRemoteDebugJob remoteDebugJob = pair.first();
+                    IClusterDetail clusterDetail = pair.second();
 
-                                                         remoteDebugJob.killBatchJob();
-                                                     } catch (IOException ex) {
-                                                         HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
-                                                                 submitModel.getProject(),
-                                                                 "Error : Failed to kill Spark batch debugging job, " +
-                                                                 "got exception " + ex);
-                                                     }
-                                                 }))
-                            .subscribeOn(Schedulers.computation())
-                            .zipWith( // Block with getting the job log from cluster
-                                    submitModel.jobLogObservable(
-                                            remoteDebugJob.getBatchId(), clusterDetail)
-                                                    .subscribeOn(Schedulers.computation()),
-                                    (session, ignore) -> session)
-                            .doOnError(err -> {
-                                try {
-                                    HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
-                                            submitModel.getProject(),
-                                            "Error : Spark batch debugging job is killed, got exception " + err);
+                    try {
+                        SparkBatchDebugSession session = createDebugSession(clusterDetail.getConnectionUrl(),
+                                submitModel.getAdvancedConfigModel());
 
-                                    remoteDebugJob.killBatchJob();
-                                    HDInsightUtil.setJobRunningStatus(submitModel.getProject(), false);
-                                } catch (IOException ignore) { }
-                            })
-                )
+                        return startDebuggerObservable(submitModel.getProject(),
+                                                       environment,
+                                                       callback,
+                                                       clusterDetail,
+                                                       submissionState,
+                                                       session,
+                                                       remoteDebugJob)
+                                .doOnEach(forwardedSession ->
+                                        // Handle STOP action with subscribing actionSubject for STOP event
+                                        actionSubject.filter((action) -> action.equals(DebugAction.STOP))
+                                                .subscribe(action -> {
+                                                    try {
+                                                        HDInsightUtil.showInfoOnSubmissionMessageWindow(
+                                                                submitModel.getProject(),
+                                                                "Info: Spark batch debugging job stop, job is killed");
+
+                                                        remoteDebugJob.killBatchJob();
+                                                    } catch (IOException ex) {
+                                                        HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
+                                                                submitModel.getProject(),
+                                                                "Error : Failed to kill Spark batch debugging job, " +
+                                                                        "got exception " + ex);
+                                                    }
+                                                }))
+                                .subscribeOn(Schedulers.computation())
+                                .zipWith( // Block with getting the job log from cluster
+                                        submitModel.jobLogObservable(
+                                                remoteDebugJob.getBatchId(), clusterDetail)
+                                                .subscribeOn(Schedulers.computation()),
+                                        (debugSession, ignore) -> debugSession)
+                                .doOnError(err -> {
+                                    try {
+                                        HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
+                                                submitModel.getProject(),
+                                                "Error : Spark batch debugging job is killed, got exception " + err);
+
+                                        remoteDebugJob.killBatchJob();
+                                        HDInsightUtil.setJobRunningStatus(submitModel.getProject(), false);
+                                    } catch (IOException ignore) {
+                                    }
+                                });
+                    } catch (Exception ex) {
+                        throw propagate(ex);
+                    }
+                })
                 .subscribe(
                         sparkBatchDebugSession -> {
                             // Spark Job is done
@@ -225,39 +300,20 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         return StringUtils.join(segs, ".");
     }
 
-    /**
-     * Create SSH port forwarding session for debugging
-     *
-     * @param connectionUrl the HDInsight connection URL, such as: https://spkdbg.azurehdinsight.net/batch
-     * @param submitModel the Spark submit model with advanced setting
-     * @param remoteDebugJob the remote Spark job which is listening a port for debugging
-     * @return Spark batch debug session and local forwarded port pair
-     * @throws URISyntaxException connection URL is invalid
-     * @throws JSchException SSH connection exception
-     * @throws IOException networking exception
-     * @throws SparkSubmitAdvancedConfigModel.UnknownSSHAuthTypeException invalid SSH authentication type
-     */
-    protected SimpleEntry<SparkBatchDebugSession, Integer> createSshPortForwardDebugSession (
+    SparkBatchDebugSession createDebugSession(
             String connectionUrl,
-            SparkSubmitModel submitModel,
-            SparkBatchRemoteDebugJob remoteDebugJob
-    )
-            throws URISyntaxException, JSchException, IOException, HDIException {
-        SparkSubmitAdvancedConfigModel advModel = submitModel.getAdvancedConfigModel();
-
+            SparkSubmitAdvancedConfigModel advModel) throws SparkJobException, JSchException {
         if (advModel == null) {
             throw new SparkSubmitAdvancedConfigModel.NotAdvancedConfig("SSH authentication not set");
         }
 
-        String sshServer = getSshHost(connectionUrl);
+        String sshServer = null;
+        try {
+            sshServer = getSshHost(connectionUrl);
+        } catch (URISyntaxException e) {
+            throw new SparkJobException("Connection URL is not valid: " + connectionUrl);
+        }
         SparkBatchDebugSession session = SparkBatchDebugSession.factory(sshServer, advModel.sshUserName);
-        String driverHost = remoteDebugJob.getSparkDriverHost();
-        int driverDebugPort = remoteDebugJob.getSparkDriverDebuggingPort();
-
-        HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                submitModel.getProject(),
-                String.format("Info : Remote Spark batch job is listening on %s:%d",
-                              driverHost, driverDebugPort));
 
         switch (advModel.sshAuthType) {
             case UseKeyFile:
@@ -271,13 +327,43 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                         "Unknown SSH authentication type: " + advModel.sshAuthType.name());
         }
 
+        return session;
+    }
+
+    /**
+     * Create SSH port forwarding session for debugging
+     *
+     * @param connectionUrl the HDInsight connection URL, such as: https://spkdbg.azurehdinsight.net/batch
+     * @param submitModel the Spark submit model with advanced setting
+     * @param remoteDebugJob the remote Spark job which is listening a port for debugging
+     * @return Spark batch debug session and local forwarded port pair
+     * @throws URISyntaxException connection URL is invalid
+     * @throws JSchException SSH connection exception
+     * @throws IOException networking exception
+     * @throws SparkSubmitAdvancedConfigModel.UnknownSSHAuthTypeException invalid SSH authentication type
+     */
+    protected SimpleEntry<SparkBatchDebugSession, Integer> createSshPortForwardForDebugSession(
+            Project project,
+            IClusterDetail clusterDetail,
+            //SparkSubmitModel submitModel,
+            SparkBatchRemoteDebugJob remoteDebugJob,
+            SparkBatchDebugSession session
+    )
+            throws URISyntaxException, JSchException, IOException, HDIException {
+        String driverHost = remoteDebugJob.getSparkDriverHost();
+        int driverDebugPort = remoteDebugJob.getSparkDriverDebuggingPort();
+
+        HDInsightUtil.showInfoOnSubmissionMessageWindow(
+                project,
+                String.format("Info : Remote Spark batch job is listening on %s:%d",
+                              driverHost, driverDebugPort));
+
         session.open().forwardToRemotePort(driverHost, driverDebugPort);
 
         int localPort = session.getForwardedLocalPort(driverHost, driverDebugPort);
 
         String driverLogUrl = remoteDebugJob.getSparkJobDriverLogUrl(remoteDebugJob.getConnectUri(), remoteDebugJob.getBatchId());
 
-        IClusterDetail clusterDetail = submitModel.getSelectedClusterDetail();
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(
                 AuthScope.ANY,
@@ -308,10 +394,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 processHandler.notifyTextAvailable(
                                         lineKeyPair.getKey() + "\n", lineKeyPair.getValue())),
                         error -> HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                                submitModel.getProject(), error.getMessage())));
+                                project, error.getMessage())));
 
         HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                submitModel.getProject(),
+                project,
                 String.format("Info : Local port %d is forwarded to %s:%d for Spark job driver debugging",
                         localPort, driverHost, driverDebugPort));
 
@@ -328,12 +414,14 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
      * @return a single Observable with SparkBatchDebugSession instance which is done
      */
     protected Single<SparkBatchDebugSession> startDebuggerObservable(
+            @NotNull Project project,
             @NotNull ExecutionEnvironment environment,
             @Nullable Callback callback,
+            @NotNull IClusterDetail clusterDetail,
             @NotNull SparkBatchJobSubmissionState submissionState,
+            SparkBatchDebugSession session,
             @NotNull SparkBatchRemoteDebugJob remoteDebugJob) {
-        SparkSubmitModel submitModel = submissionState.getSubmitModel();
-        IClusterDetail clusterDetail = submitModel.getSelectedClusterDetail();
+        //SparkSubmitModel submitModel = submissionState.getSubmitModel();
 
         return Single.fromEmitter(em -> {
             SimpleEntry<SparkBatchDebugSession, Integer> sessionPortPair = null;
@@ -341,8 +429,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
             try {
                 // Create SSH port forwarding session for debugging
                 sessionPortPair =
-                        createSshPortForwardDebugSession(
-                                clusterDetail.getConnectionUrl(), submitModel, remoteDebugJob);
+                        createSshPortForwardForDebugSession(project, clusterDetail, remoteDebugJob, session);
 
                 // Set the debug connection to localhost and local forwarded port to the state
                 submissionState.setRemoteConnection(new RemoteConnection(
