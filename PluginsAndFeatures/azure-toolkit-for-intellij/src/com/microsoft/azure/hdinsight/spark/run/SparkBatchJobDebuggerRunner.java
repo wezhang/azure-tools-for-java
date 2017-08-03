@@ -61,6 +61,7 @@ import rx.Subscription;
 import rx.exceptions.CompositeException;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
+import rx.subjects.ReplaySubject;
 
 import java.io.IOException;
 import java.net.URI;
@@ -77,11 +78,22 @@ import java.util.stream.Collectors;
 import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
+    private SparkBatchRemoteDebugJob debugJob;
+
+    public void setDebugJob(SparkBatchRemoteDebugJob debugJob) {
+        this.debugJob = debugJob;
+    }
+
+    public SparkBatchRemoteDebugJob getDebugJob() {
+        return debugJob;
+    }
+
     enum DebugAction {
         STOP
     }
 
     private static final Key<String> DebugTargetKey = new Key<>("debug-target");
+    private static final Key<String> ProfileNametKey = new Key<>("profile-name");
     private static final String DebugDriver = "driver";
     private static final String DebugExecutor = "executor";
 
@@ -93,7 +105,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     final private Phaser debugProcessPhaser = new Phaser(1);
 
     // More complex pattern, please use grok
-    private Pattern simpleLogPattern = Pattern.compile("\\d{1,2}[/-]\\d{1,2}[/-]\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2} (INFO|WARN|ERROR) .*", Pattern.DOTALL);
+    private final Pattern simpleLogPattern = Pattern.compile("\\d{1,2}[/-]\\d{1,2}[/-]\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2} (INFO|WARN|ERROR) .*", Pattern.DOTALL);
+    private final Pattern executorLogUrlPattern = Pattern.compile("^\\s+SPARK_LOG_URL_STDERR -> https?://([^:]+):?\\d*/node/containerlogs/(container.*)/livy/stderr.*");
+
 
     @Override
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
@@ -123,25 +137,22 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         return Optional.ofNullable(remoteDebuggerProcessHandler);
     }
 
-    private ExecutionEnvironment buildChildEnvironment(@NotNull ExecutionEnvironment environment, String name) {
+    private ExecutionEnvironment buildChildEnvironment(@NotNull ExecutionEnvironment environment,
+                                                       String host,
+                                                       boolean isDriver) {
+        String savedProfileName = environment.getUserData(ProfileNametKey);
+        String originProfileName = savedProfileName == null ? environment.getRunProfile().getName() : savedProfileName;
+
         RunConfiguration driverRunConfiguration = ((RunConfiguration) environment.getRunProfile()).clone();
-        driverRunConfiguration.setName(environment.getRunProfile().getName() + " [" + name + "]");
+        driverRunConfiguration.setName(originProfileName + " [" + (isDriver ? "Driver " : "Executor ") + host + "]");
 
-        return new ExecutionEnvironmentBuilder(environment).runProfile(driverRunConfiguration).build();
-    }
+        ExecutionEnvironment childEnv = new ExecutionEnvironmentBuilder(environment).runProfile(driverRunConfiguration)
+                .build();
 
-    private ExecutionEnvironment buildDriverEnvironment(@NotNull ExecutionEnvironment environment, String ipaddr) {
-        ExecutionEnvironment driverEnv = buildChildEnvironment(environment, "Driver " + ipaddr);
-        driverEnv.putUserData(DebugTargetKey, DebugDriver);
+        childEnv.putUserData(DebugTargetKey, DebugDriver);
+        childEnv.putUserData(ProfileNametKey, originProfileName);
 
-        return driverEnv;
-    }
-
-    private ExecutionEnvironment buildExecutorEnvironment(@NotNull ExecutionEnvironment environment, String ipaddr) {
-        ExecutionEnvironment executorEnv = buildChildEnvironment(environment, "Executor " + ipaddr);
-        executorEnv.putUserData(DebugTargetKey, DebugExecutor);
-
-        return executorEnv;
+        return childEnv;
     }
 
     private Single<SimpleEntry<SparkBatchRemoteDebugJob, IClusterDetail>>
@@ -180,9 +191,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
                     try {
                         SparkBatchDebugSession session = createDebugSession(clusterDetail.getConnectionUrl(),
-                                submitModel.getAdvancedConfigModel());
+                                submitModel.getAdvancedConfigModel()).open();
 
                         setDebugSession(session);
+                        setDebugJob(remoteDebugJob);
                         return new SimpleEntry<>(remoteDebugJob, clusterDetail);
                     } catch (Exception ex) {
                         throw propagate(ex);
@@ -309,11 +321,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                     HDInsightUtil.setJobRunningStatus(project, false);
                 },
                 () -> {
-                    if (getDebugSession() != null) {
-                        getDebugSession().close();
-
-                        postAppInsightDebugSuccedEvent();
-                    }
+                    stopDebugJob();
 
                     // Spark Job is done
                     HDInsightUtil.showInfoOnSubmissionMessageWindow(
@@ -447,6 +455,20 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 //                                    null,
 //                                    postEventProperty);
 //                        });
+    }
+
+    private void stopDebugJob() {
+        if (getDebugSession() != null) {
+            getDebugSession().close();
+
+            postAppInsightDebugSuccedEvent();
+        }
+
+        if (getDebugJob() != null) {
+            try {
+                getDebugJob().killBatchJob();
+            } catch (IOException ignore) { }
+        }
     }
 
     /**
@@ -613,7 +635,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 //        });
 //    }
 
-    private Subscription createDebugProcess(
+    private void createDebugProcess(
             @NotNull ExecutionEnvironment environment,
             @Nullable Callback callback,
             @NotNull SparkBatchJobSubmissionState submissionState,
@@ -625,22 +647,23 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
             final CredentialsProvider credentialsProvider
     ) {
         SparkBatchDebugSession session = getDebugSession();
+        ReplaySubject<SimpleEntry<String, Key>> debugProcessConsole = ReplaySubject.create();
 
         if (session == null) {
-            return null;
+            return;
         }
 
         debugProcessPhaser.register();
 
-        Subscription subscription = Observable.create((Observable.OnSubscribe<SimpleEntry<String, Key>>) ob -> {
+        Observable.create((Observable.OnSubscribe<SimpleEntry<String, Key>>) ob -> {
             try {
-                // Forwarding port
-                session.open().forwardToRemotePort(remoteHost, remotePort);
+                // Create a new state for Executor debugging process
+                SparkBatchJobSubmissionState state = isDriver ? submissionState :
+                        (SparkBatchJobSubmissionState) environment.getState();
 
+                // Forward port
+                session.forwardToRemotePort(remoteHost, remotePort);
                 int localPort = session.getForwardedLocalPort(remoteHost, remotePort);
-
-//                String driverLogUrl = baseUri.resolve("/yarnui/" + remoteHost + "/node/containerlogs/" + containerId
-//                        + "/livy").toString();
 
                 Observable<SimpleEntry<String, Key>> debugProcessOb = JobUtils.createYarnLogObservable(
                                                             credentialsProvider,
@@ -664,56 +687,105 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 })
                         .filter(lineKeyPair -> lineKeyPair.getKey() != null);
 
+                if (isDriver) {
+                    PublishSubject<String> closeSubject = PublishSubject.create();
+                    PublishSubject<String> openSubject = PublishSubject.create();
+
+                    debugProcessOb
+                            .map(lineKeyPair -> {
+                                String line = lineKeyPair.getKey();
+
+                                if (line.matches("^YARN executor launch context:$")) {
+                                    openSubject.onNext("YARN executor launch");
+                                }
+
+                                if (line.matches("^={5,}$")) {
+                                    closeSubject.onNext("===");
+                                }
+
+                                return line;
+                            })
+                            .window(openSubject, s -> closeSubject)
+                            .subscribe(executorLunchContextOb -> executorLunchContextOb
+                                    .subscribe(line -> {
+                                        Matcher matcher = executorLogUrlPattern.matcher(line);
+
+                                        if (matcher.matches()) {
+
+                                            String host = matcher.group(1);
+                                            String containerId = matcher.group(2);
+
+                                            try {
+                                                URI baseUri = new URI(logUrl);
+                                                String driverLogUrl = baseUri.resolve(String.format(
+                                                        "/yarnui/%s/node/containerlogs/%s/livy", host, containerId)).toString();
+
+                                                createDebugProcess( environment,
+                                                                    callback,
+                                                                    submissionState,
+                                                                    false,
+                                                                    debugSessionSubscriber,
+                                                                    host,
+                                                                    6006,
+                                                                    driverLogUrl,
+                                                                    credentialsProvider);
+                                            } catch (URISyntaxException ignore) { }
+                                        }
+                                    })
+                            );
+                }
+
                 debugProcessOb.subscribe(ob::onNext, ob::onError);
 
-                // Set the debug connection to localhost and local forwarded port to the state
-                submissionState.setRemoteConnection(
-                        new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
+                if (state != null) {
 
-                // Execute with attaching to JVM through local forwarded port
-                SparkBatchJobDebuggerRunner.super.execute(isDriver ? buildDriverEnvironment(environment, remoteHost) :
-                                                                     buildExecutorEnvironment(environment, remoteHost),
-                        (runContentDescriptor) -> {
-                    ProcessHandler handler = runContentDescriptor.getProcessHandler();
+                    // Set the debug connection to localhost and local forwarded port to the state
+                    state.setRemoteConnection(
+                            new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
 
-                    if (handler != null) {
-                        handler.addProcessListener(new ProcessListener() {
-                            @Override
-                            public void startNotified(ProcessEvent processEvent) { }
+                    // Execute with attaching to JVM through local forwarded port
+                    SparkBatchJobDebuggerRunner.super.execute(buildChildEnvironment(environment, remoteHost, isDriver),
+                            (runContentDescriptor) -> {
+                                ProcessHandler handler = runContentDescriptor.getProcessHandler();
 
-                            @Override
-                            public void processTerminated(ProcessEvent processEvent) {
-                                ob.onCompleted();
-                            }
+                                if (handler != null) {
+                                    debugProcessConsole.subscribe(lineKeyPair -> handler.notifyTextAvailable(
+                                                                                    lineKeyPair.getKey() + "\n",
+                                                                                    lineKeyPair.getValue()));
 
-                            @Override
-                            public void processWillTerminate(ProcessEvent processEvent, boolean b) { }
+                                    handler.addProcessListener(new ProcessListener() {
+                                        @Override
+                                        public void startNotified(ProcessEvent processEvent) {
+                                        }
 
-                            @Override
-                            public void onTextAvailable(ProcessEvent processEvent, Key key) { }
-                        });
-                    } else {
-                        ob.onCompleted();
-                    }
+                                        @Override
+                                        public void processTerminated(ProcessEvent processEvent) {
+                                            ob.onCompleted();
+                                        }
 
-                    if (callback != null) {
-                        callback.processStarted(runContentDescriptor);
-                    }
-                }, submissionState);
+                                        @Override
+                                        public void processWillTerminate(ProcessEvent processEvent, boolean b) {
+                                        }
 
+                                        @Override
+                                        public void onTextAvailable(ProcessEvent processEvent, Key key) {
+                                        }
+                                    });
+                                } else {
+                                    ob.onCompleted();
+                                }
+
+                                if (callback != null) {
+                                    callback.processStarted(runContentDescriptor);
+                                }
+                            }, state);
+                }
             } catch (Exception e) {
                 ob.onError(e);
             }
         })
         .subscribeOn(Schedulers.io())
-        .subscribe(
-                lineKeyPair -> getRemoteDebuggerProcessHandler().ifPresent(processHandler ->
-                        processHandler.notifyTextAvailable( lineKeyPair.getKey() + "\n", lineKeyPair.getValue())),
-                debugSessionSubscriber::onError,
-                debugProcessPhaser::arriveAndDeregister
-        );
-
-        return subscription;
+        .subscribe(debugProcessConsole::onNext, debugSessionSubscriber::onError, debugProcessPhaser::arriveAndDeregister);
     }
 
     protected int getLogReadBlockSize() {
