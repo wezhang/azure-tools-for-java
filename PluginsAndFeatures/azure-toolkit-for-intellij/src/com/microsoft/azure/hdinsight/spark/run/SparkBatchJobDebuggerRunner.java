@@ -36,28 +36,18 @@ import com.intellij.execution.process.ProcessListener;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
-import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.jcraft.jsch.JSchException;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
-import com.microsoft.tooling.msservices.helpers.collections.ListChangeListener;
-import com.microsoft.tooling.msservices.helpers.collections.ListChangedAction;
-import com.microsoft.tooling.msservices.helpers.collections.ListChangedEvent;
-import com.microsoft.tooling.msservices.helpers.collections.ObservableList;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.ReferenceCounted;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
@@ -75,12 +65,11 @@ import rx.subjects.PublishSubject;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Paths;
-import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.concurrent.CountDownLatch;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Phaser;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -92,18 +81,16 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         STOP
     }
 
-    class DebugProcess {
-
-    }
-
-    public static final Key<String> DebugTargetKey = new Key<>("debug-target");
-    public static final String DebugDriver = "driver";
-    public static final String DebugExecutor = "executor";
+    private static final Key<String> DebugTargetKey = new Key<>("debug-target");
+    private static final String DebugDriver = "driver";
+    private static final String DebugExecutor = "executor";
 
     private ProcessHandler remoteDebuggerProcessHandler;
     private PublishSubject<DebugAction> actionSubject = PublishSubject.create();
-    private PublishSubject<String> toolwindowInfoSubject = PublishSubject.create();
-    private PublishSubject<String> toolwindowErrSubject = PublishSubject.create();
+
+    private SparkBatchDebugSession debugSession;
+    private boolean isAppInsightEnabled = true;
+    final private Phaser debugProcessPhaser = new Phaser(1);
 
     // More complex pattern, please use grok
     private Pattern simpleLogPattern = Pattern.compile("\\d{1,2}[/-]\\d{1,2}[/-]\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2} (INFO|WARN|ERROR) .*", Pattern.DOTALL);
@@ -202,11 +189,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                     }
                 });
     }
-
-    private SparkBatchDebugSession debugSession;
-    private boolean isAppInsightEnabled = true;
-    //private ObservableList<Subscription> debugProcessSubscriptions = new ObservableList<>();
-    final private Phaser debugProcessPhaser = new Phaser(1);
 
     public SparkBatchDebugSession getDebugSession() {
         return debugSession;
@@ -733,18 +715,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
         return subscription;
     }
-
-//    public void doDebug(@NotNull ExecutionEnvironment environment,
-//                        @Nullable Callback callback,
-//                        @NotNull SparkBatchJobSubmissionState submissionState,
-//                        @NotNull String address) throws ExecutionException {
-//        // Set the debug connection to localhost and local forwarded port to the state
-//        submissionState.setRemoteConnection(
-//                new RemoteConnection(true, "localhost", address, false));
-//
-//        // Execute with attaching to JVM through local forwarded port
-//        super.execute(environment, callback, submissionState);
-//    }
 
     protected int getLogReadBlockSize() {
         return 4096;
