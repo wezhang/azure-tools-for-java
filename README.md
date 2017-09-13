@@ -24,3 +24,6 @@ The two projects use a lot of shared code and as of v2.8.2 (March 2016 release) 
 
 ### Documentation 
 * Specific to the Toolkit: https://docs.microsoft.com/azure/azure-toolkit-for-intellij
+
+## Disclaimer
+*azure-tools-for-java uses JxBrowser http://www.teamdev.com/jxbrowser, which is a proprietary software. The use of JxBrowser is governed by JxBrowser Product Licence Agreement http://www.teamdev.com/jxbrowser-licence-agreement. If you would like to use JxBrowser in your development, please contact TeamDev.*
