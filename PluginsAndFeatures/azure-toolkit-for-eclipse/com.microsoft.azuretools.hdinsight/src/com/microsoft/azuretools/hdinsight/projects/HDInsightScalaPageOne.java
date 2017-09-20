@@ -1,9 +1,16 @@
 package com.microsoft.azuretools.hdinsight.projects;
 
+import org.eclipse.core.resources.IFolder;
+import org.eclipse.core.resources.IProject;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathEntry;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
@@ -15,23 +22,38 @@ import org.eclipse.swt.widgets.Group;
 import org.scalaide.ui.ScalaImages;
 import org.scalaide.ui.internal.wizards.NewScalaProjectWizardPageOne;
 
+import com.microsoft.azure.hdinsight.projects.SparkVersion;
 import com.microsoft.azuretools.adauth.StringUtils;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 
 class HDInsightScalaPageOne extends NewScalaProjectWizardPageOne {
 	
 	private SparkLibraryOptionsPanel sparkLibraryOptionsPanel;
+	private HDInsightsScalaProjectWizard parent;
 	
 	public HDInsightScalaPageOne() {
 		super();
+
+	}
+	
+	public void setParent(HDInsightsScalaProjectWizard parent) {
+		this.parent = parent;
 	}
 	
 	@Override
 	public boolean canFlipToNextPage() {
-		final String jarPathString = sparkLibraryOptionsPanel.getSparkLibraryPath();
-		if(StringUtils.isNullOrEmpty(jarPathString)) {
-			return false;
+		if (!sparkLibraryOptionsPanel.getUsingMaven()) {
+			final String jarPathString = sparkLibraryOptionsPanel.getSparkLibraryPath();
+			if(StringUtils.isNullOrEmpty(jarPathString)) {
+				return false;
+			}
 		}
+		
+		if (parent != null && sparkLibraryOptionsPanel != null) {
+			parent.setUsingMaven(sparkLibraryOptionsPanel.getUsingMaven());
+			parent.setSparkVersion(sparkLibraryOptionsPanel.getSparkVersion());
+		}
+		
 		return super.canFlipToNextPage();
 	}
 	
@@ -44,15 +66,17 @@ class HDInsightScalaPageOne extends NewScalaProjectWizardPageOne {
 		Display.getDefault().syncExec(new Runnable() {
 			@Override
 			public void run() {
-				final String jarPathString = sparkLibraryOptionsPanel.getSparkLibraryPath();
-				if (StringUtils.isNullOrEmpty(jarPathString)) {
-					DefaultLoader.getUIHelper().showError("Spark Library Path cannot be null",
-							"Spark Project Settings");
-				} else {
-					IPath jarPath = new Path(jarPathString);
-					IClasspathEntry sparkEntry = JavaCore.newLibraryEntry(jarPath, null, null);
-					System.arraycopy(entries, 0, newEntries, 0, entries.length);
-					newEntries[entries.length] = sparkEntry;
+				if (sparkLibraryOptionsPanel != null && !sparkLibraryOptionsPanel.getUsingMaven()) {
+					final String jarPathString = sparkLibraryOptionsPanel.getSparkLibraryPath();
+					if (StringUtils.isNullOrEmpty(jarPathString)) {
+						DefaultLoader.getUIHelper().showError("Spark Library Path cannot be null",
+								"Spark Project Settings");
+					} else {
+						IPath jarPath = new Path(jarPathString);
+						IClasspathEntry sparkEntry = JavaCore.newLibraryEntry(jarPath, null, null);
+						System.arraycopy(entries, 0, newEntries, 0, entries.length);
+						newEntries[entries.length] = sparkEntry;
+					}
 				}
 			}
 		});
@@ -95,8 +119,10 @@ class HDInsightScalaPageOne extends NewScalaProjectWizardPageOne {
 		infoControl.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
 
 		setControl(composite);
+		
+		this.parent = (HDInsightsScalaProjectWizard)this.getWizard();
 	}
-	
+
 	private Control createSparkControl(Composite composite) {
 		Group sparkGroup = new Group(composite, SWT.NONE);
 		sparkGroup.setFont(composite.getFont());

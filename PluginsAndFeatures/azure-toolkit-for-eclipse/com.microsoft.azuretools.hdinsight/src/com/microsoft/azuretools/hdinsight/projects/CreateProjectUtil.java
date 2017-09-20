@@ -22,8 +22,10 @@ package com.microsoft.azuretools.hdinsight.projects;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 import org.apache.commons.io.FileUtils;
+import com.microsoft.azuretools.hdinsight.Activator;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -32,11 +34,15 @@ import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
 
+import com.microsoft.azure.hdinsight.projects.SparkVersion;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
@@ -57,46 +63,66 @@ public class CreateProjectUtil {
 
 	private static final String[] Scala_Local_Run_Sample_Data = new String[] {
 			"/hdinsight/templates/scala/scala_local_run/data/sample_movielens_data.txt" };
+	
+	private static final String SourcePomFileRelativePath = "/hdinsight/templates/pom/spark_";
+	
+	private static final String JavaMavenProjectFolder = "/main/java";
+	
+	private static final String ScalaMavenProjectFolder = "/main/scala";
 
 	public static void copyFileTo(@NotNull String[] resources, @NotNull String toPath) {
 		for (int i = 0; i < resources.length; ++i) {
-			InputStream inputStream = CreateProjectUtil.class.getResourceAsStream("/resources" + resources[i]);
-			String toFilePath = StringHelper.concat(toPath, getNameFromPath(resources[i]));
-			try {
-				File toFile = new File(toFilePath);
+			String toName = getNameFromPath(resources[i]);
+			
+			copyFileTo(resources[i], toPath, toName);
+		}
+	}
+	
+	public static void copyFileTo(@NotNull String resource, @NotNull String toPath, @NotNull String toName) {
+		InputStream inputStream = CreateProjectUtil.class.getResourceAsStream("/resources" + resource);
+		String toFilePath = StringHelper.concat(toPath, toName);
+		try {
+			File toFile = new File(toFilePath);
 
-				FileUtils.copyInputStreamToFile(inputStream, new File(toFilePath));
+			FileUtils.copyInputStreamToFile(inputStream, new File(toFilePath));
 
-				// refresh after copy
-				convert(toFile).refreshLocal(IResource.DEPTH_ONE, null);
-			} catch (IOException | CoreException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			// refresh after copy
+			convert(toFile).refreshLocal(IResource.DEPTH_ONE, null);
+		} catch (IOException | CoreException e) {
+			Activator.getDefault().log("Copy file error", e);
 		}
 	}
 
-	public static void createSampleFile(@NotNull String id, @NotNull String projectName) throws CoreException {
+	public static void createSampleFile(@NotNull String id, @NotNull String projectName, boolean useMaven, @NotNull SparkVersion sparkVersion) throws CoreException {
 		final IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(projectName);
 		final IFolder sourceRootFolder = project.getFolder("src");
 
 		if (!sourceRootFolder.exists()) {
 			sourceRootFolder.create(false, true, null);
 		}
-		final String rootPath = sourceRootFolder.getLocation().toFile().getAbsolutePath();
+		String rootPath = sourceRootFolder.getLocation().toFile().getAbsolutePath();
 
 		switch (id) {
 		case "com.microsoft.azure.hdinsight.local-scala.projwizard":
-			createResourceStructForLocalRunScalaProject(sourceRootFolder, rootPath, project);
+			if (useMaven) {
+				rootPath += ScalaMavenProjectFolder;
+			}
+			
+			createResourceStructForLocalRunScalaProject(sourceRootFolder, rootPath, project, useMaven);
 			AppInsightsClient.create(Messages.SparkProjectSystemScalaCreation, null);
 			break;
 		case "com.microsoft.azure.hdinsight.local-java.projwizard":
-			AppInsightsClient.create(Messages.SparkProjectSystemJavaSampleCreation, null);
+			if (useMaven) {
+				rootPath += JavaMavenProjectFolder;
+			}
+			
 			copyFileTo(Java_Local_RunSample, rootPath);
+			AppInsightsClient.create(Messages.SparkProjectSystemJavaSampleCreation, null);
 			break;
 		case "com.microsoft.azure.hdinsight.cluster-scala.projwizard":
-			AppInsightsClient.create(Messages.SparkProjectSystemScalaSampleCreation, null);
+			if (useMaven) rootPath += ScalaMavenProjectFolder;
 			copyFileTo(Scala_Cluster_Run_Sample, rootPath);
+			AppInsightsClient.create(Messages.SparkProjectSystemScalaSampleCreation, null);
 			break;
 		case "com.microsoft.azure.hdinsight.scala.projwizard":
 			AppInsightsClient.create(Messages.SparkProjectSystemScalaCreation, null);
@@ -108,6 +134,83 @@ public class CreateProjectUtil {
 			AppInsightsClient.create(Messages.SparkProjectSystemOtherCreation, null);
 			break;
 		}
+		
+		if (useMaven) {
+			CreateProjectUtil.copyPomFile(sparkVersion, projectName);
+		}
+	}
+	
+	public static void copyPomFile(@NotNull SparkVersion sparkVersion, @NotNull String projectName) {
+		final IProject project = ResourcesPlugin.getWorkspace().getRoot().getProject(projectName);
+		final String rootPath = project.getLocation().toFile().getAbsolutePath();
+				
+		final String pomFileName = SourcePomFileRelativePath + sparkVersion.getSparkVersioninDashFormat() + "pom.xml";
+		
+		copyFileTo(pomFileName, rootPath, "/pom.xml");
+	}
+	
+	public static void removeSourceFolderfromClassPath(IJavaProject javaProject, String folderUnderRoot) throws JavaModelException {
+		IClasspathEntry[] entries = javaProject.getRawClasspath();
+		
+		IPath targetPath = javaProject.getProject().getFullPath().append(new Path(folderUnderRoot));
+		IClasspathEntry[] newEntries = Arrays.stream(entries)
+				.filter(e -> e.getEntryKind() != IClasspathEntry.CPE_SOURCE 
+							|| !e.getPath().equals(targetPath))
+				.toArray(IClasspathEntry[]::new);
+
+		javaProject.setRawClasspath(newEntries, new NullProgressMonitor());
+	}
+	
+	public static void addSourceFoldertoClassPath(IJavaProject javaProject, String folderUnderRoot) throws JavaModelException {
+		IProject project = javaProject.getProject();
+		
+		IFolder currFolder = createFolderUnderRoot(project, folderUnderRoot);
+		
+		IClasspathEntry[] entries = javaProject.getRawClasspath();
+
+		IClasspathEntry newSrcFolder = JavaCore.newSourceEntry(currFolder.getFullPath());
+
+		IClasspathEntry[] newEntries;
+		if (addExclusiontoClassPath(newSrcFolder, entries) == true) {
+			newEntries = new IClasspathEntry[entries.length + 1];
+			
+			newEntries[entries.length] = newSrcFolder;
+		} else {
+			newEntries = new IClasspathEntry[entries.length];
+		}
+		
+		System.arraycopy(entries, 0, newEntries, 0, entries.length);
+		
+		javaProject.setRawClasspath(newEntries, new NullProgressMonitor());
+	}
+
+	private static boolean addExclusiontoClassPath(IClasspathEntry newEntry, IClasspathEntry[] entries) {
+		IPath newEntryPath = newEntry.getPath();
+		for (int i = 0; i < entries.length; i++) {
+			if (entries[i].getEntryKind() == IClasspathEntry.CPE_SOURCE) {
+				IPath currPath = entries[i].getPath();
+				if (currPath.equals(newEntryPath)) {
+					return false;
+				} else {
+					if (currPath.isPrefixOf(newEntryPath)) {
+						IPath[] exclusionFilters = (IPath[])entries[i].getExclusionPatterns();
+						if (!JavaModelUtil.isExcludedPath(currPath, exclusionFilters)) {
+							IPath pathToExclude = newEntryPath.removeFirstSegments(currPath.segmentCount()).addTrailingSeparator();
+							IPath[] newExclusionFilters = new IPath[exclusionFilters.length + 1];
+							System.arraycopy(exclusionFilters, 0, newExclusionFilters, 0, exclusionFilters.length);
+							newExclusionFilters[exclusionFilters.length] = pathToExclude;
+							entries[i] = JavaCore.newSourceEntry(currPath, 
+									entries[i].getInclusionPatterns(), 
+									newExclusionFilters, 
+									entries[i].getOutputLocation(), 
+									entries[i].getExtraAttributes());
+						}
+					}
+				}
+			}
+		}
+		
+		return true;
 	}
 
 	@NotNull
@@ -119,25 +222,62 @@ public class CreateProjectUtil {
 	}
 
 	private static void createResourceStructForLocalRunScalaProject(IFolder sourceRootFolder, String rootPath,
-			IProject project) throws CoreException {
+			IProject project, boolean useMaven) throws CoreException {
+		// Copy code
 		copyFileTo(Scala_Local_Run_Sample, rootPath);
-		final IFolder dataFolder = sourceRootFolder.getParent().getFolder(new Path("data"));
-		if (!dataFolder.exists()) {
-			dataFolder.create(false, true, null);
-		}
+		
+		// Copy data
+		String strDataFolder;
+		// Putting data to "src/main/scala/resources/data" seems like not working
+		//if (useMaven) {
+		//	strDataFolder = "src/main/scala/resources/data";
+		//} else {
+			strDataFolder = "data";
+		//}
+		
+		IFolder dataFolder = createFolderUnderRoot(project, strDataFolder);
+
 		copyFileTo(Scala_Local_Run_Sample_Data, dataFolder.getLocation().toFile().getAbsolutePath());
 
 		IJavaProject javaProject = JavaCore.create(project);
-		IClasspathEntry[] entries = javaProject.getRawClasspath();
-
-		IClasspathEntry[] newEntries = new IClasspathEntry[entries.length + 1];
-		System.arraycopy(entries, 0, newEntries, 0, entries.length);
-
-		IPath dataPath = javaProject.getPath().append("data");
-		IClasspathEntry dataEntry = JavaCore.newSourceEntry(dataPath, null);
-
-		newEntries[entries.length] = JavaCore.newSourceEntry(dataEntry.getPath());
-		javaProject.setRawClasspath(newEntries, null);
+		
+		addSourceFoldertoClassPath(javaProject, strDataFolder);
+	}
+	
+	private static IFolder createFolderUnderRoot(@NotNull IProject project, @NotNull String relativeFolder) {
+		return createFolderUnderSpecifiedRoot(project, relativeFolder, null);
+	}
+	
+	private static IFolder createFolderUnderSpecifiedRoot(@NotNull IProject project, String relativeFolder, String rootFolder ) {
+		String[] srcFolders = relativeFolder.split("/");
+		if (srcFolders.length == 0) {
+			return null;
+		}
+		
+		IFolder[] parentFolder = new IFolder[1];
+		int startIndex = 0;
+		if (rootFolder != null && rootFolder.length() >= 0) {
+			parentFolder[0] = project.getFolder(rootFolder);
+		} else {
+			parentFolder[0] = project.getFolder(new Path(srcFolders[0]));
+			startIndex = 1;
+		}
+		
+		for (int i = startIndex; i < srcFolders.length; i++) {
+			String srcFolder = srcFolders[i];
+		
+			IFolder currFolder = parentFolder[0].getFolder(srcFolder);
+			if (!currFolder.exists()) {
+				try {
+					currFolder.create(false, true, null);
+				} catch (CoreException e) {
+					Activator.getDefault().log("Create project folder error", e);
+				}
+			}
+			parentFolder[0] = currFolder;
+		}
+		
+		return parentFolder[0];
 	}
 
 	@NotNull

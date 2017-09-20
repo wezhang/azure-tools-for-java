@@ -21,26 +21,38 @@ package com.microsoft.azuretools.hdinsight.projects;
 
 import java.awt.Dialog;
 import java.lang.reflect.Constructor;
-
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import org.eclipse.jface.dialogs.ProgressMonitorDialog;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExecutableExtension;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.internal.ui.wizards.JavaProjectWizard;
 import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageOne;
 import org.eclipse.jdt.ui.wizards.NewJavaProjectWizardPageTwo;
+import org.eclipse.jface.dialogs.ProgressMonitorDialog;
+import org.eclipse.m2e.core.MavenPlugin;
+import org.eclipse.m2e.core.project.ResolverConfiguration;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Shell;
 
+import com.microsoft.azure.hdinsight.projects.SparkVersion;
 import com.microsoft.azuretools.core.utils.PluginUtil;
 import com.microsoft.azuretools.hdinsight.Activator;
 
 public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements IExecutableExtension {
-	private String id;
-	private Composite sparkLibraryOptionsPanel;
-	private static NewJavaProjectWizardPageOne hdInsightScalaPageOne;
-	private NewJavaProjectWizardPageTwo hdInsightScalaPageTwo;
 	public static boolean canFinish = false;
+	
+	private SparkVersion sparkVersion;
+	private boolean isUsingMaven = true;
+	private String id;
+	public static NewJavaProjectWizardPageOne hdInsightScalaPageOne;
+	public NewJavaProjectWizardPageTwo hdInsightScalaPageTwo;
+	
 	
 	public HDInsightsScalaProjectWizard() {
 		this(
@@ -68,6 +80,18 @@ public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements I
 		page2.setDescription("Define the project build settings.");
 	}
 	
+	public void setUsingMaven(boolean val) {
+		isUsingMaven = val;
+	}
+	
+	public boolean getUsingMaven() {
+		return isUsingMaven;
+	}
+	
+	public void setSparkVersion(SparkVersion val) {
+		sparkVersion = val;
+	}
+	
 	private static boolean setFocusToInstallationWindow() {
 		// Unfortunately, the marketplace client windows can not get the focus so do the trick here since the parent is the project wizard
 		if (PluginUtil.checkPlugInInstallation(PluginUtil.scalaPluginSymbolicName) != true) {
@@ -89,7 +113,6 @@ public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements I
 		
 		try {
 			classHDInsightScalaPageOne = Class.forName("com.microsoft.azuretools.hdinsight.projects.HDInsightScalaPageOne");
-			Constructor<?>[] temp = classHDInsightScalaPageOne.getConstructors();
 			ctorHDInsightScalaPageOne =  classHDInsightScalaPageOne.getConstructor();
 			
 			result = (NewJavaProjectWizardPageOne)ctorHDInsightScalaPageOne.newInstance();
@@ -134,11 +157,35 @@ public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements I
 	@Override
 	public boolean performFinish() {
 		try {
-			CreateProjectUtil.createSampleFile(this.id, this.hdInsightScalaPageOne.getProjectName());
+			CreateProjectUtil.createSampleFile(this.id, this.hdInsightScalaPageOne.getProjectName(), this.isUsingMaven, this.sparkVersion);
 		} catch (CoreException e) {
 			Activator.getDefault().log("Create HDInsight project error", e);
 		}
+		
+		// Configure Java project first and then enable Maven nature, otherwise the classpath will be overwritten
+		boolean result = super.performFinish();
+		if (isUsingMaven) {
+			try {
+				ProgressMonitorDialog dialog = new ProgressMonitorDialog(getShell());
+				
+				dialog.run(true,  true,  new IRunnableWithProgress() {
+					@Override
+					public void run(IProgressMonitor monitor) throws InvocationTargetException, InterruptedException {
+						try {
+							MavenPlugin.getProjectConfigurationManager().enableMavenNature(hdInsightScalaPageTwo.getJavaProject().getProject(), 
+									new ResolverConfiguration(), 
+									monitor);
+						} catch (CoreException e) {
+							Activator.getDefault().log("Error in enabling Maven nature", e);
+						}
+						
+					}
+				});
+			} catch (InvocationTargetException | InterruptedException e1) {
+				Activator.getDefault().log("Fail to enable Maven feature", e1);
+			}
+		}
 
-		return super.performFinish();
+		return result;
 	}
 }

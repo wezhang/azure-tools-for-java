@@ -29,7 +29,6 @@ import com.microsoft.azure.management.appservice.OperatingSystem;
 import com.microsoft.azure.management.appservice.PricingTier;
 import com.microsoft.azure.management.appservice.WebApp;
 import com.microsoft.azure.management.appservice.WebContainer;
-import com.microsoft.azure.management.appservice.implementation.SiteInner;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.management.resources.fluentcore.arm.Region;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
@@ -48,8 +47,9 @@ import java.util.stream.Collectors;
 
 public class AzureWebAppMvpModel {
 
+    public static final String CANNOT_GET_WEB_APP_WITH_ID = "Cannot get Web App with ID: ";
     private final Map<String, List<ResourceEx<WebApp>>> subscriptionIdToWebAppsMap;
-    private final Map<String, List<ResourceEx<SiteInner>>> subscriptionIdToWebAppsOnLinuxMap;
+    private final Map<String, List<ResourceEx<WebApp>>> subscriptionIdToWebAppsOnLinuxMap;
 
     private AzureWebAppMvpModel() {
         subscriptionIdToWebAppsOnLinuxMap = new ConcurrentHashMap<>();
@@ -63,9 +63,13 @@ public class AzureWebAppMvpModel {
     /**
      * get the web app by ID.
      */
-    public WebApp getWebAppById(String sid, String id) throws IOException {
+    public WebApp getWebAppById(String sid, String id) throws Exception {
         Azure azure = AuthMethodManager.getInstance().getAzureClient(sid);
-        return azure.webApps().getById(id);
+        WebApp app = azure.webApps().getById(id);
+        if (app == null) {
+            throw new Exception(CANNOT_GET_WEB_APP_WITH_ID + id);
+        }
+        return app;
     }
 
     /**
@@ -233,8 +237,9 @@ public class AzureWebAppMvpModel {
      * @param imageSetting new container settings
      * @return instance of the updated Web App on Linux
      */
-    public WebApp updateWebAppOnLinux(String sid, String webAppId, ImageSetting imageSetting) throws IOException {
-        WebApp app = AzureWebAppMvpModel.getInstance().getWebAppById(sid, webAppId);
+    public WebApp updateWebAppOnLinux(String sid, String webAppId, ImageSetting imageSetting) throws Exception {
+        WebApp app = getWebAppById(sid, webAppId);
+        clearTags(app);
         if (imageSetting instanceof PrivateRegistryImageSetting) {
             PrivateRegistryImageSetting pr = (PrivateRegistryImageSetting) imageSetting;
             app.update().withPrivateRegistryImage(pr.getImageNameWithTag(), pr.getServerUrl())
@@ -324,18 +329,18 @@ public class AzureWebAppMvpModel {
      *
      * @param sid   subscription Id
      * @param force flag indicating whether force to fetch most updated data from server
-     * @return list of Web App on Linux (SiteInner instances)
+     * @return list of Web App on Linux
      */
-    public List<ResourceEx<SiteInner>> listWebAppsOnLinuxBySubscriptionId(String sid, boolean force) {
-        List<ResourceEx<SiteInner>> wal = new ArrayList<>();
+    public List<ResourceEx<WebApp>> listWebAppsOnLinuxBySubscriptionId(String sid, boolean force) {
+        List<ResourceEx<WebApp>> wal = new ArrayList<>();
         if (!force && subscriptionIdToWebAppsOnLinuxMap.containsKey(sid)) {
             return subscriptionIdToWebAppsOnLinuxMap.get(sid);
         }
         try {
             Azure azure = AuthMethodManager.getInstance().getAzureClient(sid);
-            wal.addAll(azure.webApps().inner().list()
+            wal.addAll(azure.webApps().list()
                     .stream()
-                    .filter(app -> app.kind().equals("app,linux"))
+                    .filter(app -> OperatingSystem.LINUX.equals(app.operatingSystem()))
                     .map(app -> new ResourceEx<>(app, sid))
                     .collect(Collectors.toList())
             );
@@ -368,12 +373,12 @@ public class AzureWebAppMvpModel {
      * List Web App on Linux in all selected subscriptions.
      *
      * @param force flag indicating whether force to fetch most updated data from server
-     * @return list of Web App on Linux (SiteInner instances)
+     * @return list of Web App on Linux
      */
-    public List<ResourceEx<SiteInner>> listAllWebAppsOnLinux(boolean force) {
-        List<ResourceEx<SiteInner>> ret = new ArrayList<>();
+    public List<ResourceEx<WebApp>> listAllWebAppsOnLinux(boolean force) {
+        List<ResourceEx<WebApp>> ret = new ArrayList<>();
         for (Subscription sb : AzureMvpModel.getInstance().getSelectedSubscriptions()) {
-            List<ResourceEx<SiteInner>> wal = listWebAppsOnLinuxBySubscriptionId(sb.subscriptionId(), force);
+            List<ResourceEx<WebApp>> wal = listWebAppsOnLinuxBySubscriptionId(sb.subscriptionId(), force);
             ret.addAll(wal);
         }
         return ret;
@@ -389,5 +394,16 @@ public class AzureWebAppMvpModel {
 
     private static final class SingletonHolder {
         private static final AzureWebAppMvpModel INSTANCE = new AzureWebAppMvpModel();
+    }
+
+    /**
+     * Work Around:
+     * When a web app is created from Azure Portal, there are hidden tags associated with the app.
+     * It will be messed up when calling "update" API.
+     * An issue is logged at https://github.com/Azure/azure-sdk-for-java/issues/1755 .
+     * Remove all tags here to make it work.
+     */
+    private void clearTags(@NotNull final WebApp app) {
+        app.inner().withTags(null);
     }
 }

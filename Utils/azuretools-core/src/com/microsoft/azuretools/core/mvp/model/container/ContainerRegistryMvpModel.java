@@ -27,14 +27,17 @@ import com.microsoft.azure.management.containerregistry.Registries;
 import com.microsoft.azure.management.containerregistry.Registry;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.core.mvp.model.AzureMvpModel;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ContainerRegistryMvpModel {
+
+    public static final String CANNOT_GET_REGISTRY = "Cannot get Registry with resource Id: ";
 
     private ContainerRegistryMvpModel() {}
 
@@ -46,32 +49,42 @@ public class ContainerRegistryMvpModel {
         return SingletonHolder.INSTANCE;
     }
 
+    private final Map<String, List<Registry>> subscriptionIdToRegistryMap = new ConcurrentHashMap<>();
+
     /**
-     * Get ACR manager.
+     * Get Registry instances mapped by Subscription id.
      */
-    public Map<String, Registries> getContainerRegistries() throws Exception {
-        Map<String, Registries> registries = new HashMap<>();
-        List<Subscription> subscriptions = AzureMvpModel.getInstance().getSelectedSubscriptions();
-        for (Subscription sub: subscriptions) {
-            Azure azure = AuthMethodManager.getInstance().getAzureClient(sub.subscriptionId());
-            if (azure == null || azure.containerRegistries() == null) {
-                continue;
+    public Map<String, List<Registry>> getContainerRegistryMap(boolean force) throws IOException {
+        if (force) {
+            clearRegistryMap();
+            List<Subscription> subscriptions = AzureMvpModel.getInstance().getSelectedSubscriptions();
+            for (Subscription sub: subscriptions) {
+                Azure azure = AuthMethodManager.getInstance().getAzureClient(sub.subscriptionId());
+                if (azure == null || azure.containerRegistries() == null) {
+                    continue;
+                }
+                subscriptionIdToRegistryMap.put(sub.subscriptionId(), azure.containerRegistries().list());
             }
-            registries.put(sub.subscriptionId(), azure.containerRegistries());
+            return subscriptionIdToRegistryMap;
         }
-        return registries;
+        return subscriptionIdToRegistryMap;
     }
 
     /**
      * Get ACR by Id.
      */
-    public Registry getContainerRegistry(String sid, String id) throws IOException {
+    @NotNull
+    public Registry getContainerRegistry(String sid, String id) throws Exception {
         Azure azure = AuthMethodManager.getInstance().getAzureClient(sid);
         Registries registries = azure.containerRegistries();
         if (registries == null) {
-            return null;
+            throw new Exception(CANNOT_GET_REGISTRY + id);
         }
-        return registries.getById(id);
+        Registry registry = registries.getById(id);
+        if (registry == null) {
+            throw new Exception(CANNOT_GET_REGISTRY + id);
+        }
+        return registry;
     }
 
     /**
@@ -93,5 +106,9 @@ public class ContainerRegistryMvpModel {
         } else {
             return null;
         }
+    }
+
+    private void clearRegistryMap() {
+        subscriptionIdToRegistryMap.clear();
     }
 }

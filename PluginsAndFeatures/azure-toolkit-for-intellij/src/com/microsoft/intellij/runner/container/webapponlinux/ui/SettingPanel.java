@@ -25,8 +25,13 @@ package com.microsoft.intellij.runner.container.webapponlinux.ui;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionToolbarPosition;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.fileChooser.FileChooser;
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.util.Comparing;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider;
 import com.intellij.ui.AnActionButton;
@@ -37,7 +42,7 @@ import com.intellij.ui.table.JBTable;
 import com.microsoft.azure.management.appservice.AppServicePlan;
 import com.microsoft.azure.management.appservice.OperatingSystem;
 import com.microsoft.azure.management.appservice.PricingTier;
-import com.microsoft.azure.management.appservice.implementation.SiteInner;
+import com.microsoft.azure.management.appservice.WebApp;
 import com.microsoft.azure.management.resources.Location;
 import com.microsoft.azure.management.resources.ResourceGroup;
 import com.microsoft.azure.management.resources.Subscription;
@@ -45,6 +50,7 @@ import com.microsoft.azuretools.azurecommons.util.Utils;
 import com.microsoft.azuretools.core.mvp.model.ResourceEx;
 import com.microsoft.azuretools.core.mvp.model.webapp.PrivateRegistryImageSetting;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
+import com.microsoft.intellij.runner.container.utils.DockerUtil;
 import com.microsoft.intellij.runner.container.webapponlinux.WebAppOnLinuxDeployConfiguration;
 import com.microsoft.intellij.util.MavenRunTaskUtil;
 
@@ -120,7 +126,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
     private JPanel pnlWebApp;
     private JBTable webAppTable;
     private AnActionButton btnRefresh;
-    private List<ResourceEx<SiteInner>> cachedWebAppList;
+    private List<ResourceEx<WebApp>> cachedWebAppList;
     private String defaultWebAppId;
     private String defaultLocationName;
     private String defaultPricingTier;
@@ -137,6 +143,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
     private JPanel pnlAppServicePlan;
     private JPanel pnlAcrHolder;
     private JPanel pnlWebAppHolder;
+    private TextFieldWithBrowseButton dockerFilePathTextField;
     private Artifact lastSelectedArtifact;
     private boolean isCbArtifactInited;
 
@@ -150,6 +157,25 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         webAppOnLinuxDeployPresenter = new WebAppOnLinuxDeployPresenter<>();
         webAppOnLinuxDeployPresenter.onAttachView(this);
         this.project = project;
+
+        dockerFilePathTextField.addActionListener(e -> {
+            String path = dockerFilePathTextField.getText();
+            final VirtualFile file = FileChooser.chooseFile(
+                    new FileChooserDescriptor(
+                            true /*chooseFiles*/,
+                            false /*chooseFolders*/,
+                            false /*chooseJars*/,
+                            false /*chooseJarsAsFiles*/,
+                            false /*chooseJarContents*/,
+                            false /*chooseMultiple*/
+                    ),
+                    project,
+                    Utils.isEmptyString(path) ? null : LocalFileSystem.getInstance().findFileByPath(path)
+            );
+            if (file != null) {
+                dockerFilePathTextField.setText(file.getPath());
+            }
+        });
 
         // set create/update panel visible
         updatePanelVisibility();
@@ -350,6 +376,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
      * @param webAppOnLinuxDeployConfiguration configuration instance
      */
     public void apply(WebAppOnLinuxDeployConfiguration webAppOnLinuxDeployConfiguration) {
+        webAppOnLinuxDeployConfiguration.setDockerFilePath(dockerFilePathTextField.getText());
         // set ACR info
         webAppOnLinuxDeployConfiguration.setPrivateRegistryImageSetting(new PrivateRegistryImageSetting(
                 textServerUrl.getText().replaceFirst("^https?://", "").replaceFirst("/$", ""),
@@ -382,7 +409,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         if (rdoUseExist.isSelected()) {
             // existing web app
             webAppOnLinuxDeployConfiguration.setCreatingNewWebAppOnLinux(false);
-            ResourceEx<SiteInner> selectedWebApp = null;
+            ResourceEx<WebApp> selectedWebApp = null;
             int index = webAppTable.getSelectedRow();
             if (cachedWebAppList != null && index >= 0 && index < cachedWebAppList.size()) {
                 selectedWebApp = cachedWebAppList.get(webAppTable.getSelectedRow());
@@ -391,7 +418,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
                 webAppOnLinuxDeployConfiguration.setWebAppId(selectedWebApp.getResource().id());
                 webAppOnLinuxDeployConfiguration.setAppName(selectedWebApp.getResource().name());
                 webAppOnLinuxDeployConfiguration.setSubscriptionId(selectedWebApp.getSubscriptionId());
-                webAppOnLinuxDeployConfiguration.setResourceGroupName(selectedWebApp.getResource().resourceGroup());
+                webAppOnLinuxDeployConfiguration.setResourceGroupName(selectedWebApp.getResource().resourceGroupName());
             } else {
                 webAppOnLinuxDeployConfiguration.setWebAppId(null);
                 webAppOnLinuxDeployConfiguration.setAppName(null);
@@ -484,6 +511,11 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
             setupArtifactCombo(artifacts, conf.getTargetPath());
         }
 
+        if (Utils.isEmptyString(conf.getDockerFilePath())) {
+            dockerFilePathTextField.setText(DockerUtil.getDefaultDockerFilePathIfExist(project));
+        } else {
+            dockerFilePathTextField.setText(conf.getDockerFilePath());
+        }
         PrivateRegistryImageSetting acrInfo = conf.getPrivateRegistryImageSetting();
         textServerUrl.setText(acrInfo.getServerUrl());
         textUsername.setText(acrInfo.getUsername());
@@ -605,21 +637,21 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
     }
 
     @Override
-    public void renderWebAppOnLinuxList(List<ResourceEx<SiteInner>> webAppOnLinuxList) {
+    public void renderWebAppOnLinuxList(List<ResourceEx<WebApp>> webAppOnLinuxList) {
         btnRefresh.setEnabled(true);
         webAppTable.getEmptyText().setText(TABLE_EMPTY_MESSAGE);
-        List<ResourceEx<SiteInner>> sortedList = webAppOnLinuxList.stream()
+        List<ResourceEx<WebApp>> sortedList = webAppOnLinuxList.stream()
                 .sorted((a, b) -> a.getSubscriptionId().compareToIgnoreCase(b.getSubscriptionId()))
                 .collect(Collectors.toList());
         cachedWebAppList = sortedList;
         if (cachedWebAppList.size() > 0) {
             DefaultTableModel model = (DefaultTableModel) webAppTable.getModel();
             model.getDataVector().clear();
-            for (ResourceEx<SiteInner> resource : sortedList) {
-                SiteInner app = resource.getResource();
+            for (ResourceEx<WebApp> resource : sortedList) {
+                WebApp app = resource.getResource();
                 model.addRow(new String[]{
                         app.name(),
-                        app.resourceGroup()
+                        app.resourceGroupName()
                 });
             }
         }

@@ -2,18 +2,19 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: HDInsights
 Bundle-SymbolicName: com.microsoft.azuretools.hdinsight;singleton:=true
-Bundle-Version: 3.0.8.qualifier 
+Bundle-Version: 3.0.9.qualifier 
 Bundle-Activator: com.microsoft.azuretools.hdinsight.Activator
 Bundle-Vendor: Microsoft Corp.
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
- com.microsoft.azuretools.core;bundle-version="3.0.8",
- com.microsoft.azuretools.azureexplorer;bundle-version="3.0.8",
- com.microsoft.azuretools.sdk;bundle-version="3.0.8",
+ com.microsoft.azuretools.core;bundle-version="3.0.9",
+ com.microsoft.azuretools.azureexplorer;bundle-version="3.0.9",
+ com.microsoft.azuretools.sdk;bundle-version="3.0.9",
  org.eclipse.swt,
  org.eclipse.ui.workbench,
  org.scala-ide.sdt.core;resolution:=optional,
- org.eclipse.jface
+ org.eclipse.jface,
+ org.eclipse.m2e.core;resolution:=optional
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Import-Package: com.microsoft.azuretools.hdinsight.common2,
@@ -22,6 +23,7 @@ Import-Package: com.microsoft.azuretools.hdinsight.common2,
  org.eclipse.core.internal.resources,
  org.eclipse.core.resources,
  org.eclipse.jdt.core,
+ org.eclipse.jdt.internal.corext.util,
  org.eclipse.jdt.internal.ui.jarpackager,
  org.eclipse.jdt.internal.ui.packageview,
  org.eclipse.jdt.internal.ui.wizards,

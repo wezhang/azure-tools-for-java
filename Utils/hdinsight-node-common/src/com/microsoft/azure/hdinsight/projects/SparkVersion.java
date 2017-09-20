@@ -22,6 +22,10 @@
 
 package com.microsoft.azure.hdinsight.projects;
 
+import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public enum SparkVersion {
     SPARK_2_1_0("2.1.0", "2.11.8", "2.11"),
     SPARK_2_0_2("2.0.2", "2.11.8", "2.11"),
@@ -43,6 +47,19 @@ public enum SparkVersion {
     public String toString() {
         return String.format("Spark %s (Scala %s)", this.sparkVersion, this.scalaVersion);
     }
+    
+    public static SparkVersion parseString(String strSparkVersion) {
+    	String[] tokens = strSparkVersion.split(" ");
+    	for (SparkVersion sparkVersion : SparkVersion.class.getEnumConstants()) {
+    		if (sparkVersion.getSparkVersion().equalsIgnoreCase(tokens[1])) {
+    			if (tokens[3].contains(sparkVersion.getScalaVersion())) {
+    				return sparkVersion;
+    			}
+    		}
+    	}
+    	
+    	return SparkVersion.class.getEnumConstants()[0];
+    }
 
     public String getSparkVersion() {
         return sparkVersion;
@@ -54,5 +71,9 @@ public enum SparkVersion {
 
     public String getScalaVer() {
         return scalaVer;
+    }
+    
+    public String getSparkVersioninDashFormat() {
+    	return sparkVersion.replace(".", "_") + "_";
     }
 }
