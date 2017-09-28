@@ -24,14 +24,13 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.intellij.debugger.engine.RemoteDebugProcessHandler;
-import com.intellij.execution.DefaultExecutionResult;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.ExecutionResult;
-import com.intellij.execution.Executor;
-import com.intellij.execution.configurations.RemoteConnection;
-import com.intellij.execution.configurations.RemoteState;
-import com.intellij.execution.configurations.RunProfileState;
+import com.intellij.execution.*;
+import com.intellij.execution.configurations.*;
+import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.impl.ConsoleViewImpl;
+import com.intellij.execution.process.KillableColoredProcessHandler;
+import com.intellij.execution.process.OSProcessHandler;
+import com.intellij.execution.process.ProcessTerminatedListener;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.openapi.project.Project;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
@@ -67,7 +66,7 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
     @Nullable
     @Override
     public ExecutionResult execute(Executor executor, @NotNull ProgramRunner programRunner) throws ExecutionException {
-        if (programRunner instanceof SparkBatchJobDebuggerRunner) {
+        if (executor instanceof SparkBatchJobDebugExecutor) {
             ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
             SparkBatchJobDebugProcessHandler process = new SparkBatchJobDebugProcessHandler(myProject);
 
@@ -77,12 +76,26 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
             programRunner.onProcessStarted(null, result);
 
             return result;
-        } else if (programRunner instanceof SparkBatchJobRunner) {
-            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
-            jobRunner.submitJob(getSubmitModel());
+        } else if (executor instanceof DefaultRunExecutor) {
+            // Spark Local Run
+            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
+            OSProcessHandler processHandler = new KillableColoredProcessHandler(createCommandlineForLocal());
+
+            consoleView.attachToProcess(processHandler);
+
+            return new DefaultExecutionResult(consoleView, processHandler);
+//        } else if (programRunner instanceof SparkBatchJobRunner) {
+//            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
+//            jobRunner.submitJob(getSubmitModel());
         }
 
         return null;
+    }
+
+    private GeneralCommandLine createCommandlineForLocal() throws ExecutionException {
+        JavaParameters params = new JavaParameters();
+
+        return params.toCommandLine();
     }
 
     @Override

@@ -43,8 +43,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunConfigurationModule>
-                                         implements RunConfigurationWithSuppressedDefaultRunAction,
-                                                    RunConfigurationWithSuppressedDefaultDebugAction
+                                         implements RunConfigurationWithSuppressedDefaultDebugAction
 {
 
     private SparkSubmitModel submitModel;

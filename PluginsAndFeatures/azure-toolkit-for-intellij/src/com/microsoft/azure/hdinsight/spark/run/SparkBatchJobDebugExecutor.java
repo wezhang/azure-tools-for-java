@@ -42,7 +42,7 @@ public class SparkBatchJobDebugExecutor extends Executor{
 
     @Override
     public Icon getToolWindowIcon() {
-        return Optional.ofNullable(StreamUtil.getImageResourceFile("/icons/SparkJobDebug.png"))
+        return Optional.ofNullable(StreamUtil.getImageResourceFile("/icons/ToolWindowSparkJobDebug.png"))
                 .map(Icon.class::cast)
                 .orElse(AllIcons.General.Debug);
     }
@@ -50,7 +50,7 @@ public class SparkBatchJobDebugExecutor extends Executor{
     @NotNull
     @Override
     public Icon getIcon() {
-        return Optional.ofNullable(StreamUtil.getImageResourceFile("/icons/SparkJobDebug.png"))
+        return Optional.ofNullable(StreamUtil.getImageResourceFile("/icons/ToolWindowSparkJobDebug.png"))
                 .map(Icon.class::cast)
                 .orElse(AllIcons.General.Debug);
     }
