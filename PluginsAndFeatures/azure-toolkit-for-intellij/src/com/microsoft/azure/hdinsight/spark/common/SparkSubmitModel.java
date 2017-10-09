@@ -641,7 +641,7 @@ public class SparkSubmitModel {
         Attribute falseValueAttribute = new Attribute("False", "false");
         Element emptyElement = new Element("Empty");
 
-        return Optional.ofNullable(rootElement.getChild(SUBMISSION_CONTENT_NAME)).map(element -> {
+        return Optional.of(rootElement).filter(elem -> elem.getName().equals(SUBMISSION_CONTENT_NAME)).map(element -> {
             SubmissionTableModel tableModel = new SubmissionTableModel(
                     new String[]{"Key", "Value", ""});
 
@@ -684,6 +684,6 @@ public class SparkSubmitModel {
                     .ifPresent(newSubmitModel::setAdvancedConfigModel);
 
             return newSubmitModel;
-        }).orElseThrow(() -> new InvalidDataException("Bad submission parameters"));
+        }).orElseGet(() -> new SparkSubmitModel(project));
     }
 }

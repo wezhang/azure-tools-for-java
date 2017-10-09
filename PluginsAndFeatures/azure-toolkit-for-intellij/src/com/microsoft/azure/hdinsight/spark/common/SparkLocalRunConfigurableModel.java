@@ -21,17 +21,173 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-public class SparkLocalRunConfigurableModel {
-    private boolean isParallelExecution;
+import com.intellij.execution.CommonJavaRunConfigurationParameters;
+import com.intellij.execution.ExternalizablePath;
+import com.intellij.openapi.project.Project;
+import com.intellij.util.PathUtil;
+import com.intellij.util.xmlb.XmlSerializer;
+import com.intellij.util.xmlb.annotations.MapAnnotation;
+import com.intellij.util.xmlb.annotations.Tag;
+import com.intellij.util.xmlb.annotations.Transient;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-    public SparkLocalRunConfigurableModel() {
+import java.util.HashMap;
+import java.util.Map;
+
+@Tag("spark-local-run-configurable-model")
+public class SparkLocalRunConfigurableModel implements CommonJavaRunConfigurationParameters {
+    @Tag(value = "is-parallel-execution", textIfEmpty = "false")
+    private boolean isParallelExecution;
+    @Tag(value = "is-pass-parent-envs", textIfEmpty = "true")
+    private boolean isPassParentEnvs = true;
+    @Transient
+    @NotNull
+    private Project project;
+    @Tag("program-parameters")
+    @Nullable
+    private String programParameters;
+    @Tag("working-directory")
+    @Nullable
+    private String workingDirectory;
+    @Tag("envs")
+    @MapAnnotation(entryTagName="envs")
+    @NotNull
+    private Map<String, String> envs = new HashMap<>();
+    @Tag("vm-parameters")
+    @Nullable
+    private String vmParameters;
+    @Tag("main-class")
+    @Nullable
+    private String mainClass;
+
+    public SparkLocalRunConfigurableModel(@NotNull Project project) {
+        this.project = project;
+        this.setWorkingDirectory(PathUtil.getLocalPath(project.getBaseDir()));
     }
 
+    @Transient
     public boolean isIsParallelExecution() {
         return isParallelExecution;
     }
 
     public void setIsParallelExecution(final boolean isParallelExecution) {
         this.isParallelExecution = isParallelExecution;
+    }
+
+    @Transient
+    @NotNull
+    @Override
+    public Project getProject() {
+        return project;
+    }
+
+    @Override
+    public void setProgramParameters(@Nullable String s) {
+        programParameters = s;
+    }
+
+    @Transient
+    @Nullable
+    @Override
+    public String getProgramParameters() {
+        return programParameters;
+    }
+
+    @Override
+    public void setWorkingDirectory(@Nullable String s) {
+        workingDirectory = ExternalizablePath.urlValue(s);
+    }
+
+    @Transient
+    @Nullable
+    @Override
+    public String getWorkingDirectory() {
+        return ExternalizablePath.localPathValue(workingDirectory);
+    }
+
+    @Override
+    public void setEnvs(@NotNull Map<String, String> map) {
+        envs.clear();
+        envs.putAll(map);
+    }
+
+    @Transient
+    @NotNull
+    @Override
+    public Map<String, String> getEnvs() {
+        return envs;
+    }
+
+    @Override
+    public void setPassParentEnvs(boolean b) {
+        isPassParentEnvs = b;
+    }
+
+    @Transient
+    @Override
+    public boolean isPassParentEnvs() {
+        return isPassParentEnvs;
+    }
+
+    @Override
+    public void setVMParameters(String s) {
+        vmParameters = s;
+    }
+
+    @Transient
+    @Override
+    public String getVMParameters() {
+        return vmParameters;
+    }
+
+    @Transient
+    @Override
+    public boolean isAlternativeJrePathEnabled() {
+        return false;
+    }
+
+    @Override
+    public void setAlternativeJrePathEnabled(boolean b) {
+
+    }
+
+    @Transient
+    @Nullable
+    @Override
+    public String getAlternativeJrePath() {
+        return null;
+    }
+
+    @Override
+    public void setAlternativeJrePath(String s) {
+
+    }
+
+    @Transient
+    @Nullable
+    @Override
+    public String getRunClass() {
+        return mainClass;
+    }
+
+    public void setRunClass(String s) {
+        mainClass = s;
+    }
+
+    @Transient
+    @Nullable
+    @Override
+    public String getPackage() {
+        return null;
+    }
+
+    public Element exportToElement() {
+        return XmlSerializer.serialize(this);
+    }
+
+    public void applyFromElement(Element element) {
+        XmlSerializer.deserializeInto(this, element);
     }
 }

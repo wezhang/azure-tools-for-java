@@ -21,9 +21,54 @@
 
 package com.microsoft.azure.hdinsight.spark.ui;
 
+import com.intellij.openapi.project.Project;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
+import org.jetbrains.annotations.NotNull;
+
 import javax.swing.*;
+import java.util.Optional;
 
 public class SparkBatchJobConfigurable {
     private JTabbedPane executionTypeTabPane;
-    private JPanel rootPanel;
+    private JPanel myWholePanel;
+    private SparkLocalRunConfigurable myLocalRunConfigurable;
+    private SparkSubmissionContentPanel myClusterSubmission;
+
+    @NotNull
+    private final Project myProject;
+
+    public SparkBatchJobConfigurable(@NotNull final Project project) {
+        this.myProject = project;
+    }
+
+    @NotNull
+    public JComponent getComponent() {
+        return myWholePanel;
+    }
+
+    private void createUIComponents() {
+        myLocalRunConfigurable = new SparkLocalRunConfigurable(myProject);
+        myClusterSubmission = new SparkSubmissionContentPanel(myProject, () -> {});
+    }
+
+    public void setData(@NotNull SparkBatchJobConfigurableModel data) {
+        // Data -> Component
+        myLocalRunConfigurable.setData(data.getLocalRunConfigurableModel());
+        myClusterSubmission.apply(data.getSubmitModel());
+    }
+
+    public void getData(@NotNull SparkBatchJobConfigurableModel data) {
+        // Component -> Data
+        myLocalRunConfigurable.getData(data.getLocalRunConfigurableModel());
+        data.getSubmitModel().setSubmissionParameters(myClusterSubmission.constructSubmissionParameter());
+        data.getSubmitModel().setAdvancedConfigModel(data.getSubmitModel().getAdvancedConfigModel());
+    }
+
+    public boolean isModified(SparkBatchJobConfigurableModel data) {
+        if (myLocalRunConfigurable.isModified(data.getLocalRunConfigurableModel())) {
+            return true;
+        }
+
+        return false;
+    }
 }

@@ -25,13 +25,16 @@ package com.microsoft.azure.hdinsight.spark.run.configuration;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SettingsEditor;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable;
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 
 public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConfiguration> {
-    private SparkSubmissionContentPanel submissionPanel;
+//    private SparkSubmissionContentPanel submissionPanel;
+    private SparkBatchJobConfigurable jobConfigurable;
+
     private RemoteDebugRunConfiguration runConfiguration;
 
     public RemoteDebugRunConfiguration getRunConfiguration() {
@@ -39,11 +42,11 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
     }
 
     public RemoteDebugSettingsEditor(final RemoteDebugRunConfiguration runConfiguration){
-        submissionPanel = new SparkSubmissionContentPanel(
-                runConfiguration.getSubmitModel(),
-                () -> {
-                    // TODO Add logic to resize the window and enable/disable button
-                });
+//        submissionPanel = new SparkSubmissionContentPanel(
+//                runConfiguration.getSubmitModel(),
+//                () -> {
+//                    // TODO Add logic to resize the window and enable/disable button
+//                });
 
         this.runConfiguration = runConfiguration;
     }
@@ -51,18 +54,23 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
     @Override
     protected void resetEditorFrom(@NotNull RemoteDebugRunConfiguration remoteDebugRunConfiguration) {
         // Reset the panel from the RunConfiguration
-        submissionPanel.apply(remoteDebugRunConfiguration.getSubmitModel());
+        jobConfigurable.setData(remoteDebugRunConfiguration.getModel());
+//        submissionPanel.apply(remoteDebugRunConfiguration.getSubmitModel());
     }
 
     @Override
     protected void applyEditorTo(@NotNull RemoteDebugRunConfiguration remoteDebugRunConfiguration) throws ConfigurationException {
         // Apply the panel's setting to RunConfiguration
-        remoteDebugRunConfiguration.apply(submissionPanel);
+        jobConfigurable.getData(remoteDebugRunConfiguration.getModel());
+//        remoteDebugRunConfiguration.apply(submissionPanel);
     }
 
     @NotNull
     @Override
     protected JComponent createEditor() {
-        return submissionPanel;
+//        return submissionPanel;
+        jobConfigurable = new SparkBatchJobConfigurable(runConfiguration.getSubmitModel().getProject());
+
+        return jobConfigurable.getComponent();
     }
 }
