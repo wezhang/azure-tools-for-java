@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -17,17 +17,16 @@
  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
-package com.microsoft.intellij.common;
 
-import com.intellij.ide.plugins.PluginManager;
-import com.intellij.openapi.extensions.PluginId;
+package com.microsoft.azure.hdinsight.spark.common;
 
-public class CommonConst {
-    public static final String SPARK_SUBMISSION_WINDOW_ID = "HDInsight Spark Submission";
-    public static final String DEBUG_SPARK_JOB_WINDOW_ID = "Debug Remote Spark Job in Cluster";
-    public static final String PLUGIN_ID = "com.microsoft.tooling.msservices.intellij.azure";
-    public static final String PLUGIN_NAME = "azure-toolkit-for-intellij";
-    public static final String PLUGIN_VERISON = PluginManager.getPlugin(PluginId.getId(PLUGIN_ID)).getVersion();
+import org.jetbrains.annotations.NotNull;
+
+public interface SettableControl<T> {
+    // Data -> Component
+    public void setData(@NotNull T data);
+
+    // Component -> Data
+    public void getData(@NotNull T data);
 }

@@ -23,39 +23,45 @@ package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.intellij.application.options.ModuleDescriptionsComboBox;
 import com.intellij.execution.configurations.ConfigurationUtil;
-import com.intellij.execution.configurations.JavaParameters;
 import com.intellij.execution.ui.ClassBrowser;
-import com.intellij.execution.ui.CommonJavaParametersPanel;
 import com.intellij.execution.ui.ConfigurationModuleSelector;
-import com.intellij.execution.ui.DefaultJreSelector;
 import com.intellij.execution.util.JreVersionDetector;
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.ComponentWithBrowseButton;
 import com.intellij.openapi.ui.LabeledComponent;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.psi.JavaCodeFragment;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiMethodUtil;
-import com.intellij.ui.EditorTextField;
+import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.EditorTextFieldWithBrowseButton;
-import com.intellij.util.PathUtil;
+import com.intellij.ui.MacroAwareTextBrowseFolderListener;
 import com.intellij.util.ui.UIUtil;
 import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel;
+import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import javax.swing.event.DocumentEvent;
+import java.io.File;
+import java.nio.file.Paths;
+import java.util.Optional;
 
 public class SparkLocalRunConfigurable {
+    private final static String HADOOP_HOME_ENV = "HADOOP_HOME";
+    private final static String WINUTILS_EXE_NAME = "winutils.exe";
+
     private JPanel myWholePanel;
-    private CommonJavaParametersPanel myCommonProgramParameters;
+    private SparkLocalRunCommonParametersPanel myCommonProgramParameters;
     private LabeledComponent<EditorTextFieldWithBrowseButton> myMainClass;
     private LabeledComponent<ModuleDescriptionsComboBox> myModule;
     private JCheckBox myParallelExecutionCheckbox;
     private TextFieldWithBrowseButton myWinutilsPathTextFieldWithBrowserButton;
+    private TextFieldWithBrowseButton myDataRootDirectoryFieldWithBrowseButton;
+    private JLabel myDataDefaultDirectory;
+    private JLabel myHadoopUserDefaultDirectoryLabel;
 
     @Nullable
     private JComponent myAnchor;
@@ -69,13 +75,65 @@ public class SparkLocalRunConfigurable {
     public SparkLocalRunConfigurable(@NotNull final Project project) {
         this.myProject = project;
         myModuleSelector = new ConfigurationModuleSelector(project, myModule.getComponent());
-//        myJrePathEditor.setDefaultJreSelector(DefaultJreSelector.fromSourceRootsDependencies(myModule.getComponent(), getMainClassField()));
         myCommonProgramParameters.setModuleContext(myModuleSelector.getModule());
         myModule.getComponent().addActionListener(e -> myCommonProgramParameters.setModuleContext(myModuleSelector.getModule()));
         ClassBrowser.createApplicationClassBrowser(project, myModuleSelector).setField(getMainClassField());
         myVersionDetector = new JreVersionDetector();
 
         myAnchor = UIUtil.mergeComponentsWithAnchor(myMainClass, myCommonProgramParameters, myModule);
+
+        // Connect the workingDirectory update event with dataRootDirectory update
+        myCommonProgramParameters.addWorkingDirectoryUpdateListener(new DocumentAdapter() {
+            @Override
+            protected void textChanged(DocumentEvent event) {
+                String workingDirectory = myCommonProgramParameters.getWorkingDirectory();
+
+                myDataRootDirectoryFieldWithBrowseButton.setText(Paths.get(workingDirectory, "data").toString());
+            }
+        });
+
+        // Update other data directory texts
+        myDataRootDirectoryFieldWithBrowseButton.getTextField().getDocument().addDocumentListener(new DocumentAdapter() {
+            @Override
+            protected void textChanged(DocumentEvent documentEvent) {
+                myDataDefaultDirectory.setText(
+                        Paths.get(myDataRootDirectoryFieldWithBrowseButton.getText(), "__default__").toString());
+                myHadoopUserDefaultDirectoryLabel.setText(
+                        Paths.get(myDataDefaultDirectory.getText(), "user", "current").toString());
+            }
+        });
+
+        // Bind the folder file chooser for data root directory
+        FileChooserDescriptor dataRootDirectoryChooser = FileChooserDescriptorFactory.createSingleFolderDescriptor();
+        myDataRootDirectoryFieldWithBrowseButton.addBrowseFolderListener(
+                new MacroAwareTextBrowseFolderListener(dataRootDirectoryChooser, myProject));
+
+        // Winutils.exe setting, only for windows
+        if (SystemUtils.IS_OS_WINDOWS) {
+            updateWinUtilsPathTextField(System.getenv(HADOOP_HOME_ENV));
+        } else {
+            myWinutilsPathTextFieldWithBrowserButton.setVisible(false);
+        }
+    }
+
+    private void updateWinUtilsPathTextField(@Nullable String hadoopHomeEnv) {
+        String windUtilsPath = Optional.ofNullable(hadoopHomeEnv)
+                .map(hadoopHome -> Paths.get(hadoopHome, "bin", WINUTILS_EXE_NAME).toString())
+                .map(File::new)
+                .filter(File::exists)
+                .map(File::toString)
+                .orElse("");
+
+        myWinutilsPathTextFieldWithBrowserButton.setText(windUtilsPath);
+
+        // Bind winutils.exe file chooser
+        FileChooserDescriptor winUtilsFileChooser =
+                new FileChooserDescriptor(true, false, false, false, false, false)
+                        .withFileFilter(file -> file.getName().equals(WINUTILS_EXE_NAME) && file.getParent().getName().equals("bin"));
+
+        myWinutilsPathTextFieldWithBrowserButton.addBrowseFolderListener(
+                new MacroAwareTextBrowseFolderListener(winUtilsFileChooser, myProject));
+
     }
 
     @NotNull
@@ -103,6 +161,13 @@ public class SparkLocalRunConfigurable {
         myParallelExecutionCheckbox.setSelected(data.isIsParallelExecution());
         myMainClass.getComponent().setText(data.getRunClass());
         myCommonProgramParameters.reset(data);
+
+        if (!data.getDataRootDirectory().trim().isEmpty()) {
+            myDataRootDirectoryFieldWithBrowseButton.setText(data.getDataRootDirectory());
+        }
+
+        Optional.ofNullable(myCommonProgramParameters.getEnvs().get(HADOOP_HOME_ENV))
+                .ifPresent(this::updateWinUtilsPathTextField);
     }
 
     public void getData(@NotNull SparkLocalRunConfigurableModel data) {
@@ -110,13 +175,12 @@ public class SparkLocalRunConfigurable {
         data.setIsParallelExecution(myParallelExecutionCheckbox.isSelected());
         data.setRunClass(myMainClass.getComponent().getText());
         myCommonProgramParameters.applyTo(data);
-    }
+        data.setDataRootDirectory(myDataRootDirectoryFieldWithBrowseButton.getText());
 
-    public boolean isModified(@NotNull SparkLocalRunConfigurableModel data) {
-        if (myParallelExecutionCheckbox.isSelected() != data.isIsParallelExecution()) {
-            return true;
-        }
-
-        return false;
+        Optional.of(myWinutilsPathTextFieldWithBrowserButton.getText())
+                .map((winUtilsFilePath) -> Paths.get(winUtilsFilePath))
+                .filter(path -> path.endsWith(Paths.get("bin", WINUTILS_EXE_NAME)))
+                .map(path -> path.getParent().getParent().toString())
+                .ifPresent(hadoopHome -> data.getEnvs().put(HADOOP_HOME_ENV, hadoopHome));
     }
 }

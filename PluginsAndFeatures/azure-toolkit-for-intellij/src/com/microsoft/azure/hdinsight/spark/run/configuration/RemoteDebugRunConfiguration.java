@@ -60,7 +60,6 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     public void readExternal(Element rootElement) throws InvalidDataException {
         super.readExternal(rootElement);
 
-//        getModel().setSubmitModel(SparkSubmitModel.factoryFromElement(this.getSubmitModel().getProject(), rootElement));
         jobModel.applyFromElement(rootElement);
     }
 
@@ -68,8 +67,6 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     public void writeExternal(Element rootElement) throws WriteExternalException {
         super.writeExternal(rootElement);
 
-//        Element remoteDebugSettingsElement = this.getSubmitModel().exportToElement();
-//        rootElement.addContent(remoteDebugSettingsElement);
         Element jobConfigElement = jobModel.exportToElement();
         rootElement.addContent(jobConfigElement);
     }
@@ -106,13 +103,7 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
         return new ArrayList<>();
     }
 
-    public void apply(SparkSubmissionContentPanel submissionPanel) {
-        this.getSubmitModel().setSubmissionParameters(submissionPanel.constructSubmissionParameter());
-        this.getSubmitModel().setAdvancedConfigModel(submissionPanel.getSubmitModel().getAdvancedConfigModel());
-    }
-
     public void setAsNew() {
-        this.getSubmitModel().setAdvancedConfigModel(null);
     }
 }
 

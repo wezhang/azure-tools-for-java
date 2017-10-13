@@ -45,7 +45,7 @@ public class SparkLocalRunner {
     private void runJobMain(List<String> args) {
 
         System.out.println("HADOOP_HOME: " + System.getenv("HADOOP_HOME"));
-        System.out.println("Working directory: " + System.getProperty("user.dir"));
+        System.out.println("Hadoop user default directory: " + System.getProperty("user.dir"));
 
         String jobClassName = args.get(0);
 

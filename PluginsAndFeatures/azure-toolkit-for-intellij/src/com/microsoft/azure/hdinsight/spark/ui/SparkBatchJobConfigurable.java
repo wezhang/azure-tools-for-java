@@ -22,17 +22,18 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.intellij.openapi.project.Project;
+import com.microsoft.azure.hdinsight.spark.common.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.Optional;
 
-public class SparkBatchJobConfigurable {
+public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobConfigurableModel> {
     private JTabbedPane executionTypeTabPane;
     private JPanel myWholePanel;
     private SparkLocalRunConfigurable myLocalRunConfigurable;
-    private SparkSubmissionContentPanel myClusterSubmission;
+    private SparkSubmissionContentPanelConfigurable myClusterSubmissionConfigurable;
 
     @NotNull
     private final Project myProject;
@@ -48,27 +49,20 @@ public class SparkBatchJobConfigurable {
 
     private void createUIComponents() {
         myLocalRunConfigurable = new SparkLocalRunConfigurable(myProject);
-        myClusterSubmission = new SparkSubmissionContentPanel(myProject, () -> {});
+        myClusterSubmissionConfigurable = new SparkSubmissionContentPanelConfigurable(myProject, () -> {});
     }
 
+    @Override
     public void setData(@NotNull SparkBatchJobConfigurableModel data) {
         // Data -> Component
         myLocalRunConfigurable.setData(data.getLocalRunConfigurableModel());
-        myClusterSubmission.apply(data.getSubmitModel());
+        myClusterSubmissionConfigurable.setData(data.getSubmitModel());
     }
 
+    @Override
     public void getData(@NotNull SparkBatchJobConfigurableModel data) {
         // Component -> Data
         myLocalRunConfigurable.getData(data.getLocalRunConfigurableModel());
-        data.getSubmitModel().setSubmissionParameters(myClusterSubmission.constructSubmissionParameter());
-        data.getSubmitModel().setAdvancedConfigModel(data.getSubmitModel().getAdvancedConfigModel());
-    }
-
-    public boolean isModified(SparkBatchJobConfigurableModel data) {
-        if (myLocalRunConfigurable.isModified(data.getLocalRunConfigurableModel())) {
-            return true;
-        }
-
-        return false;
+        myClusterSubmissionConfigurable.getData(data.getSubmitModel());
     }
 }

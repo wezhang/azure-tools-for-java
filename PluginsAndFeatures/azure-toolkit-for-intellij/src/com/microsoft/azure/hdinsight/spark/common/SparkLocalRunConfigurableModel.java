@@ -61,10 +61,14 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
     @Tag("main-class")
     @Nullable
     private String mainClass;
+    @Tag("data-root")
+    @NotNull
+    private String dataRootDirectory;
 
     public SparkLocalRunConfigurableModel(@NotNull Project project) {
         this.project = project;
-        this.setWorkingDirectory(PathUtil.getLocalPath(project.getBaseDir()));
+        this.setWorkingDirectory(PathUtil.getLocalPath(project.getBaseDir().getPath()));
+        this.dataRootDirectory = "";
     }
 
     @Transient
@@ -101,7 +105,7 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
     }
 
     @Transient
-    @Nullable
+    @NotNull
     @Override
     public String getWorkingDirectory() {
         return ExternalizablePath.localPathValue(workingDirectory);
@@ -174,6 +178,15 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
 
     public void setRunClass(String s) {
         mainClass = s;
+    }
+
+    @NotNull
+    public String getDataRootDirectory() {
+        return dataRootDirectory;
+    }
+
+    public void setDataRootDirectory(@NotNull String dataRootDirectory) {
+        this.dataRootDirectory = dataRootDirectory;
     }
 
     @Transient
