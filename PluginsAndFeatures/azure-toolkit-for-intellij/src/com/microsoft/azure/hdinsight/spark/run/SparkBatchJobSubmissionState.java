@@ -23,8 +23,6 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.debugger.DebugUIEnvironment;
-import com.intellij.debugger.engine.RemoteDebugProcessHandler;
 import com.intellij.execution.*;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.executors.DefaultDebugExecutor;
@@ -32,20 +30,16 @@ import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.process.KillableColoredProcessHandler;
 import com.intellij.execution.process.OSProcessHandler;
-import com.intellij.execution.process.ProcessTerminatedListener;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.execution.util.JavaParametersUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.PathUtil;
-import com.intellij.xdebugger.impl.ui.DebuggerUIUtil;
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Optional;
 
 /**

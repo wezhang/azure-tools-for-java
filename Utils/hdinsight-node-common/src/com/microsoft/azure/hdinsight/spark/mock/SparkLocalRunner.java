@@ -58,13 +58,7 @@ public class SparkLocalRunner {
 
             final Object[] jobArgs = new Object[]{ args.subList(1, args.size()).toArray(new String[0]) };
             jobMain.invoke(null, jobArgs);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
+        } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             e.printStackTrace();
         }
 
