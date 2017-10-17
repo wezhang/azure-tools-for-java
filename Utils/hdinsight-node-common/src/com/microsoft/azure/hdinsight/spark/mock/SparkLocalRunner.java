@@ -35,19 +35,33 @@ import java.util.Arrays;
 import java.util.List;
 
 public class SparkLocalRunner {
+    private String master;
+    private String jobClassName;
+    private List<String> jobArguments;
+
     public static void main(String[] args) {
         SparkLocalRunner localRunner = new SparkLocalRunner();
 
+        localRunner.setArguments(args);
         localRunner.setUp();
-        localRunner.runJobMain(Arrays.asList(args));
+        localRunner.runJobMain();
     }
 
-    private void runJobMain(List<String> args) {
+    private void setArguments(String[] args) {
+        // get master from `--master local[2]`
+        master = args[0].split(" ")[1];
+
+        // get job main class
+        jobClassName = args[1];
+
+        // get job arguments
+        jobArguments = Arrays.asList(args).subList(2, args.length);
+    }
+
+    private void runJobMain() {
 
         System.out.println("HADOOP_HOME: " + System.getenv("HADOOP_HOME"));
         System.out.println("Hadoop user default directory: " + System.getProperty("user.dir"));
-
-        String jobClassName = args.get(0);
 
         try {
             final Class<?> jobClass = Class.forName(jobClassName);
@@ -56,7 +70,7 @@ public class SparkLocalRunner {
 
             final Method jobMain = jobClass.getMethod("main", String[].class);
 
-            final Object[] jobArgs = new Object[]{ args.subList(1, args.size()).toArray(new String[0]) };
+            final Object[] jobArgs = new Object[]{ jobArguments.toArray(new String[0]) };
             jobMain.invoke(null, jobArgs);
         } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             e.printStackTrace();
@@ -77,7 +91,6 @@ public class SparkLocalRunner {
             public void checkPath(Path path) {}
         };
 
-        System.setProperty("spark.master", "local[2]");
-//        System.setProperty("HADOOP_USER_NAME", System.getProperty("user.name"));
+        System.setProperty("spark.master", master);
     }
 }

@@ -36,9 +36,12 @@ import com.intellij.openapi.project.Project;
 import com.intellij.util.PathUtil;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner;
+import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable;
+import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.nio.file.Paths;
 import java.util.Optional;
 
@@ -124,6 +127,19 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                         Optional.ofNullable(localRunConfigurableModel.getRunClass())
                                 .filter(mainClass -> !mainClass.trim().isEmpty())
                                 .orElseThrow(() -> new ExecutionException("Spark job's main class isn't set")));
+
+        params.getProgramParametersList()
+                .addAt(0,
+                        "--master local[" + (localRunConfigurableModel.isIsParallelExecution() ? 2 : 1) + "]");
+
+        if (SystemUtils.IS_OS_WINDOWS) {
+            Optional.ofNullable(params.getEnv().get(SparkLocalRunConfigurable.HADOOP_HOME_ENV))
+                    .map(hadoopHome -> Paths.get(hadoopHome, "bin", SparkLocalRunConfigurable.WINUTILS_EXE_NAME).toString())
+                    .map(File::new)
+                    .filter(File::exists)
+                    .orElseThrow(() -> new ExecutionException(
+                            "winutils.exe should be in %HADOOP_HOME%\\bin\\ directory for Windows platform."));
+        }
 
         params.setMainClass(SparkLocalRunner.class.getCanonicalName());
         return params.toCommandLine();

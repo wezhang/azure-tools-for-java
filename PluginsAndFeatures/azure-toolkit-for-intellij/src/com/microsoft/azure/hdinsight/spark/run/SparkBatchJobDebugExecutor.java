@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.util.Optional;
 
-public class SparkBatchJobDebugExecutor extends Executor{
+public class SparkBatchJobDebugExecutor extends Executor {
     @NonNls
     public static final String EXECUTOR_ID = "SparkJobDebug";
 

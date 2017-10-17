@@ -34,11 +34,7 @@ class MockDfs extends LocalFileSystem {
 
     @Override
     public URI getUri() {
-        try {
-            return new URI("mockDfs:///");
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
+        return URI.create("mockDfs:///");
     }
 
     @Override

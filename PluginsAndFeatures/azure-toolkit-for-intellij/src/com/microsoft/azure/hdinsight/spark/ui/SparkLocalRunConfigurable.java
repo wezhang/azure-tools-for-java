@@ -50,8 +50,8 @@ import java.nio.file.Paths;
 import java.util.Optional;
 
 public class SparkLocalRunConfigurable {
-    private final static String HADOOP_HOME_ENV = "HADOOP_HOME";
-    private final static String WINUTILS_EXE_NAME = "winutils.exe";
+    public final static String HADOOP_HOME_ENV = "HADOOP_HOME";
+    public final static String WINUTILS_EXE_NAME = "winutils.exe";
 
     private JPanel myWholePanel;
     private SparkLocalRunCommonParametersPanel myCommonProgramParameters;
