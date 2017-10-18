@@ -66,18 +66,12 @@ public class SparkLocalRunConfigurable {
     @Nullable
     private JComponent myAnchor;
     @NotNull
-    private final ConfigurationModuleSelector myModuleSelector;
-    @NotNull
     private final JreVersionDetector myVersionDetector;
     @NotNull
     private final Project myProject;
 
     public SparkLocalRunConfigurable(@NotNull final Project project) {
         this.myProject = project;
-        myModuleSelector = new ConfigurationModuleSelector(project, myModule.getComponent());
-        myCommonProgramParameters.setModuleContext(myModuleSelector.getModule());
-        myModule.getComponent().addActionListener(e -> myCommonProgramParameters.setModuleContext(myModuleSelector.getModule()));
-        ClassBrowser.createApplicationClassBrowser(project, myModuleSelector).setField(getMainClassField());
         myVersionDetector = new JreVersionDetector();
 
         myAnchor = UIUtil.mergeComponentsWithAnchor(myMainClass, myCommonProgramParameters, myModule);
@@ -147,8 +141,7 @@ public class SparkLocalRunConfigurable {
             if (declaration instanceof PsiClass) {
                 final PsiClass aClass = (PsiClass)declaration;
                 if (ConfigurationUtil.MAIN_CLASS.value(aClass) && PsiMethodUtil.findMainMethod(aClass) != null ||
-                        place.getParent() != null &&
-                                myModuleSelector.findClass(((PsiClass)declaration).getQualifiedName()) != null) {
+                        place.getParent() != null) {
                     return JavaCodeFragment.VisibilityChecker.Visibility.VISIBLE;
                 }
             }

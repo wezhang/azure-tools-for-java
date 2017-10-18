@@ -77,8 +77,6 @@ public class SparkBatchJobConfigurableModel {
         Element root = element.getChild("spark-job-configuration");
 
         if (root != null) {
-//            XmlSerializer.deserializeInto(this, root);
-
             Optional.ofNullable(root.getChild("local-run"))
                     .map(elem -> (Element) elem.getContent(0))
                     .ifPresent(elem -> getLocalRunConfigurableModel().applyFromElement(elem));
