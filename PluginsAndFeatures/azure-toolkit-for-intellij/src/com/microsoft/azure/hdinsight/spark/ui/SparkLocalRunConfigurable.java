@@ -21,10 +21,7 @@
 
 package com.microsoft.azure.hdinsight.spark.ui;
 
-import com.intellij.application.options.ModuleDescriptionsComboBox;
 import com.intellij.execution.configurations.ConfigurationUtil;
-import com.intellij.execution.ui.ClassBrowser;
-import com.intellij.execution.ui.ConfigurationModuleSelector;
 import com.intellij.execution.util.JreVersionDetector;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
@@ -56,7 +53,6 @@ public class SparkLocalRunConfigurable {
     private JPanel myWholePanel;
     private SparkLocalRunCommonParametersPanel myCommonProgramParameters;
     private LabeledComponent<EditorTextFieldWithBrowseButton> myMainClass;
-    private LabeledComponent<ModuleDescriptionsComboBox> myModule;
     private JCheckBox myParallelExecutionCheckbox;
     private TextFieldWithBrowseButton myWinutilsPathTextFieldWithBrowserButton;
     private TextFieldWithBrowseButton myDataRootDirectoryFieldWithBrowseButton;
@@ -74,7 +70,7 @@ public class SparkLocalRunConfigurable {
         this.myProject = project;
         myVersionDetector = new JreVersionDetector();
 
-        myAnchor = UIUtil.mergeComponentsWithAnchor(myMainClass, myCommonProgramParameters, myModule);
+        myAnchor = UIUtil.mergeComponentsWithAnchor(myMainClass, myCommonProgramParameters);
 
         // Connect the workingDirectory update event with dataRootDirectory update
         myCommonProgramParameters.addWorkingDirectoryUpdateListener(new DocumentAdapter() {
