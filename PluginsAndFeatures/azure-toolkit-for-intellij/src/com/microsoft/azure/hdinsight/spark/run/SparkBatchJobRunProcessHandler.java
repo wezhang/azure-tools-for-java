@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -19,16 +19,18 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.microsoft.intellij.common;
 
-import com.intellij.ide.plugins.PluginManager;
-import com.intellij.openapi.extensions.PluginId;
+package com.microsoft.azure.hdinsight.spark.run;
 
-public class CommonConst {
-    public static final String SPARK_SUBMISSION_WINDOW_ID = "HDInsight Spark Submission";
-    public static final String DEBUG_SPARK_JOB_WINDOW_ID = "Debug Remote Spark Job in Cluster";
-    public static final String REMOTE_SPARK_JOB_WINDOW_ID = "Remote Spark Job in Cluster";
-    public static final String PLUGIN_ID = "com.microsoft.tooling.msservices.intellij.azure";
-    public static final String PLUGIN_NAME = "azure-toolkit-for-intellij";
-    public static final String PLUGIN_VERISON = PluginManager.getPlugin(PluginId.getId(PLUGIN_ID)).getVersion();
+import com.intellij.remote.ColoredRemoteProcessHandler;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.charset.Charset;
+
+public class SparkBatchJobRunProcessHandler extends ColoredRemoteProcessHandler<SparkBatchJobRemoteProcess> {
+    public SparkBatchJobRunProcessHandler(@NotNull SparkBatchJobRemoteProcess process, String commandLine, @Nullable Charset charset) {
+        super(process, commandLine, charset);
+    }
 }
+

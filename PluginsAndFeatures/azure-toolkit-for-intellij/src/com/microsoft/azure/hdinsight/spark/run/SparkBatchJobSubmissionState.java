@@ -32,10 +32,15 @@ import com.intellij.execution.process.KillableColoredProcessHandler;
 import com.intellij.execution.process.OSProcessHandler;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.execution.util.JavaParametersUtil;
+import com.intellij.ide.actions.ExitAction;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.project.Project;
+import com.intellij.remoteServer.impl.runtime.ui.tree.actions.RemoteServerDisconnectAction;
 import com.intellij.util.PathUtil;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner;
+import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
 import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
@@ -80,9 +85,18 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
             programRunner.onProcessStarted(null, result);
 
             return result;
-//      } else if (programRunner instanceof SparkBatchJobRunner) {
-//          SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
-//          jobRunner.submitJob(getSubmitModel());
+        } else if (executor instanceof SparkBatchJobRunExecutor) {
+            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
+            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
+            SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess();
+            SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "", null);
+
+            consoleView.attachToProcess(processHandler);
+
+            ExecutionResult result = new DefaultExecutionResult(consoleView, processHandler, Separator.getInstance(), new SparkBatchJobDisconnectAction());
+            programRunner.onProcessStarted(null, result);
+
+            return result;
         } else if (executor instanceof DefaultRunExecutor || executor instanceof DefaultDebugExecutor) {
             // Spark Local Run
             ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
