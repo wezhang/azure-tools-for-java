@@ -194,6 +194,10 @@ public class SparkSubmitModel {
         return submissionParameter.isLocalArtifact();
     }
 
+    public Artifact getArtifact() {
+        return  artifactHashMap.get(getSubmissionParameter().getArtifactName());
+    }
+
     @NotNull
     public Project getProject() {
         return project;
@@ -385,7 +389,7 @@ public class SparkSubmitModel {
                     submissionParameter,
                     SparkBatchSubmission.getInstance());
 
-            debugJob.createBatchSparkJobWithDriverDebugging();
+            debugJob.createBatchJob();
 
             return debugJob;
         } catch (URISyntaxException ex) {

@@ -86,12 +86,14 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
             return result;
         } else if (executor instanceof SparkBatchJobRunExecutor) {
-            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
-            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
-            SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess();
+//            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
+            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, true);
+            SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(myProject, jobModel.getSubmitModel());
             SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "", null);
 
             consoleView.attachToProcess(processHandler);
+
+            remoteProcess.start();
 
             ExecutionResult result = new DefaultExecutionResult(consoleView, processHandler, Separator.getInstance(), new SparkBatchJobDisconnectAction());
             programRunner.onProcessStarted(null, result);

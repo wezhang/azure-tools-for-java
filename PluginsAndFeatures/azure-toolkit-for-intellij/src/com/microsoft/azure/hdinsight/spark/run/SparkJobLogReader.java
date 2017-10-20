@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -20,18 +20,26 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.common;
+package com.microsoft.azure.hdinsight.spark.run;
+
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.io.Reader;
 
-public interface ISparkBatchDebugJob extends ISparkBatchJob {
-    /**
-     * Get Spark Batch job driver debugging port number
-     *
-     * @return Spark driver node debugging port
-     * @throws IOException exceptions for the driver debugging port not found
-     */
-    public int getSparkDriverDebuggingPort() throws IOException;
+public class SparkJobLogReader extends Reader {
+    public SparkJobLogReader(SparkBatchJob job, String stdout) {
 
+    }
+
+    @Override
+    public int read(@NotNull char[] cbuf, int off, int len) throws IOException {
+        return 0;
+    }
+
+    @Override
+    public void close() throws IOException {
+
+    }
 }
