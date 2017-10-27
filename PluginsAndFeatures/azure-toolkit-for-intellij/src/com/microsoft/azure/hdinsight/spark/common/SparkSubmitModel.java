@@ -35,12 +35,14 @@ import com.intellij.packaging.impl.compiler.ArtifactsWorkspaceSettings;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.JobStatusManager;
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.cluster.EmulatorClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.common.NotSupportExecption;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
@@ -51,12 +53,14 @@ import org.jdom.Attribute;
 import org.jdom.Element;
 import org.jdom.Text;
 import org.jetbrains.annotations.NotNull;
+import rx.Observer;
 import rx.Single;
 
 import javax.swing.*;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -324,14 +328,11 @@ public class SparkSubmitModel {
         }
     }
 
-    public void uploadFileToCluster(@NotNull final IClusterDetail selectedClusterDetail, @NotNull final String selectedArtifactName) throws Exception{
+    public Optional<String> getArtifactPath(@NotNull String selectedArtifactName) throws SparkJobException {
         String buildJarPath = submissionParameter.isLocalArtifact() ?
                 submissionParameter.getLocalArtifactPath() : ((artifactHashMap.get(selectedArtifactName).getOutputFilePath()));
 
-        String filePath = selectedClusterDetail.isEmulator() ?
-                SparkSubmitHelper.uploadFileToEmulator(project, selectedClusterDetail, buildJarPath) :
-                SparkSubmitHelper.uploadFileToHDFS(project, selectedClusterDetail, buildJarPath);
-        submissionParameter.setFilePath(filePath);
+        return Optional.ofNullable(buildJarPath);
     }
 
     private void tryToCreateBatchSparkJob(@NotNull final IClusterDetail selectedClusterDetail) throws HDIException,IOException {
@@ -471,7 +472,12 @@ public class SparkSubmitModel {
                 }
 
                 try {
-                    uploadFileToCluster(selectedClusterDetail, selectedArtifactName);
+                    String jobArtifactUri = JobUtils.uploadFileToCluster(selectedClusterDetail,
+                                                 getArtifactPath(selectedArtifactName)
+                                                         .orElseThrow(() -> new SparkJobException("Can't find jar path to upload")),
+                                                 HDInsightUtil.getToolWindowMessageSubject());
+
+                    submissionParameter.setFilePath(jobArtifactUri);
                     tryToCreateBatchSparkJob(selectedClusterDetail);
                 } catch (Exception exception) {
                     showFailedSubmitErrorMessage(exception);

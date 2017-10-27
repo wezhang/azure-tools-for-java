@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -19,13 +19,30 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.microsoft.azure.hdinsight.common;
 
-public enum MessageInfoType {
-    Error,
-    Info,
-    Log,
-    Warning,
-    Hyperlink,
-    HyperlinkWithText
+package com.microsoft.azure.hdinsight.spark.common;
+
+public enum SparkBatchJobState {
+    NOT_STARTED("not_started"),
+    STARTING("starting"),
+    RECOVERING("recovering"),
+    IDLE("idle"),
+    RUNNING("running"),
+    BUSY("busy"),
+    SHUTTING_DOWN("shutting_down"),
+    ERROR("error"),
+    DEAD("dead"),
+    SUCCESS("success");
+
+    private final String state;
+
+    SparkBatchJobState(String state) {
+        this.state = state;
+    }
+
+
+    @Override
+    public String toString() {
+        return state;
+    }
 }

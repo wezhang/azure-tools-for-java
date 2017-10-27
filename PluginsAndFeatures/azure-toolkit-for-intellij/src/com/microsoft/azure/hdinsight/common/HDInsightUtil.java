@@ -50,7 +50,13 @@ public class HDInsightUtil {
     private static final int TELEMETRY_MESSAGE_MAX_LEN = 50;
 
     // The replay subject for the message showed in HDInsight tool window
-    private static ReplaySubject<SimpleImmutableEntry<MessageInfoType, String>> toolWindowMessageSubject;
+    // The replay subject will replay all notifications before the initialization is done
+    // The replay buffer size is 1MB.
+    private static ReplaySubject<SimpleImmutableEntry<MessageInfoType, String>> toolWindowMessageSubject = ReplaySubject.create(1024 * 1024);
+
+    public static ReplaySubject<SimpleImmutableEntry<MessageInfoType, String>> getToolWindowMessageSubject() {
+        return toolWindowMessageSubject;
+    }
 
     public static void setHDInsightRootModule(@NotNull AzureModule azureModule) {
         HDInsightRootModuleImpl hdInsightRootModule =  new HDInsightRootModuleImpl(azureModule);
@@ -117,9 +123,6 @@ public class HDInsightUtil {
             SparkSubmissionToolWindowProcessor sparkSubmissionToolWindowProcessor = new SparkSubmissionToolWindowProcessor(toolWindow);
             PluginUtil.registerToolWindowManager(key, sparkSubmissionToolWindowProcessor);
 
-            // The replay subject will replay all notifications before the initialization is done
-            // The replay buffer size is 1MB.
-            toolWindowMessageSubject = ReplaySubject.create(1024 * 1024);
 
             // make sure tool window process initialize on swing dispatch
             if(ApplicationManager.getApplication().isDispatchThread()) {

@@ -22,20 +22,25 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
+import rx.Observable;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownServiceException;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
+import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
 import static java.lang.Thread.sleep;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
@@ -230,6 +235,44 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     }
 
     /**
+     * Get Spark Job Yarn application state with retries
+     *
+     * @return the Yarn application state got
+     * @throws IOException exceptions in transaction
+     */
+    public String getState() throws IOException {
+        int retries = 0;
+
+        do {
+            try {
+                HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
+                        this.getConnectUri().toString(), batchId);
+
+                if (httpResponse.getCode() >= 200 && httpResponse.getCode() < 300) {
+                    SparkSubmitResponse jobResp = ObjectConvertUtils.convertJsonToObject(
+                            httpResponse.getMessage(), SparkSubmitResponse.class)
+                            .orElseThrow(() -> new UnknownServiceException(
+                                    "Bad spark job response: " + httpResponse.getMessage()));
+
+                    return jobResp.getState();
+                }
+            } catch (IOException ignore) {
+                log().debug("Got exception " + ignore.toString() + ", waiting for a while to try",
+                        ignore);
+            }
+
+            try {
+                // Retry interval
+                sleep(TimeUnit.SECONDS.toMillis(this.getDelaySeconds()));
+            } catch (InterruptedException ex) {
+                throw new IOException("Interrupted in retry attempting", ex);
+            }
+        } while (++retries < this.getRetriesMax());
+
+        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+    }
+
+    /**
      * Get Spark Job Yarn application ID with retries
      *
      * @param batchBaseUri the connection URI
@@ -392,4 +435,93 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         return driverHost;
     }
 
+    public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
+        return Observable.create(ob -> {
+            try {
+                int start = 0;
+                final int maxLinesPerGet = 128;
+                int linesGot = 0;
+                boolean isJobActive = true;
+
+                while (isJobActive) {
+                    String logUrl = String.format("%s/%d/log?from=%d&size=%d",
+                            this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
+
+                    HttpResponse httpResponse = this.getSubmission().getHttpResponseViaGet(logUrl);
+
+                    SparkJobLog sparkJobLog = ObjectConvertUtils.convertJsonToObject(httpResponse.getMessage(),
+                            SparkJobLog.class)
+                            .orElseThrow(() -> new UnknownServiceException(
+                                    "Bad spark log response: " + httpResponse.getMessage()));
+
+                    // To subscriber
+                    sparkJobLog.getLog().forEach(line -> ob.onNext(new SimpleImmutableEntry<>(Log, line)));
+
+                    linesGot = sparkJobLog.getLog().size();
+                    start += linesGot;
+
+                    // Retry interval
+                    if (linesGot == 0) {
+                        sleep(TimeUnit.SECONDS.toMillis(this.getDelaySeconds()));
+                        isJobActive = this.isActive();
+                    }
+                }
+            } catch (IOException ex) {
+                ob.onNext(new SimpleImmutableEntry<>(Error, ex.getMessage()));
+            } catch (InterruptedException ignored) {
+            } finally {
+                ob.onCompleted();
+            }
+        });
+    }
+
+    public boolean isActive() throws IOException {
+        int retries = 0;
+
+        do {
+            try {
+                HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
+                        this.getConnectUri().toString(), batchId);
+
+                if (httpResponse.getCode() >= 200 && httpResponse.getCode() < 300) {
+                    SparkSubmitResponse jobResp = ObjectConvertUtils.convertJsonToObject(
+                            httpResponse.getMessage(), SparkSubmitResponse.class)
+                            .orElseThrow(() -> new UnknownServiceException(
+                                    "Bad spark job response: " + httpResponse.getMessage()));
+
+                    return jobResp.isAlive();
+                }
+            } catch (IOException ignore) {
+                log().debug("Got exception " + ignore.toString() + ", waiting for a while to try",
+                        ignore);
+            }
+
+            try {
+                // Retry interval
+                sleep(TimeUnit.SECONDS.toMillis(this.getDelaySeconds()));
+            } catch (InterruptedException ex) {
+                throw new IOException("Interrupted in retry attempting", ex);
+            }
+        } while (++retries < this.getRetriesMax());
+
+        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+    }
+
+    public boolean isLogAggregated() throws IOException {
+        String applicationId = this.getSparkJobApplicationId(this.getConnectUri(), this.getBatchId());
+        App yarnApp = this.getSparkJobYarnApplication(this.getConnectUri(), applicationId);
+
+        switch (yarnApp.getLogAggregationStatus().toUpperCase()) {
+            case "SUCCEEDED":
+                return true;
+            case "DISABLED":
+            case "NOT_START":
+            case "RUNNING":
+            case "RUNNING_WITH_FAILURE":
+            case "FAILED":
+            case "TIME_OUT":
+            default:
+                return false;
+        }
+    }
 }

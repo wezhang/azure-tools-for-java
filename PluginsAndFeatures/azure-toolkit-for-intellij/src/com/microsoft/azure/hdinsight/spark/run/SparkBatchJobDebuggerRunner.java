@@ -259,7 +259,13 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 .orElseThrow(() -> new HDIException(
                                         "No cluster name matched selection: " + selectedClusterName));
 
-                        submitModel.uploadFileToCluster(clusterDetail, artifact.getName());
+                        String jobArtifactUri = JobUtils.uploadFileToCluster(
+                                clusterDetail,
+                                submitModel.getArtifactPath(artifact.getName())
+                                           .orElseThrow(() -> new SparkJobException("Can't find jar path to upload")),
+                                HDInsightUtil.getToolWindowMessageSubject());
+
+                        submissionParameter.setFilePath(jobArtifactUri);
 
                         ob.onSuccess(clusterDetail);
                     } catch (Exception e) {

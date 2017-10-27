@@ -28,13 +28,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.util.AbstractMap.SimpleImmutableEntry;
+import java.io.InputStream;
+import java.util.AbstractMap;
 import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
 
-public class SparkJobLogReader extends Reader {
+public class SparkJobLogInputStream extends InputStream {
     @NotNull
     private String logType;
     @Nullable
@@ -42,14 +40,13 @@ public class SparkJobLogReader extends Reader {
     @Nullable
     private String logUrl;
 
-    private Boolean isReady = true;
+    private long offset = 0;
     @NotNull
-    private final Timer delayReadyTimer;
+    private byte[] buffer = new byte[0];
+    private int bufferPos;
 
-    public SparkJobLogReader(String logType) {
+    public SparkJobLogInputStream(@NotNull String logType) {
         this.logType = logType;
-
-        this.delayReadyTimer = new Timer("Spark job log " + logType + " reader delay timer.");
     }
 
     public void attachJob(@NotNull SparkBatchJob sparkJob) throws IOException {
@@ -57,44 +54,49 @@ public class SparkJobLogReader extends Reader {
         this.logUrl = sparkJob.getSparkJobDriverLogUrl(sparkJob.getConnectUri(), sparkJob.getBatchId());
     }
 
+    private synchronized Optional<String> fetchLog(long logOffset, int fetchSize) {
+        return getAttachedJob()
+                .flatMap(job -> getLogUrl().map(url -> new AbstractMap.SimpleImmutableEntry<>(job, url)))
+                .map(jobUrlPair -> {
+                    SparkBatchJob job = jobUrlPair.getKey();
+
+                    return JobUtils.getInformationFromYarnLogDom(
+                            job.getSubmission().getCredentialsProvider(),
+                            jobUrlPair.getValue(),
+                            getLogType(),
+                            logOffset,
+                            fetchSize);
+                })
+                .filter(slice -> !slice.isEmpty());
+    }
+
     public Optional<SparkBatchJob> getAttachedJob() {
         return Optional.ofNullable(sparkBatchJob);
     }
 
     @Override
-    public int read(@NotNull char[] buf, int off, int len) throws IOException {
-        return getAttachedJob()
-                .flatMap(job -> getLogUrl().map(url -> new SimpleImmutableEntry<>(job, url)))
-                .map(jobUrlPair -> {
-                    SparkBatchJob job = jobUrlPair.getKey();
+    public int read() throws IOException {
+        if (bufferPos >= buffer.length) {
+            throw new IOException("Beyond the buffer end, needs a new log fetch");
+        }
 
-                    String log = JobUtils.getInformationFromYarnLogDom(
-                                            job.getSubmission().getCredentialsProvider(),
-                                            jobUrlPair.getValue(),
-                                            getLogType(),
-                                            off,
-                                            len);
-
-                    if (log.length() > 0) {
-                        log.getChars(0, log.length(), buf, 0);
-                    } else {
-                        // stop a while before next ready
-                        delayReady(500);
-                    }
-
-                    return log.length();
-                })
-                .orElse(0);
+        return buffer[bufferPos++];
     }
 
     @Override
-    public void close() throws IOException {
+    public int available() throws IOException {
+        if (bufferPos >= buffer.length) {
+            return fetchLog(offset, -1)
+                    .map(slice -> {
+                        buffer = slice.getBytes();
+                        bufferPos = 0;
+                        offset += slice.length();
 
-    }
-
-    @Override
-    public boolean ready() throws IOException {
-        return isReady;
+                        return buffer.length;
+                    }).orElse(0);
+        } else {
+            return buffer.length - bufferPos;
+        }
     }
 
     public Optional<String> getLogUrl() {
@@ -105,16 +107,4 @@ public class SparkJobLogReader extends Reader {
     public String getLogType() {
         return logType;
     }
-
-    private void delayReady(long delayMs) {
-        isReady = false;
-
-        delayReadyTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                isReady = true;
-            }
-        }, delayMs);
-    }
-
 }

@@ -23,7 +23,10 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.execution.*;
+import com.intellij.execution.DefaultExecutionResult;
+import com.intellij.execution.ExecutionException;
+import com.intellij.execution.ExecutionResult;
+import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.executors.DefaultRunExecutor;
@@ -31,23 +34,28 @@ import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.process.KillableColoredProcessHandler;
 import com.intellij.execution.process.OSProcessHandler;
 import com.intellij.execution.runners.ProgramRunner;
+import com.intellij.execution.ui.ConsoleView;
+import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.execution.util.JavaParametersUtil;
-import com.intellij.ide.actions.ExitAction;
-import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.project.Project;
-import com.intellij.remoteServer.impl.runtime.ui.tree.actions.RemoteServerDisconnectAction;
 import com.intellij.util.PathUtil;
-import com.microsoft.azure.hdinsight.spark.common.*;
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
+import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner;
 import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
+import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import rx.subjects.PublishSubject;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 
 /**
@@ -86,22 +94,39 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
             return result;
         } else if (executor instanceof SparkBatchJobRunExecutor) {
-//            SparkBatchJobRunner jobRunner = (SparkBatchJobRunner) programRunner;
-            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, true);
-            SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(myProject, jobModel.getSubmitModel());
-            SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "", null);
+            SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
+            PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+            SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
+            SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
 
-            consoleView.attachToProcess(processHandler);
+            jobOutputView.attachToProcess(processHandler);
+
+            ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
+            ctrlSubject.subscribe(
+                    messageWithType -> {
+                        switch (messageWithType.getKey()) {
+                            case Info:
+                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
+                                break;
+                            case Warning:
+                            case Log:
+                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.LOG_WARNING_OUTPUT);
+                                break;
+                            default:
+                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.ERROR_OUTPUT);
+                        }
+                    },
+                    err -> ctrlMessageView.print(err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT)
+            );
 
             remoteProcess.start();
-
-            ExecutionResult result = new DefaultExecutionResult(consoleView, processHandler, Separator.getInstance(), new SparkBatchJobDisconnectAction());
+            ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), new SparkBatchJobDisconnectAction());
             programRunner.onProcessStarted(null, result);
 
             return result;
         } else if (executor instanceof DefaultRunExecutor || executor instanceof DefaultDebugExecutor) {
-            // Spark Local Run
-            ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
+            // Spark Local Run/Debug
+            ConsoleViewImpl consoleView = new SparkJobLogConsoleView(myProject);
             OSProcessHandler processHandler = new KillableColoredProcessHandler(
                     createCommandlineForLocal(jobModel.getLocalRunConfigurableModel(), executor instanceof DefaultDebugExecutor));
 
