@@ -60,11 +60,15 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     private SparkJobLogInputStream jobStdoutLogInputSteam;
     @NotNull
     private SparkJobLogInputStream jobStderrLogInputSteam;
+    @Nullable
+    private Subscription jobSubscription;
+    @Nullable
+    private SparkBatchJob sparkJob;
 
     private boolean isDisconnected;
 
     @Nullable
-    private Subscription ctrlLogSubscription;
+    private Subscription jobLogSubscription;
 
     public SparkBatchJobRemoteProcess(@NotNull Project project, @NotNull SparkSubmitModel sparkSubmitModel,
                                       @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
@@ -130,15 +134,29 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     @Override
     public void destroy() {
+        getSparkJob().ifPresent(sparkBatchJob -> {
+            try {
+                sparkBatchJob.killBatchJob();
+            } catch (IOException ignored) {
+            }
+        });
 
-        this.stop();
+        this.disconnect();
+    }
+
+    public Optional<SparkBatchJob> getSparkJob() {
+        return Optional.ofNullable(sparkJob);
+    }
+
+    public Optional<Subscription> getJobSubscription() {
+        return Optional.ofNullable(jobSubscription);
     }
 
     public void start() {
         // Build, deploy and wait for the job done.
-        SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
+        jobSubscription = SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
                 .flatMap(artifact -> {
-                    ctrlInfo("Deploy the jar file into cluster...");
+                    logInfo("Deploy the jar file into cluster...");
 
                     return JobUtils.deployArtifact(
                                 submitModel.getArtifactPath(artifact.getName())
@@ -148,7 +166,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                         .subscribeOn(Schedulers.io());
                 })
                 .flatMap(clusterArtifactUriPair -> {
-                    ctrlInfo("The Spark job is submitting ...");
+                    logInfo("The Spark job is submitting ...");
 
                     IClusterDetail cluster = clusterArtifactUriPair.getKey();
                     submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
@@ -156,7 +174,9 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                 })
                 .map(job -> {
                     try {
-                        ctrlLogSubscription = job.getSubmissionLog()
+                        sparkJob = job;
+
+                        jobLogSubscription = job.getSubmissionLog()
                                 .subscribeOn(Schedulers.io())
                                 .subscribe(ctrlSubject::onNext, ctrlSubject::onError);
 
@@ -170,20 +190,22 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                 })
                 .toObservable()
                 .flatMap(SparkBatchJob::getJobDoneObservable)
-                .subscribe(state -> stop(), err -> {
+                .subscribe(state -> disconnect(), err -> {
                     ctrlSubject.onError(err);
-                    stop();
+                    disconnect();
                 });
     }
 
-    public void stop() {
+    public void disconnect() {
         this.isDisconnected = true;
-        Optional.ofNullable(this.ctrlLogSubscription).ifPresent(Subscription::unsubscribe);
+        Optional.ofNullable(this.jobLogSubscription).ifPresent(Subscription::unsubscribe);
 
         this.ctrlSubject.onCompleted();
+
+        this.getJobSubscription().ifPresent(Subscription::unsubscribe);
     }
 
-    private void ctrlInfo(String message) {
+    private void logInfo(String message) {
         ctrlSubject.onNext(new SimpleImmutableEntry<>(Info, message));
     }
 }

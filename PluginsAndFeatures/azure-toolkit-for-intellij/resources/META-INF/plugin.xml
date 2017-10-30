@@ -175,6 +175,10 @@
             text="Run on Web App (Linux)" description="Run on Web App (Linux)"
             icon="/icons/PublishWebAppOnLinux_16.png">
     </action>
+    <action id="Actions.SparkJobDisconnect" class="com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction"
+            text="Disconnect" description="Disconnect the log view from remote Spark Job"
+            icon="/icons/SparkJobDisconnect.png">
+    </action>
 
     <group id="AzurePopupGroup" text="Azure" description="Azure" icon="/icons/azure.png" popup="true"
            class="com.microsoft.intellij.actions.AzurePopupGroup">

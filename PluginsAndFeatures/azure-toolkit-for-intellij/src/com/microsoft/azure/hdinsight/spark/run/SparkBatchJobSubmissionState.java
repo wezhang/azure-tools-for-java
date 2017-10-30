@@ -102,6 +102,11 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
             jobOutputView.attachToProcess(processHandler);
 
             ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
+
+            remoteProcess.start();
+            SparkBatchJobDisconnectAction disconnectAction = new SparkBatchJobDisconnectAction(remoteProcess);
+            ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), disconnectAction);
+
             ctrlSubject.subscribe(
                     messageWithType -> {
                         switch (messageWithType.getKey()) {
@@ -116,11 +121,9 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                                 ctrlMessageView.print("ERROR: " + messageWithType.getValue() + "\n", ConsoleViewContentType.ERROR_OUTPUT);
                         }
                     },
-                    err -> ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT)
+                    err -> ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT),
+                    () -> disconnectAction.setEnabled(false)
             );
-
-            remoteProcess.start();
-            ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), new SparkBatchJobDisconnectAction());
             programRunner.onProcessStarted(null, result);
 
             return result;

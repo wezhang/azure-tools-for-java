@@ -25,17 +25,53 @@ package com.microsoft.azure.hdinsight.spark.run.action;
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.DumbAware;
+import com.microsoft.azure.hdinsight.common.StreamUtil;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRemoteProcess;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunProcessHandler;
+import org.jetbrains.annotations.Nullable;
 
-public class SparkBatchJobDisconnectAction extends AnAction implements DumbAware {
+import javax.swing.*;
+import java.util.Optional;
+
+public class SparkBatchJobDisconnectAction extends AnAction {
+    @Nullable
+    private SparkBatchJobRemoteProcess remoteProcess;
+    private boolean isEnabled = true;
+
     public SparkBatchJobDisconnectAction() {
-        super(AllIcons.Actions.Exit);
+        super();
+    }
+
+    public SparkBatchJobDisconnectAction(@Nullable SparkBatchJobRemoteProcess remoteProcess) {
+        super("Disconnect",
+              "Disconnect the log view from remote Spark job",
+              Optional.ofNullable(StreamUtil.getImageResourceFile("/icons/SparkJobDisconnect.png"))
+                      .map(Icon.class::cast)
+                      .orElse(AllIcons.Actions.Exit));
+
+        this.remoteProcess = remoteProcess;
     }
 
     @Override
     public void actionPerformed(AnActionEvent anActionEvent) {
         // Disconnect Spark Job log receiving
+        getSparkRemoteProcess().ifPresent(SparkBatchJobRemoteProcess::disconnect);
     }
 
+    public Optional<SparkBatchJobRemoteProcess> getSparkRemoteProcess() {
+        return Optional.ofNullable(remoteProcess);
+    }
 
+    public void setEnabled(boolean enabled) {
+        isEnabled = enabled;
+    }
+
+    @Override
+    public void update(AnActionEvent e) {
+        Presentation presentation = e.getPresentation();
+
+        presentation.setEnabled(isEnabled);
+    }
 }
