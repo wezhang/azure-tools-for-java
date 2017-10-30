@@ -24,7 +24,14 @@ package com.microsoft.azure.hdinsight.spark.common;
 import com.google.common.base.Joiner;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.intellij.openapi.compiler.CompilationException;
+import com.intellij.openapi.compiler.CompileScope;
+import com.intellij.openapi.compiler.CompilerManager;
+import com.intellij.openapi.compiler.CompilerMessageCategory;
 import com.intellij.openapi.project.Project;
+import com.intellij.packaging.artifacts.Artifact;
+import com.intellij.packaging.impl.compiler.ArtifactCompileScope;
+import com.intellij.packaging.impl.compiler.ArtifactsWorkspaceSettings;
 import com.jcraft.jsch.*;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
@@ -32,9 +39,11 @@ import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
+import com.microsoft.azure.hdinsight.sdk.common.NotSupportExecption;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
@@ -45,6 +54,7 @@ import com.microsoft.tooling.msservices.helpers.CallableSingleArg;
 import com.microsoft.tooling.msservices.helpers.azure.sdk.StorageClientSDKManager;
 import com.microsoft.tooling.msservices.model.storage.BlobContainer;
 import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
+import rx.Single;
 
 import java.io.*;
 import java.net.URL;
@@ -127,7 +137,7 @@ public class SparkSubmitHelper {
                 }
 
                 from_index = printoutJobLog(project, id, from_index, clusterDetail);
-                HttpResponse statusHttpResponse = SparkBatchSubmission.getInstance().getBatchSparkJobStatus(getLivyConnectionURL(clusterDetail), id);
+                HttpResponse statusHttpResponse = SparkBatchSubmission.getInstance().getBatchSparkJobStatus(JobUtils.getLivyConnectionURL(clusterDetail), id);
 
                 SparkSubmitResponse status = new Gson().fromJson(statusHttpResponse.getMessage(), new TypeToken<SparkSubmitResponse>() {
                 }.getType());
@@ -192,14 +202,30 @@ public class SparkSubmitHelper {
         }
     }
 
-    public void uploadFileToCluster(@NotNull final IClusterDetail selectedClusterDetail,
-                                    @NotNull final String buildJarPath,
-                                    @NotNull rx.Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> logSubject) throws Exception {
+    public Single<Artifact> buildArtifact(Project project, boolean isPrebuiltArtifact, Artifact artifact) {
+        return Single.create(ob -> {
+            if (isPrebuiltArtifact) {
+                ob.onError(new NotSupportExecption());
+                return;
+            }
 
+            final Set<Artifact> artifacts = Collections.singleton(artifact);
+            ArtifactsWorkspaceSettings.getInstance(project).setArtifactsToBuild(artifacts);
+
+            final CompileScope scope = ArtifactCompileScope.createArtifactsScope(project, artifacts, true);
+            // Make is an async work
+            CompilerManager.getInstance(project).make(scope, (aborted, errors, warnings, compileContext) -> {
+                if (aborted || errors != 0) {
+                    ob.onError(new CompilationException(Arrays.toString(compileContext.getMessages(CompilerMessageCategory.ERROR))));
+                } else {
+                    ob.onSuccess(artifact);
+                }
+            });
+        });
     }
 
     private int printoutJobLog(Project project, int id, int from_index, IClusterDetail clusterDetail) throws IOException {
-        HttpResponse httpResponse = SparkBatchSubmission.getInstance().getBatchJobFullLog( getLivyConnectionURL(clusterDetail), id);
+        HttpResponse httpResponse = SparkBatchSubmission.getInstance().getBatchJobFullLog(JobUtils.getLivyConnectionURL(clusterDetail), id);
         sparkJobLog = new Gson().fromJson(httpResponse.getMessage(), new TypeToken<SparkJobLog>() {
         }.getType());
 
@@ -253,14 +279,6 @@ public class SparkSubmitHelper {
 
         return path.endsWith(".jar");
 
-    }
-
-    public static String getLivyConnectionURL(IClusterDetail clusterDetail) {
-        if(clusterDetail.isEmulator()){
-            return clusterDetail.getConnectionUrl() + "/batches";
-        }
-
-        return clusterDetail.getConnectionUrl() + "/livy/batches";
     }
 
     public static final String HELP_LINK = "http://go.microsoft.com/fwlink/?LinkID=722349&clcid=0x409";

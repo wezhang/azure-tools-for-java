@@ -328,7 +328,7 @@ public class SparkSubmitModel {
         }
     }
 
-    public Optional<String> getArtifactPath(@NotNull String selectedArtifactName) throws SparkJobException {
+    public Optional<String> getArtifactPath(@NotNull String selectedArtifactName) {
         String buildJarPath = submissionParameter.isLocalArtifact() ?
                 submissionParameter.getLocalArtifactPath() : ((artifactHashMap.get(selectedArtifactName).getOutputFilePath()));
 
@@ -337,7 +337,7 @@ public class SparkSubmitModel {
 
     private void tryToCreateBatchSparkJob(@NotNull final IClusterDetail selectedClusterDetail) throws HDIException,IOException {
         SparkBatchSubmission.getInstance().setCredentialsProvider(selectedClusterDetail.getHttpUserName(), selectedClusterDetail.getHttpPassword());
-        HttpResponse response = SparkBatchSubmission.getInstance().createBatchSparkJob(SparkSubmitHelper.getLivyConnectionURL(selectedClusterDetail), submissionParameter);
+        HttpResponse response = SparkBatchSubmission.getInstance().createBatchSparkJob(JobUtils.getLivyConnectionURL(selectedClusterDetail), submissionParameter);
 
         if (response.getCode() == 201 || response.getCode() == 200) {
             HDInsightUtil.showInfoOnSubmissionMessageWindow(project, "Info : Submit to spark cluster successfully.");
@@ -386,7 +386,7 @@ public class SparkSubmitModel {
 
         try {
             SparkBatchRemoteDebugJob debugJob = SparkBatchRemoteDebugJob.factory(
-                    SparkSubmitHelper.getLivyConnectionURL(selectedClusterDetail),
+                    JobUtils.getLivyConnectionURL(selectedClusterDetail),
                     submissionParameter,
                     SparkBatchSubmission.getInstance());
 
@@ -395,7 +395,7 @@ public class SparkSubmitModel {
             return debugJob;
         } catch (URISyntaxException ex) {
             throw new HDIException(
-                    "Bad Livy Connection URL " + SparkSubmitHelper.getLivyConnectionURL(selectedClusterDetail),
+                    "Bad Livy Connection URL " + JobUtils.getLivyConnectionURL(selectedClusterDetail),
                     ex);
         } catch (IOException ex) {
             HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(

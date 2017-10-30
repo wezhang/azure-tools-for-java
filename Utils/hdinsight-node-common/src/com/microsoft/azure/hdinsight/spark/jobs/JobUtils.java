@@ -29,6 +29,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.jcraft.jsch.*;
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightLoader;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
@@ -40,6 +41,10 @@ import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.ApplicationMasterLogs;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
+import com.microsoft.azure.hdinsight.spark.common.SparkJobException;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivyBatchesInformation;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivySession;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
@@ -64,9 +69,9 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.*;
 import rx.Observable;
 import rx.Observer;
-import rx.Subscription;
 import rx.schedulers.Schedulers;
 
 import java.awt.*;
@@ -531,6 +536,54 @@ public class JobUtils {
         return selectedClusterDetail.isEmulator() ?
                 JobUtils.uploadFileToEmulator(selectedClusterDetail, buildJarPath, logSubject) :
                 JobUtils.uploadFileToHDFS(selectedClusterDetail, buildJarPath, logSubject);
+    }
+
+    public static String getLivyConnectionURL(IClusterDetail clusterDetail) {
+        if(clusterDetail.isEmulator()){
+            return clusterDetail.getConnectionUrl() + "/batches";
+        }
+
+        return clusterDetail.getConnectionUrl() + "/livy/batches";
+    }
+
+    public static Single<SparkBatchJob> submit(@NotNull IClusterDetail cluster, @NotNull SparkSubmissionParameter parameter) {
+        return Single.create((SingleSubscriber<? super SparkBatchJob> ob) -> {
+            try {
+                SparkBatchSubmission.getInstance().setCredentialsProvider(cluster.getHttpUserName(), cluster.getHttpPassword());
+
+                SparkBatchJob sparkJob = new SparkBatchJob(
+                        URI.create(getLivyConnectionURL(cluster)),
+                        parameter,
+                        SparkBatchSubmission.getInstance());
+
+                sparkJob.createBatchJob();
+                ob.onSuccess(sparkJob);
+            } catch (Exception e) {
+                ob.onError(e);
+            }
+        });
+    }
+
+    public static Single<SimpleImmutableEntry<IClusterDetail, String>> deployArtifact(@NotNull String artifactLocalPath,
+                                                        @NotNull String clusterName,
+                                                        @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> logSubject) {
+        return Single.create(ob -> {
+            try {
+                IClusterDetail clusterDetail = ClusterManagerEx.getInstance()
+                        .getClusterDetailByName(clusterName)
+                        .orElseThrow(() -> new HDIException("No cluster name matched selection: " + clusterName));
+
+                String jobArtifactUri = JobUtils.uploadFileToCluster(
+                        clusterDetail,
+                        artifactLocalPath,
+                        logSubject);
+
+
+                ob.onSuccess(new SimpleImmutableEntry<>(clusterDetail, jobArtifactUri));
+            } catch (Exception e) {
+                ob.onError(e);
+            }
+        });
     }
 
 }

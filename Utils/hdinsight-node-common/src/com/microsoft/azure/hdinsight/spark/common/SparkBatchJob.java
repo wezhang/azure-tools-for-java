@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
 import rx.Observable;
+import rx.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.net.URI;
@@ -42,6 +43,7 @@ import java.util.regex.Pattern;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
 import static java.lang.Thread.sleep;
+import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
@@ -523,5 +525,26 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             default:
                 return false;
         }
+    }
+
+    public Observable<SparkBatchJobState> getJobDoneObservable() {
+        return Observable.interval(200, TimeUnit.MILLISECONDS)
+                .map((times) -> {
+                    try {
+                        return getState();
+                    } catch (IOException e) {
+                        throw propagate(e);
+                    }
+                })
+                .map(s -> SparkBatchJobState.valueOf(s.toUpperCase()))
+                .filter(SparkBatchJobState::isJobDone)
+                .filter((state) -> {
+                    try {
+                        return isLogAggregated();
+                    } catch (IOException e) {
+                        throw propagate(e);
+                    }
+                })
+                .delay(3, TimeUnit.SECONDS);
     }
 }

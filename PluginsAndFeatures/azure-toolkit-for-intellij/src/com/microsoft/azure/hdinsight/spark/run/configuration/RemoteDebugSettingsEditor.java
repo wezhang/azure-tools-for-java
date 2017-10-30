@@ -32,7 +32,6 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 
 public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConfiguration> {
-//    private SparkSubmissionContentPanel submissionPanel;
     private SparkBatchJobConfigurable jobConfigurable;
 
     private RemoteDebugRunConfiguration runConfiguration;
@@ -42,12 +41,6 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
     }
 
     public RemoteDebugSettingsEditor(final RemoteDebugRunConfiguration runConfiguration){
-//        submissionPanel = new SparkSubmissionContentPanel(
-//                runConfiguration.getSubmitModel(),
-//                () -> {
-//                    // TODO Add logic to resize the window and enable/disable button
-//                });
-
         this.runConfiguration = runConfiguration;
     }
 
@@ -55,20 +48,17 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
     protected void resetEditorFrom(@NotNull RemoteDebugRunConfiguration remoteDebugRunConfiguration) {
         // Reset the panel from the RunConfiguration
         jobConfigurable.setData(remoteDebugRunConfiguration.getModel());
-//        submissionPanel.apply(remoteDebugRunConfiguration.getSubmitModel());
     }
 
     @Override
     protected void applyEditorTo(@NotNull RemoteDebugRunConfiguration remoteDebugRunConfiguration) throws ConfigurationException {
         // Apply the panel's setting to RunConfiguration
         jobConfigurable.getData(remoteDebugRunConfiguration.getModel());
-//        remoteDebugRunConfiguration.apply(submissionPanel);
     }
 
     @NotNull
     @Override
     protected JComponent createEditor() {
-//        return submissionPanel;
         jobConfigurable = new SparkBatchJobConfigurable(runConfiguration.getSubmitModel().getProject());
 
         return jobConfigurable.getComponent();

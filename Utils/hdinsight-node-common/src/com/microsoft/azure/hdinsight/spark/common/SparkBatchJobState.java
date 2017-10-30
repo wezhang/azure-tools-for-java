@@ -45,4 +45,22 @@ public enum SparkBatchJobState {
     public String toString() {
         return state;
     }
+
+    public boolean isJobDone() {
+        switch(this) {
+            case SHUTTING_DOWN:
+            case ERROR:
+            case DEAD:
+            case SUCCESS:
+                return true;
+            case NOT_STARTED:
+            case STARTING:
+            case RUNNING:
+            case RECOVERING:
+            case BUSY:
+            case IDLE:
+            default:
+                return false;
+        }
+    }
 }
