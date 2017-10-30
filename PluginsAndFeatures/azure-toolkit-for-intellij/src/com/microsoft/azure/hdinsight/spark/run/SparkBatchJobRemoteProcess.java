@@ -159,8 +159,6 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                 return;
             }
 
-            ctrlSubject.onNext(new SimpleImmutableEntry<>(Info, "Package the Spark job into jar file..."));
-
             final Set<Artifact> artifacts = Collections.singleton(submitModel.getArtifact());
             ArtifactsWorkspaceSettings.getInstance(project).setArtifactsToBuild(artifacts);
 

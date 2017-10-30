@@ -106,17 +106,17 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                     messageWithType -> {
                         switch (messageWithType.getKey()) {
                             case Info:
-                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
+                                ctrlMessageView.print("INFO: " + messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
                                 break;
                             case Warning:
                             case Log:
-                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.LOG_WARNING_OUTPUT);
+                                ctrlMessageView.print("LOG: " + messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
                                 break;
                             default:
-                                ctrlMessageView.print(messageWithType.getValue() + "\n", ConsoleViewContentType.ERROR_OUTPUT);
+                                ctrlMessageView.print("ERROR: " + messageWithType.getValue() + "\n", ConsoleViewContentType.ERROR_OUTPUT);
                         }
                     },
-                    err -> ctrlMessageView.print(err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT)
+                    err -> ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT)
             );
 
             remoteProcess.start();
