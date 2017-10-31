@@ -31,6 +31,7 @@ import com.microsoft.azuretools.Constants;
 import com.microsoft.azuretools.adauth.PromptBehavior;
 import com.microsoft.azuretools.authmanage.AdAuthManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
+import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.RefreshableTokenCredentials;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
 import com.microsoft.azuretools.telemetry.TelemetryInterceptor;
@@ -143,7 +144,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
             public String doAuthenticate(String authorization, String resource, String scope) {
             try {
             	// TODO: check usage
-                return AdAuthManager.getInstance().getAccessToken(tid, Constants.resourceVault, PromptBehavior.Auto);
+                return AdAuthManager.getInstance().getAccessToken(tid, resource, PromptBehavior.Auto);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -175,8 +176,6 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     
     @Override
     public Environment getEnvironment() {
-    	// TODO: later parse the env from commonSetting
-        return Environment.GLOBAL;
+        return CommonSettings.getEnvironmentEnum();
     }
-
 }

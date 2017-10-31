@@ -29,9 +29,8 @@
         <relativePath>../pom.xml</relativePath>
         <groupId>com.microsoft.azuretools</groupId>
         <artifactId>utils</artifactId>
-        <version>3.0.9</version>
+        <version>3.0.10</version>
     </parent>
-    <groupId>com.microsoft.azuretools</groupId>
     <artifactId>azuretools-core</artifactId>
     <properties>
         <artifact.name>${project.artifactId}-${project.version}.jar</artifact.name>
@@ -174,12 +173,16 @@
             <artifactId>powermock-module-junit4</artifactId>
             <version>1.7.0RC4</version>
             <scope>test</scope>
-         </dependency>
-         <dependency>
-             <groupId>org.powermock</groupId>
-             <artifactId>powermock-api-mockito2</artifactId>
-             <version>1.7.0RC4</version>
-             <scope>test</scope>
-         </dependency>
+        </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-api-mockito2</artifactId>
+            <version>1.7.0RC4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
     </dependencies>
 </project>

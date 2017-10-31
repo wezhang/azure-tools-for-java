@@ -40,6 +40,8 @@ import com.microsoft.azuretools.core.utils.ProgressDialog;
 import com.microsoft.azuretools.core.utils.UpdateProgressIndicator;
 import com.microsoft.azuretools.utils.AzureModel;
 import com.microsoft.azuretools.utils.AzureModelController;
+import com.microsoft.azuretools.utils.AzureUIRefreshCore;
+import com.microsoft.azuretools.utils.AzureUIRefreshEvent;
 import com.microsoft.azuretools.utils.WebAppUtils;
 import com.microsoft.azuretools.webapp.Activator;
 
@@ -636,9 +638,10 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
             comboSubscription.removeAll();;
             binderSubscriptionDetails = new ArrayList<SubscriptionDetail>();
             for (SubscriptionDetail sd : sdl) {
-                if (!sd.isSelected()) continue;
-                comboSubscription.add(sd.getSubscriptionName());
-                binderSubscriptionDetails.add(sd);
+                if (sd != null && sd.isSelected()) {
+                    comboSubscription.add(sd.getSubscriptionName());
+                    binderSubscriptionDetails.add(sd);
+                }
             }
             if (comboSubscription.getItemCount() > 0) {
                 comboSubscription.select(0);
@@ -691,12 +694,13 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
         binderAppServicePlan = new ArrayList<AppServicePlan>();
         for (ResourceGroup rg : rgl) {
             List<AppServicePlan> aspl = AzureModel.getInstance().getResourceGroupToAppServicePlanMap().get(rg);
-            for (AppServicePlan asp : aspl) {
-                if (asp.pricingTier().toSkuDescription().tier().compareToIgnoreCase("dynamic") == 0) {
-                    continue;
+            if (aspl != null) {
+                for (AppServicePlan asp : aspl) {
+                    if (asp != null && asp.pricingTier().toSkuDescription().tier().compareToIgnoreCase("dynamic") != 0) {
+                        binderAppServicePlan.add(asp);
+                        comboAppServicePlan.add(asp.name());
+                    }
                 }
-                binderAppServicePlan.add(asp);
-                comboAppServicePlan.add(asp.name());
             }
         }
 
@@ -730,10 +734,11 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
         Map<SubscriptionDetail, List<Location>> sdlocMap = AzureModel.getInstance().getSubscriptionToLocationMap();
         SubscriptionDetail sd = binderSubscriptionDetails.get(i);
         List<Location> locl = sdlocMap.get(sd);
-
-        for (Location loc : locl) {
-            comboAppServicePlanLocation.add(loc.displayName());
-            binderAppServicePlanLocation.add(loc);
+        if (locl != null) {
+            for (Location loc : locl) {
+                comboAppServicePlanLocation.add(loc.displayName());
+                binderAppServicePlanLocation.add(loc);
+            }
         }
 
         if (comboAppServicePlanLocation.getItemCount() > 0)  {
@@ -747,8 +752,10 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
             binderAppServicePlanPricingTier = new ArrayList<PricingTier>();
             List<PricingTier> l = createListFromClassFields(PricingTier.class);
             for (PricingTier aspt : l) {
-                comboAppServicePlanPricingTier.add(aspt.toString());
-                binderAppServicePlanPricingTier.add(aspt);
+                if (aspt != null) {
+                    comboAppServicePlanPricingTier.add(aspt.toString());
+                    binderAppServicePlanPricingTier.add(aspt);
+                }
             }
             if (comboAppServicePlanPricingTier.getItemCount() > 0) {
                 comboAppServicePlanPricingTier.select(0);
@@ -762,7 +769,9 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
     protected void fillJavaVersion() {
         javaVersions = AzureWebAppMvpModel.getInstance().listJdks();
         for (JdkModel jdk : javaVersions) {
-            cbJavaVersion.add(jdk.toString());
+            if (jdk != null) {
+                cbJavaVersion.add(jdk.toString());
+            }
         }
         if (cbJavaVersion.getItemCount() > 0) {
             cbJavaVersion.select(0);
@@ -811,6 +820,10 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
                                 AppServiceCreateDialog.super.okPressed();
                             };
                         });
+                        if (AzureUIRefreshCore.listeners != null) {
+                            AzureUIRefreshCore.execute(
+                                    new AzureUIRefreshEvent(AzureUIRefreshEvent.EventType.REFRESH, null));
+                        }
                     } catch (Exception ex) {
                         ex.printStackTrace();
                         LOG.log(new Status(IStatus.ERROR, Activator.PLUGIN_ID, "run@ProgressDialog@okPressed@AppServiceCreateDialog", ex));
@@ -863,10 +876,10 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
         if (webappName.length() > 60 || !webappName.matches(WEB_APP_NAME_REGEX)) {
             setError(dec_textAppName, WEB_APP_NAME_INVALID_MSG);
             return false;
-        } else {
+        } else if (AzureModel.getInstance().getResourceGroupToWebAppMap() != null){
             for (List<WebApp> wal : AzureModel.getInstance().getResourceGroupToWebAppMap().values()) {
                 for (WebApp wa : wal) {
-                    if (wa.name().toLowerCase().equals(webappName.toLowerCase())) {
+                    if (wa != null && wa.name().toLowerCase().equals(webappName.toLowerCase())) {
                         setError(dec_textAppName,NAME_ALREADY_TAKEN);
                         return false;
                     }
@@ -890,10 +903,10 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
                 }
                 // App service plan name must be unique in each subscription
                 List<ResourceGroup> rgl = AzureMvpModel.getInstance().getResourceGroupsBySubscriptionId(model.getSubscriptionId());
-                for (ResourceGroup rg : rgl ) {
+                for (ResourceGroup rg : rgl) {
                     List<AppServicePlan> aspl = AzureWebAppMvpModel.getInstance().listAppServicePlanBySubscriptionIdAndResourceGroupName(model.getSubscriptionId(), rg.name());
                     for (AppServicePlan asp : aspl) {
-                        if (asp.name().toLowerCase().equals(model.getAppServicePlanName().toLowerCase())) {
+                        if (asp != null && asp.name().toLowerCase().equals(model.getAppServicePlanName().toLowerCase())) {
                             setError(dec_textAppSevicePlanName, APP_SERVICE_PLAN_NAME_MUST_UNUQUE);
                             return false;
                         }
@@ -921,7 +934,7 @@ public class AppServiceCreateDialog extends AzureTitleAreaDialogWrapper {
                 return false;
             }
             for (ResourceGroup rg : AzureMvpModel.getInstance().getResourceGroupsBySubscriptionId(model.getSubscriptionId())) {
-                if (rg.name().toLowerCase().equals(model.getResourceGroup().toLowerCase())) {
+                if (rg != null && rg.name().toLowerCase().equals(model.getResourceGroup().toLowerCase())) {
                     setError(dec_textNewResGrName, NAME_ALREADY_TAKEN);
                     return false;
                 }

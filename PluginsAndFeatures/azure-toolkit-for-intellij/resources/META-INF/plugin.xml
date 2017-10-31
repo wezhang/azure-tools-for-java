@@ -1,7 +1,7 @@
 <idea-plugin>
   <id>com.microsoft.tooling.msservices.intellij.azure</id>
   <name>Azure Toolkit for IntelliJ</name>
-  <version>3.0.9</version>
+  <version>3.0.10</version>
   <vendor email="java@microsoft.com" url="http://www.microsoft.com">Microsoft</vendor>
 
   <description><![CDATA[
@@ -18,6 +18,13 @@
   <change-notes>
     <![CDATA[
     <html>
+      <h3>[3.0.10]</h3>
+      <ul>
+        <li>Support pushing docker image of the project to Azure Container Registry.</li>
+        <li>Support navigating Azure Container Registry in Azure Explorer.</li>
+        <li>Support pulling image from Azure Container Registry in Azure Explorer.</li>
+        <li>Fixed some bugs.</li>
+      </ul>
       <h3>[3.0.9]</h3>
       <ul>
         <li>Fixed "Unexpected token" error when using Run on Web App (Linux). (<a href="https://github.com/Microsoft/azure-tools-for-java/issues/1014">#1014</a>)</li>
@@ -84,6 +91,7 @@
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.rediscache.RedisCachePropertyViewProvider"/>
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.rediscache.RedisCacheExplorerProvider"/>
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.containerregistry.ContainerRegistryPropertyViewProvider"/>
+    <fileEditorProvider implementation="com.microsoft.intellij.helpers.webapp.WebAppPropertyViewProvider"/>
     <toolWindow
           anchor="left"
           factoryClass="com.microsoft.intellij.components.ServerExplorerToolWindowFactory"
@@ -172,7 +180,7 @@
             icon="/icons/PushImage_16.png">
     </action>
     <action id="Actions.WebAppOnLinux" class="com.microsoft.intellij.actions.WebAppOnLinuxAction"
-            text="Run on Web App (Linux)" description="Run on Web App (Linux)"
+            text="Run on Web App for Containers" description="Run on Web App for Containers"
             icon="/icons/PublishWebAppOnLinux_16.png">
     </action>
     <action id="Actions.SparkJobDisconnect" class="com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction"

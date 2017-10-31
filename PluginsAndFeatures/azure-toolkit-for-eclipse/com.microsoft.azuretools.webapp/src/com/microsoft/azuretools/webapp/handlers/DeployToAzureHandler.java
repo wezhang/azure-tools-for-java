@@ -45,14 +45,15 @@ public class DeployToAzureHandler extends AzureAbstractHandler {
 
     @Override
     public Object onExecute(ExecutionEvent ee) throws ExecutionException {
-        Shell shell = HandlerUtil.getActiveWorkbenchWindowChecked(ee).getShell();
         IProject project = PluginUtil.getSelectedProject();
+        Shell shell = HandlerUtil.getActiveWorkbenchWindowChecked(ee).getShell();
         if (project != null) {
             if (!SignInCommandHandler.doSignIn(shell)) {
                 return null;
             }
         } else {
             MessageDialog.openInformation(shell, TITLE, NO_PROJECT_ERR);
+            return null;
         }
         try {
             if (MavenUtils.isMavenProject(project)) {

@@ -1,5 +1,7 @@
 package com.microsoft.tooling.msservices.serviceexplorer.azure.webapp;
 
+import java.io.IOException;
+
 import com.microsoft.azure.management.resources.fluentcore.arm.ResourceId;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.utils.AzureUIRefreshCore;
@@ -9,8 +11,6 @@ import com.microsoft.azuretools.utils.WebAppUtils;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureRefreshableNode;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
-
-import java.io.IOException;
 
 public class WebAppModule extends AzureRefreshableNode {
     private static final String REDIS_SERVICE_MODULE_ID = WebAppModule.class.getName();
@@ -43,7 +43,7 @@ public class WebAppModule extends AzureRefreshableNode {
             removeDirectChildNode(node);
         } catch (IOException e) {
             DefaultLoader.getUIHelper().showException("An error occurred while attempting to delete the Web App ",
-                    e, "Azure Services Explorer - Error Deleting Web App on Linux", false, true);
+                    e, "Azure Services Explorer - Error Deleting Web App for Containers", false, true);
         }
     }
 
@@ -73,7 +73,9 @@ public class WebAppModule extends AzureRefreshableNode {
                                             ResourceId.fromString(webAppDetails.webApp.id()).subscriptionId(),
                                             webAppDetails.webApp.id(),
                                             webAppDetails.webApp.name(),
-                                            webAppDetails.webApp.state(), null));
+                                            webAppDetails.webApp.state(),
+                                            webAppDetails.webApp.defaultHostName(),
+                                            null));
                                 } catch (Exception ex) {
                                     DefaultLoader.getUIHelper().logError("WebAppModule::createListener ADD", ex);
                                     ex.printStackTrace();

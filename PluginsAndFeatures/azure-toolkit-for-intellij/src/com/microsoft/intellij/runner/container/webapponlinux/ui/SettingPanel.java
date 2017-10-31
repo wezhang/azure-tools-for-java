@@ -22,6 +22,8 @@
 
 package com.microsoft.intellij.runner.container.webapponlinux.ui;
 
+import icons.MavenIcons;
+
 import com.intellij.icons.AllIcons;
 import com.intellij.openapi.actionSystem.ActionToolbarPosition;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -50,8 +52,12 @@ import com.microsoft.intellij.runner.container.utils.DockerUtil;
 import com.microsoft.intellij.runner.container.webapponlinux.WebAppOnLinuxDeployConfiguration;
 import com.microsoft.intellij.util.MavenRunTaskUtil;
 
+import com.microsoft.tooling.msservices.serviceexplorer.azure.container.WebAppOnLinuxDeployPresenter;
+import com.microsoft.tooling.msservices.serviceexplorer.azure.container.WebAppOnLinuxDeployView;
+
 import org.jetbrains.idea.maven.model.MavenConstants;
 import org.jetbrains.idea.maven.project.MavenProject;
+import org.jetbrains.idea.maven.project.MavenProjectsManager;
 
 import java.awt.event.ItemEvent;
 import java.nio.file.Path;
@@ -81,14 +87,14 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
     private static final String TABLE_HEAD_WEB_APP_NAME = "Name";
     private static final String TABLE_HEAD_RESOURCE_GROUP = "Resource Group";
     private static final String TABLE_LOADING_MESSAGE = "Loading ... ";
-    private static final String TABLE_EMPTY_MESSAGE = "No available Web App on Linux.";
+    private static final String TABLE_EMPTY_MESSAGE = "No available Web App for Containers.";
     private static final String APP_NAME_PREFIX = "webapp-linux";
     private static final String RESOURCE_GROUP_NAME_PREFIX = "rg-web-linux";
     private static final String APP_SERVICE_PLAN_NAME_PREFIX = "appsp-linux-";
     private static final String TITLE_RESOURCE_GROUP = "Resource Group";
     private static final String TITLE_APP_SERVICE_PLAN = "App Service Plan";
     private static final String TITLE_ACR = "Azure Container Registry";
-    private static final String TITLE_WEB_APP = "Web App on Linux";
+    private static final String TITLE_WEB_APP = "Web App for Containers";
 
     private final WebAppOnLinuxDeployPresenter<SettingPanel> webAppOnLinuxDeployPresenter;
     private final Project project;
@@ -134,6 +140,9 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
     private JPanel pnlAcrHolder;
     private JPanel pnlWebAppHolder;
     private ContainerSettingPanel containerSettingPanel;
+    private JPanel pnlMavenProject;
+    private JLabel lblMavenProject;
+    private JComboBox<MavenProject> cbMavenProject;
     private Artifact lastSelectedArtifact;
     private boolean isCbArtifactInited;
 
@@ -248,6 +257,25 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
             }
         });
 
+        cbMavenProject.addActionListener(e -> {
+            MavenProject selectedMavenProject = (MavenProject) cbMavenProject.getSelectedItem();
+            if (selectedMavenProject != null) {
+                containerSettingPanel.setDockerPath(
+                        DockerUtil.getDefaultDockerFilePathIfExist(selectedMavenProject.getDirectory())
+                );
+            }
+        });
+
+        cbMavenProject.setRenderer(new ListCellRendererWrapper<MavenProject>() {
+            @Override
+            public void customize(JList jList, MavenProject mavenProject, int i, boolean b, boolean b1) {
+                if (mavenProject != null) {
+                    setIcon(MavenIcons.MavenProject);
+                    setText(mavenProject.toString());
+                }
+            }
+        });
+
         // fold sub panel
         HideableDecorator resGrpDecorator = new HideableDecorator(pnlResourceGroupHolder,
                 TITLE_RESOURCE_GROUP, true /*adjustWindow*/);
@@ -287,7 +315,7 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
                 fileType = MavenRunTaskUtil.getFileType(targetName);
             }
             map.put("FileType", fileType);
-            AppInsightsClient.createByType(AppInsightsClient.EventType.Dialog, "Run On Web App (Linux)",
+            AppInsightsClient.createByType(AppInsightsClient.EventType.Dialog, "Run On Web App for Containers",
                     "Open", map);
             return true;
         }).subscribeOn(Schedulers.io()).subscribe(
@@ -362,16 +390,11 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         // set target
         //noinspection Duplicates
         if (lastSelectedArtifact != null) {
-            webAppOnLinuxDeployConfiguration.setTargetPath(lastSelectedArtifact.getOutputFilePath());
-            Path p = Paths.get(webAppOnLinuxDeployConfiguration.getTargetPath());
-            if (null != p) {
-                webAppOnLinuxDeployConfiguration.setTargetName(p.getFileName().toString());
-            } else {
-                webAppOnLinuxDeployConfiguration.setTargetName(lastSelectedArtifact.getName() + "."
-                        + MavenConstants.TYPE_WAR);
-            }
+            String targetPath = lastSelectedArtifact.getOutputFilePath();
+            webAppOnLinuxDeployConfiguration.setTargetPath(targetPath);
+            webAppOnLinuxDeployConfiguration.setTargetName(Paths.get(targetPath).getFileName().toString());
         } else {
-            MavenProject mavenProject = MavenRunTaskUtil.getMavenProject(project);
+            MavenProject mavenProject = (MavenProject) cbMavenProject.getSelectedItem();
             if (mavenProject != null) {
                 webAppOnLinuxDeployConfiguration.setTargetPath(MavenRunTaskUtil.getTargetPath(mavenProject));
                 webAppOnLinuxDeployConfiguration.setTargetName(MavenRunTaskUtil.getTargetName(mavenProject));
@@ -473,6 +496,21 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         isCbArtifactInited = true;
     }
 
+    @SuppressWarnings("Duplicates")
+    private void setupMavenProjectCombo(List<MavenProject> mvnprjs, String targetPath) {
+        cbMavenProject.removeAllItems();
+        if (null != mvnprjs) {
+            for (MavenProject prj : mvnprjs) {
+                cbMavenProject.addItem(prj);
+                if (MavenRunTaskUtil.getTargetPath(prj).equals(targetPath)) {
+                    cbMavenProject.setSelectedItem(prj);
+                }
+            }
+        }
+        cbMavenProject.setVisible(true);
+        lblMavenProject.setVisible(true);
+    }
+
     /**
      * Function triggered in constructing the panel.
      *
@@ -482,13 +520,17 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         if (!MavenRunTaskUtil.isMavenProject(project)) {
             List<Artifact> artifacts = MavenRunTaskUtil.collectProjectArtifact(project);
             setupArtifactCombo(artifacts, conf.getTargetPath());
+            containerSettingPanel.setDockerPath(DockerUtil.getDefaultDockerFilePathIfExist(project.getBasePath()));
+        } else {
+            List<MavenProject> mavenProjects = MavenProjectsManager.getInstance(project).getProjects();
+            setupMavenProjectCombo(mavenProjects, conf.getTargetPath());
         }
 
-        if (Utils.isEmptyString(conf.getDockerFilePath())) {
-            containerSettingPanel.setDockerPath(DockerUtil.getDefaultDockerFilePathIfExist(project));
-        } else {
+        // load dockerFile path from existing configuration.
+        if (!Utils.isEmptyString(conf.getDockerFilePath())) {
             containerSettingPanel.setDockerPath(conf.getDockerFilePath());
         }
+
         PrivateRegistryImageSetting acrInfo = conf.getPrivateRegistryImageSetting();
         containerSettingPanel.setTxtFields(acrInfo);
 
@@ -683,15 +725,13 @@ public class SettingPanel implements WebAppOnLinuxDeployView {
         lblLocation.setText(NOT_APPLICABLE);
         lblPricing.setText(NOT_APPLICABLE);
         if (appServicePlans != null && appServicePlans.size() > 0) {
-            appServicePlans.stream().filter(item -> Comparing.equal(item.operatingSystem(), OperatingSystem.LINUX))
-                    .forEach((item) -> {
-                        cbExistAppServicePlan.addItem(item);
-                        if (Comparing.equal(item.id(), defaultAppServicePlanId)) {
-                            cbExistAppServicePlan.setSelectedItem(item);
-                            // defaultAppServicePlanId = null;
-                        }
-                    });
-
+            appServicePlans.forEach((item) -> {
+                cbExistAppServicePlan.addItem(item);
+                if (Comparing.equal(item.id(), defaultAppServicePlanId)) {
+                    cbExistAppServicePlan.setSelectedItem(item);
+                    // defaultAppServicePlanId = null;
+                }
+            });
         }
     }
 
