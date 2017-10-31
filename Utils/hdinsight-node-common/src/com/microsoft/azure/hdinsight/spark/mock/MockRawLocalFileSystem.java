@@ -31,6 +31,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 class MockRawLocalFileSystem extends RawLocalFileSystem {
@@ -54,33 +55,38 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
         if (path.isAbsolute()) {
             URI originUri = path.toUri();
 
-            if (originUri.getScheme().equals("mockfs")) {
-                try {
-                    fakedPath = new Path(new URI("file",
-                            originUri.getUserInfo(),
-                            originUri.getHost(),
-                            originUri.getPort(),
-                            originUri.getPath(),
-                            originUri.getQuery(),
-                            originUri.getFragment()));
-                } catch (URISyntaxException e) {
-                    throw new RuntimeException(e);
-                }
-            } else {
+            fakedPath = Optional.ofNullable(originUri)
+                    .map(URI::getScheme)
+                    .filter(scheme -> scheme.equals("mockfs"))
+                    .flatMap(scheme -> {
+                        try {
+                            Path newPath = new Path(new URI("file",
+                                    originUri.getUserInfo(),
+                                    originUri.getHost(),
+                                    originUri.getPort(),
+                                    originUri.getPath(),
+                                    originUri.getQuery(),
+                                    originUri.getFragment()));
 
-                List<String> components = Arrays.stream(originUri.getPath().split(Path.SEPARATOR))
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .skip((Path.WINDOWS && Path.isWindowsAbsolutePath(originUri.getPath(), true)) ? 1 : 0)
-                        .collect(Collectors.toList());
+                            return Optional.of(newPath);
+                        } catch (URISyntaxException ignored) {
+                            return Optional.empty();
+                        }
+                    })
+                    .orElseGet(() -> {
+                        List<String> components = Arrays.stream(originUri.getPath().split(Path.SEPARATOR))
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .skip((Path.WINDOWS && Path.isWindowsAbsolutePath(originUri.getPath(), true)) ? 1 : 0)
+                                .collect(Collectors.toList());
 
-                components.add(".");
+                        components.add(".");
 
-                fakedPath = new Path(
-                        new Path(System.getProperty("user.dir"), "../../"),
-                        String.join(Path.SEPARATOR, components));
+                        return new Path(
+                                new Path(System.getProperty("user.dir"), "../../"),
+                                String.join(Path.SEPARATOR, components));
 
-            }
+                    });
         } else {
             fakedPath = new Path(getWorkingDirectory(), path);
         }
