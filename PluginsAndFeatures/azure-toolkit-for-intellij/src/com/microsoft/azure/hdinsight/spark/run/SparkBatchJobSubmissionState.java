@@ -38,6 +38,8 @@ import com.intellij.execution.ui.ConsoleView;
 import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.execution.util.JavaParametersUtil;
 import com.intellij.openapi.actionSystem.Separator;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.PathUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
@@ -144,7 +146,14 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
     private GeneralCommandLine createCommandlineForLocal(SparkLocalRunConfigurableModel localRunConfigurableModel, Boolean isDebug) throws ExecutionException {
         JavaParameters params = new JavaParameters();
         JavaParametersUtil.configureConfiguration(params, localRunConfigurableModel);
-        JavaParametersUtil.configureProject(myProject, params, JavaParameters.JDK_AND_CLASSES_AND_TESTS, null);
+
+        Module mainModule = ModuleManager.getInstance(myProject).findModuleByName(myProject.getName());
+
+        if (mainModule != null) {
+            params.configureByModule(mainModule, JavaParameters.JDK_AND_CLASSES_AND_TESTS);
+        } else {
+            JavaParametersUtil.configureProject(myProject, params, JavaParameters.JDK_AND_CLASSES_AND_TESTS, null);
+        }
 
         params.setWorkingDirectory(
                 Paths.get(localRunConfigurableModel.getDataRootDirectory(), "__default__", "user", "current").toString());
