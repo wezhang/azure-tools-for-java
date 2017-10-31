@@ -25,9 +25,11 @@ import com.intellij.execution.configurations.ConfigurationUtil;
 import com.intellij.execution.util.JreVersionDetector;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.LabeledComponent;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.packaging.impl.elements.ManifestFileUtil;
 import com.intellij.psi.JavaCodeFragment;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.util.PsiMethodUtil;
@@ -72,6 +74,7 @@ public class SparkLocalRunConfigurable {
 
         myAnchor = UIUtil.mergeComponentsWithAnchor(myMainClass, myCommonProgramParameters);
 
+        myCommonProgramParameters.setModuleContext(ModuleManager.getInstance(project).findModuleByName(project.getName()));
         // Connect the workingDirectory update event with dataRootDirectory update
         myCommonProgramParameters.addWorkingDirectoryUpdateListener(new DocumentAdapter() {
             @Override
@@ -143,6 +146,13 @@ public class SparkLocalRunConfigurable {
             }
             return JavaCodeFragment.VisibilityChecker.Visibility.NOT_VISIBLE;
         }));
+
+        myMainClass.getComponent().getButton().addActionListener( e -> {
+            PsiClass selected = ManifestFileUtil.selectMainClass(myProject, myMainClass.getComponent().getText());
+            if (selected != null) {
+                myMainClass.getComponent().setText(selected.getQualifiedName());
+            }
+        });
     }
 
     public void setData(@NotNull SparkLocalRunConfigurableModel data) {
