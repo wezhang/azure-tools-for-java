@@ -42,10 +42,4 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
         return SparkBatchJobRunExecutor.EXECUTOR_ID.equals(executorId) && profile instanceof RemoteDebugRunConfiguration;
     }
-
-    public void submitJob(SparkSubmitModel submitModel) {
-        submitModel.action(submitModel.getSubmissionParameter());
-
-        AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigRunButtonClick"), null);
-    }
 }

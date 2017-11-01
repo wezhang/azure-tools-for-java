@@ -21,29 +21,30 @@
  */
 package com.microsoft.azure.hdinsight.spark.run.configuration;
 
-import com.intellij.execution.CommonJavaRunConfigurationParameters;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.runners.ExecutionEnvironment;
-import com.intellij.execution.runners.RunConfigurationWithSuppressedDefaultRunAction;
-import com.intellij.execution.scratch.JavaScratchConfiguration;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebugExecutor;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobSubmissionState;
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel;
+import com.microsoft.azuretools.telemetry.AppInsightsClient;
+import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunConfigurationModule>
 {
@@ -95,7 +96,14 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     @Nullable
     @Override
     public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException {
-        return new SparkBatchJobSubmissionState(getProject(), jobModel);
+        SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel);
+
+        createAppInsightEvent(executor, new HashMap<String, String>() {{
+            put("Executor", executor.getId());
+            put("ActionUuid", state.getUuid());
+        }});
+
+        return state;
     }
 
     @Override
@@ -104,6 +112,23 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     }
 
     public void setAsNew() {
+    }
+
+    public static void createAppInsightEvent(@NotNull Executor executor, @NotNull final Map<String, String> postEventProps) {
+        switch (executor.getId()) {
+            case "Run":
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalRunButtonClick"), null, postEventProps);
+                break;
+            case "Debug":
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalDebugButtonClick"), null, postEventProps);
+                break;
+            case SparkBatchJobRunExecutor.EXECUTOR_ID:
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigRunButtonClick"), null, postEventProps);
+                break;
+            case SparkBatchJobDebugExecutor.EXECUTOR_ID:
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigDebugButtonClick"), null, postEventProps);
+                break;
+        }
     }
 }
 

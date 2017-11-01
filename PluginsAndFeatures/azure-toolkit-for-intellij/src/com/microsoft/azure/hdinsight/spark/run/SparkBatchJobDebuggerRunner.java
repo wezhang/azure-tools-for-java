@@ -26,6 +26,7 @@ package com.microsoft.azure.hdinsight.spark.run;
 import com.intellij.debugger.impl.GenericDebuggerRunner;
 import com.intellij.debugger.impl.GenericDebuggerRunnerSettings;
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
@@ -44,8 +45,6 @@ import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
-import com.microsoft.azuretools.telemetry.AppInsightsClient;
-import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -54,7 +53,6 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import rx.*;
-import rx.Observable;
 import rx.exceptions.CompositeException;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
@@ -65,7 +63,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Optional;
 import java.util.concurrent.Phaser;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,7 +202,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
                                     project, "Error : Spark batch Job remote debug failed, got exception: " + errorMessage);
 
-                            postAppInsightDebugErrorEvent(errorMessage);
+                            postAppInsightDebugErrorEvent(environment.getExecutor(), submissionState, errorMessage);
                             debugProcessPhaser.forceTermination();
                             HDInsightUtil.setJobRunningStatus(project, false);
                         },
@@ -215,7 +214,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             HDInsightUtil.showInfoOnSubmissionMessageWindow(
                                     submitModel.getProject(), "Info : Debugging Spark batch job in cluster is done.");
 
-                            postAppInsightDebugSuccessEvent();
+                            postAppInsightDebugSuccessEvent(environment.getExecutor(), submissionState);
                             HDInsightUtil.setJobRunningStatus(project, false);
                         }
                 );
@@ -291,27 +290,31 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 });
     }
 
-    private void postAppInsightDebugSuccessEvent() {
+    private void postAppInsightDebugSuccessEvent(@NotNull Executor executor, @NotNull SparkBatchJobSubmissionState state) {
         if (!isAppInsightEnabled) {
             return;
         }
 
-        Map<String, String> postEventProperty = new HashMap<>();
-
-        postEventProperty.put("IsSubmitSucceed", "true");
-        AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigDebugButtonClick"), null, postEventProperty);
+        RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+            put("IsSubmitSucceed", "true");
+            put("Executor", executor.getId());
+            put("ActionUuid", state.getUuid());
+        }});
     }
 
-    private void postAppInsightDebugErrorEvent(String errorMessage) {
+    private void postAppInsightDebugErrorEvent(@NotNull Executor executor,
+                                               @NotNull SparkBatchJobSubmissionState state,
+                                               @NotNull String errorMessage) {
         if (!isAppInsightEnabled) {
             return;
         }
 
-        Map<String, String> postEventProperty = new HashMap<>();
-
-        postEventProperty.put("IsSubmitSucceed", "false");
-        postEventProperty.put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(errorMessage));
-        AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigDebugButtonClick"), null, postEventProperty);
+        RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+            put("IsSubmitSucceed", "false");
+            put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(errorMessage));
+            put("Executor", executor.getId());
+            put("ActionUuid", state.getUuid());
+        }});
     }
 
     /*
