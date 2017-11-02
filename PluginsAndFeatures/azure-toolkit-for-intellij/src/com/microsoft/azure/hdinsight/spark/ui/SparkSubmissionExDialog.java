@@ -37,8 +37,10 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.net.URI;
+import java.util.Optional;
 
 public class SparkSubmissionExDialog extends JDialog {
+    @Nullable
     private SparkSubmissionContentPanelConfigurable contentControl;
 
     private final int margin = 10;
@@ -92,8 +94,15 @@ public class SparkSubmissionExDialog extends JDialog {
     }
 
     @Override
+    @Nullable
     public SparkSubmissionContentPanel getContentPane() {
-        return (SparkSubmissionContentPanel) contentControl.getComponent();
+        return getContentPaneOptional().orElse(null);
+    }
+
+    private Optional<SparkSubmissionContentPanel> getContentPaneOptional() {
+        return Optional.ofNullable(contentControl)
+                .map(SparkSubmissionContentPanelConfigurable::getComponent)
+                .map(SparkSubmissionContentPanel.class::cast);
     }
 
     private void addOperationJPanel() {
@@ -144,7 +153,7 @@ public class SparkSubmissionExDialog extends JDialog {
     //endregion
 
     private void setSubmitButtonStatus() {
-        if (this.getContentPane() == null || this.getContentPane().haveErrorMessage()) {
+        if (this.getContentPaneOptional().map(SparkSubmissionContentPanel::haveErrorMessage).orElse(true)) {
             if (this.buttonSubmit != null){
                 this.buttonSubmit.setEnabled(false);
             }
