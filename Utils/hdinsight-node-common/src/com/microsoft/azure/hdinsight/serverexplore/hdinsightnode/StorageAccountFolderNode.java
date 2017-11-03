@@ -54,7 +54,7 @@ public class StorageAccountFolderNode extends RefreshableNode {
                 List<HDStorageAccount> additionalStorageAccount = clusterDetail.getAdditionalStorageAccounts();
                 if (additionalStorageAccount != null) {
                     for (HDStorageAccount account : additionalStorageAccount) {
-                        addChildNode(new StorageNode(this, account, false));
+                        addChildNode(new StorageAccountNode(this, account, false));
                     }
                 }
             } catch (Exception exception) {

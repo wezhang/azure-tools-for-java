@@ -21,6 +21,7 @@
  */
 package com.microsoft.azure.hdinsight.spark.jobs.framework;
 
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.JobViewManager;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -42,10 +43,22 @@ public class RequestDetail {
     private final HttpRequestType apiType;
 
     private static Pattern clusterPattern = Pattern.compile("^/clusters/([^/]*)(/.*)");
-    private static final String sparkPreRestUrl = "https://%s.azurehdinsight.net/sparkhistory/api/v1";
-    private static final String yarnPreRestUrl = "https://%s.azurehdinsight.net/yarnui/ws/v1";
-    private static final String yarnHistoryUrl = "https://%s.azurehdinsight.net/yarnui";
-    private static final String LivyBatchesRestUrl = "https://%s.azurehdinsight.net/livy/batches";
+
+
+    private final String getSparkPreRestUrl(@NotNull final String clusterName) {
+        return ClusterManagerEx.getInstance().getClusterConnectionString(clusterName) + "sparkhistory/api/v1";
+    }
+
+    private final String getYarnPreRestUrl(@NotNull final String clusterName) {
+        return ClusterManagerEx.getInstance().getClusterConnectionString(clusterName) + "yarnui/ws/v1";
+    }
+
+    private  final String getYarnHistoryUrl(@NotNull final String clusterName) {
+        return ClusterManagerEx.getInstance().getClusterConnectionString(clusterName) + "yarnui";
+    }
+    private final String getLivyBatchesRestUrl(@NotNull final String clusterName) {
+        return ClusterManagerEx.getInstance().getClusterConnectionString(clusterName) + "livy/batches";
+    }
 
     @NotNull
     private IClusterDetail clusterDetail;
@@ -109,26 +122,26 @@ public class RequestDetail {
     }
 
     @NotNull
-    private String getPreURl() {
+    private String getPreURl(@NotNull final String clusterName) {
         String preUrl = null;
         switch (getApiType()) {
             case YarnHistory:
-                preUrl = yarnHistoryUrl;
+                preUrl = getYarnHistoryUrl(clusterName);
                 break;
             case YarnRest:
-                preUrl = yarnPreRestUrl;
+                preUrl = getYarnPreRestUrl(clusterName);
                 break;
             case LivyBatchesRest:
-                preUrl = LivyBatchesRestUrl;
+                preUrl = getLivyBatchesRestUrl(clusterName);
                 break;
             default:
-                preUrl = sparkPreRestUrl;
+                preUrl = getSparkPreRestUrl(clusterName);
         }
         return preUrl;
     }
 
     public String getQueryUrl() {
-        String queryUrl = String.format(getPreURl(), clusterDetail.getName()) + getRestUrl();
+        String queryUrl = getPreURl(clusterDetail.getName()) + getRestUrl();
         // get error message for Yarn website
         if (getApiType() == HttpRequestType.YarnHistory) {
             if(queryUrl.endsWith("stderr")) {
@@ -148,19 +161,18 @@ public class RequestDetail {
         return Integer.valueOf(queriesMap.get(MULTI_STAGE_TAG));
     }
 
-    private static final String TASK_QUERY_URL = sparkPreRestUrl + "/applications/%s/%s/stages/%s";
-
     public List<String> getQueryUrls() {
         if(isMultiQuery()) {
             String applicationId = queriesMap.get("applicationId");
             String attemptdId = queriesMap.get("attemptId");
 
-            List<String> querys = new ArrayList<>();
+            List<String> queries = new ArrayList<>();
             for(int i = 0; i < getQueryNumber(); ++i) {
-                String query = String.format(TASK_QUERY_URL, clusterDetail.getName(), applicationId, attemptdId, String.valueOf(i));
-                querys.add(query);
+                String url = getSparkPreRestUrl(clusterDetail.getName()) + "/applications/%s/%s/stages/%s";
+                String query = String.format(url, applicationId, attemptdId, String.valueOf(i));
+                queries.add(query);
             }
-            return querys;
+            return queries;
         } else {
             return null;
         }

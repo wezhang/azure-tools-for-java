@@ -21,7 +21,7 @@
  */
 package com.microsoft.azure.hdinsight.sdk.cluster;
 
-import com.microsoft.azure.hdinsight.sdk.common.CommonConstant;
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.storage.ADLSStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
@@ -122,7 +122,7 @@ public class ClusterDetail implements IClusterDetail {
     }
 
     public String getConnectionUrl(){
-        return String.format(CommonConstant.DEFAULT_CLUSTER_ENDPOINT, getName());
+        return ClusterManagerEx.getInstance().getClusterConnectionString(getName());
     }
 
     public String getCreateDate() {

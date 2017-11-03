@@ -48,7 +48,7 @@ object LogQuery {
     //var sparkconf2 = new SparkConf().setAppName() sparkConf().setAppName("Log 1");
     //val sc=new sparkcontext()
 
-    val sparkconf = new SparkConf().setAppName("Log Query").setMaster("local[2]")
+    val sparkconf = new SparkConf().setAppName("Log Query")
 
     val sc = new SparkContext(sparkconf)
 

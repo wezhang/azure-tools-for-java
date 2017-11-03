@@ -21,14 +21,8 @@
  */
 package com.microsoft.azure.hdinsight.serverexplore.hdinsightnode;
 
-import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.common.CommonConst;
-import com.microsoft.azure.hdinsight.common.HDInsightLoader;
-import com.microsoft.azure.hdinsight.common.JobViewManager;
-import com.microsoft.azure.hdinsight.sdk.cluster.ClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.cluster.EmulatorClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.common.*;
+import com.microsoft.azure.hdinsight.sdk.cluster.*;
 import com.microsoft.azure.hdinsight.sdk.common.CommonConstant;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsConstants;
@@ -67,7 +61,7 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
             protected void actionPerformed(NodeActionEvent e) {
                 String sparkHistoryUrl = clusterDetail.isEmulator() ?
                         ((EmulatorClusterDetail)clusterDetail).getSparkHistoryEndpoint() :
-                        String.format("https://%s.azurehdinsight.net/sparkhistory", clusterDetail.getName());
+                        ClusterManagerEx.getInstance().getClusterConnectionString(clusterDetail.getName()) + "/sparkhistory";
                 openUrlLink(sparkHistoryUrl);
             }
         });
@@ -77,7 +71,7 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
             protected void actionPerformed(NodeActionEvent e) {
                 String ambariUrl = clusterDetail.isEmulator() ?
                         ((EmulatorClusterDetail)clusterDetail).getAmbariEndpoint() :
-                        String.format(CommonConstant.DEFAULT_CLUSTER_ENDPOINT, clusterDetail.getName());
+                        ClusterManagerEx.getInstance().getClusterConnectionString(clusterDetail.getName());
                 openUrlLink(ambariUrl);
             }
         });
@@ -86,7 +80,7 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
             addAction("Open Jupyter Notebook", new NodeActionListener() {
                 @Override
                 protected void actionPerformed(NodeActionEvent e) {
-                    String jupyterUrl = String.format("https://%s.azurehdinsight.net/jupyter/tree", clusterDetail.getName());
+                    final String jupyterUrl = ClusterManagerEx.getInstance().getClusterConnectionString(clusterDetail.getName()) + "/jupyter/tree";
                     openUrlLink(jupyterUrl);
                 }
             });
@@ -96,7 +90,8 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
                 protected void actionPerformed(NodeActionEvent e) {
                     String resourceGroupName = clusterDetail.getResourceGroup();
                     if (resourceGroupName != null) {
-                        String webPortHttpLink = String.format("https://portal.azure.com/#resource/subscriptions/%s/resourcegroups/%s/providers/Microsoft.HDInsight/clusters/%s",
+
+                        String webPortHttpLink = String.format(HDIEnvironment.getHDIEnvironment().getPortal() + "#resource/subscriptions/%s/resourcegroups/%s/providers/Microsoft.HDInsight/clusters/%s",
                                 clusterDetail.getSubscription().getSubscriptionId(),
                                 resourceGroupName,
                                 clusterDetail.getName());

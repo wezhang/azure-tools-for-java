@@ -22,7 +22,8 @@
 
 package com.microsoft.intellij.helpers.webapp;
 
-import java.util.HashMap;
+import java.awt.event.ActionEvent;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
@@ -55,6 +56,7 @@ import com.intellij.ui.table.JBTable;
 import com.microsoft.azure.management.appservice.OperatingSystem;
 import com.microsoft.azuretools.core.mvp.ui.webapp.WebAppProperty;
 import com.microsoft.intellij.helpers.base.BaseEditor;
+import com.microsoft.intellij.ui.components.AzureActionListenerWrapper;
 import com.microsoft.intellij.ui.util.UIUtils;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.WebAppPropertyMvpView;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.WebAppPropertyViewPresenter;
@@ -80,10 +82,11 @@ public class WebAppPropertyView extends BaseEditor implements WebAppPropertyMvpV
     private static final String TXT_NA = "N/A";
     private static final String TABLE_LOADING_MESSAGE = "Loading ... ";
     private static final String TABLE_EMPTY_MESSAGE = "No available settings.";
-    private static final String FILE_SELECTOR_TITLE = "Choose Where You Want to Save the Publishing Profile.";
-    private static final String NOTIFY_PROPERTY_UPDATE_SUCCESS = "Property update successfully.";
-    private static final String NOTIFY_PROFILE_GET_SUCCESS = "Get Publishing Profile successfully.";
-    private static final String NOTIFY_PROFILE_GET_FAIL = "Failed to get Publishing Profile.";
+    private static final String FILE_SELECTOR_TITLE = "Choose Where You Want to Save the Publish Profile.";
+    private static final String NOTIFY_PROPERTY_UPDATE_SUCCESS = "Properties updated.";
+    private static final String NOTIFY_PROFILE_GET_SUCCESS = "Publish Profile saved.";
+    private static final String NOTIFY_PROFILE_GET_FAIL = "Failed to get Publish Profile.";
+    private static final String INSIGHT_NAME = "AzurePlugin.IntelliJ.Editor.WebAppPropertyView";
 
     private JPanel pnlMain;
     private JButton btnGetPublishFile;
@@ -124,8 +127,8 @@ public class WebAppPropertyView extends BaseEditor implements WebAppPropertyMvpV
     private WebAppPropertyView(@NotNull Project project, @NotNull String sid, @NotNull String resId) {
         this.sid = sid;
         this.resId = resId;
-        cachedAppSettings = new HashMap<>();
-        editedAppSettings = new HashMap<>();
+        cachedAppSettings = new LinkedHashMap<>();
+        editedAppSettings = new LinkedHashMap<>();
         statusBar = WindowManager.getInstance().getStatusBar(project);
         $$$setupUI$$$(); // tell IntelliJ to call createUIComponents() here.
         this.presenter = new WebAppPropertyViewPresenter<>();
@@ -142,33 +145,42 @@ public class WebAppPropertyView extends BaseEditor implements WebAppPropertyMvpV
         appSettingDecorator.setContentComponent(pnlAppSettings);
         appSettingDecorator.setOn(true);
 
-        btnGetPublishFile.addActionListener(e -> {
-            FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(
-                    false /*chooseFiles*/,
-                    true /*chooseFolders*/,
-                    false /*chooseJars*/,
-                    false /*chooseJarsAsFiles*/,
-                    false /*chooseJarContents*/,
-                    false /*chooseMultiple*/
-            );
-            fileChooserDescriptor.setTitle(FILE_SELECTOR_TITLE);
-            final VirtualFile file = FileChooser.chooseFile(fileChooserDescriptor, null, null);
-            if (file != null) {
-                presenter.onGetPublishingProfileXmlWithSecrets(sid, resId, file.getPath());
+        btnGetPublishFile.addActionListener(new AzureActionListenerWrapper(INSIGHT_NAME, "btnGetPublishFile", null) {
+            @Override
+            public void actionPerformedFunc(ActionEvent event) {
+                FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(
+                        false /*chooseFiles*/,
+                        true /*chooseFolders*/,
+                        false /*chooseJars*/,
+                        false /*chooseJarsAsFiles*/,
+                        false /*chooseJarContents*/,
+                        false /*chooseMultiple*/
+                );
+                fileChooserDescriptor.setTitle(FILE_SELECTOR_TITLE);
+                final VirtualFile file = FileChooser.chooseFile(fileChooserDescriptor, null, null);
+                if (file != null) {
+                    presenter.onGetPublishingProfileXmlWithSecrets(sid, resId, file.getPath());
+                }
             }
         });
 
-        btnDiscard.addActionListener(e -> {
-            updateMapStatus(editedAppSettings, cachedAppSettings);
-            tableModel.getDataVector().removeAllElements();
-            for (String key : editedAppSettings.keySet()) {
-                tableModel.addRow(new String[]{key, editedAppSettings.get(key)});
+        btnDiscard.addActionListener(new AzureActionListenerWrapper(INSIGHT_NAME, "btnDiscard", null) {
+            @Override
+            public void actionPerformedFunc(ActionEvent event) {
+                updateMapStatus(editedAppSettings, cachedAppSettings);
+                tableModel.getDataVector().removeAllElements();
+                for (String key : editedAppSettings.keySet()) {
+                    tableModel.addRow(new String[]{key, editedAppSettings.get(key)});
+                }
             }
         });
 
-        btnSave.addActionListener(e -> {
-            setBtnEnableStatus(false);
-            presenter.onUpdateWebAppProperty(sid, resId, cachedAppSettings, editedAppSettings);
+        btnSave.addActionListener(new AzureActionListenerWrapper(INSIGHT_NAME, "btnSave", null) {
+            @Override
+            public void actionPerformedFunc(ActionEvent event) {
+                setBtnEnableStatus(false);
+                presenter.onUpdateWebAppProperty(sid, resId, cachedAppSettings, editedAppSettings);
+            }
         });
 
         lnkUrl.setHyperlinkText("<Loading...>");

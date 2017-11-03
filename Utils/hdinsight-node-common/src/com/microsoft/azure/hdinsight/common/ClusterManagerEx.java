@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.metadata.ClusterMetaDataService;
 import com.microsoft.azure.hdinsight.sdk.cluster.*;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.azure.hdinsight.sdk.common.AggregatedException;
@@ -69,7 +70,15 @@ public class ClusterManagerEx {
         return instance;
     }
 
-    //make sure calling it after getClusterDetails(project)
+    public String getClusterConnectionString(@NotNull final String clusterName) {
+        String formatString = HDIEnvironment.getHDIEnvironment().getClusterConnectionFormat();
+        return String.format(formatString, clusterName);
+    }
+
+    public String getBlobFullName(@NotNull final String storageName) {
+        return String.format(HDIEnvironment.getHDIEnvironment().getBlobFullNameFormat(), storageName);
+    }
+
     public boolean isSelectedSubscriptionExist() {
         return isSelectedSubscriptionExist;
     }
