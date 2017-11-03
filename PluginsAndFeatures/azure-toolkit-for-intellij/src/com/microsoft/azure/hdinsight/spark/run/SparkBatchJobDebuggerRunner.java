@@ -295,10 +295,8 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
             return;
         }
 
-        RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+        state.createAppInsightEvent(executor, new HashMap<String, String>() {{
             put("IsSubmitSucceed", "true");
-            put("Executor", executor.getId());
-            put("ActionUuid", state.getUuid());
         }});
     }
 
@@ -309,11 +307,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
             return;
         }
 
-        RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+        state.createAppInsightEvent(executor, new HashMap<String, String>() {{
             put("IsSubmitSucceed", "false");
             put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(errorMessage));
-            put("Executor", executor.getId());
-            put("ActionUuid", state.getUuid());
         }});
     }
 

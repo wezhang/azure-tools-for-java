@@ -98,10 +98,7 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException {
         SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel);
 
-        createAppInsightEvent(executor, new HashMap<String, String>() {{
-            put("Executor", executor.getId());
-            put("ActionUuid", state.getUuid());
-        }});
+        state.createAppInsightEvent(executor, new HashMap<>());
 
         return state;
     }
@@ -112,23 +109,6 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     }
 
     public void setAsNew() {
-    }
-
-    public static void createAppInsightEvent(@NotNull Executor executor, @NotNull final Map<String, String> postEventProps) {
-        switch (executor.getId()) {
-            case "Run":
-                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalRunButtonClick"), null, postEventProps);
-                break;
-            case "Debug":
-                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalDebugButtonClick"), null, postEventProps);
-                break;
-            case SparkBatchJobRunExecutor.EXECUTOR_ID:
-                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigRunButtonClick"), null, postEventProps);
-                break;
-            case SparkBatchJobDebugExecutor.EXECUTOR_ID:
-                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigDebugButtonClick"), null, postEventProps);
-                break;
-        }
     }
 }
 

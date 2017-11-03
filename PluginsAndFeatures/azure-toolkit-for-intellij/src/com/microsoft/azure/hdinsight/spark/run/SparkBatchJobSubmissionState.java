@@ -65,6 +65,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -146,11 +147,9 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                             }
                         },
                         err -> {
-                            RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+                            createAppInsightEvent(executor, new HashMap<String, String>() {{
                                 put("IsSubmitSucceed", "false");
                                 put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(err.getMessage()));
-                                put("Executor", executor.getId());
-                                put("ActionUuid", getUuid());
                             }});
 
                             ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT);
@@ -169,11 +168,9 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 processHandler.addProcessListener(new ProcessAdapter() {
                     @Override
                     public void processTerminated(ProcessEvent event) {
-                        RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+                        createAppInsightEvent(executor, new HashMap<String, String>() {{
                             put("IsSubmitSucceed", "true");
                             put("ExitCode", Integer.toString(event.getExitCode()));
-                            put("Executor", executor.getId());
-                            put("ActionUuid", getUuid());
                         }});
                     }
                 });
@@ -183,11 +180,9 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 return new DefaultExecutionResult(consoleView, processHandler);
             }
         } catch (ExecutionException ee) {
-            RemoteDebugRunConfiguration.createAppInsightEvent(executor, new HashMap<String, String>() {{
+            createAppInsightEvent(executor, new HashMap<String, String>() {{
                 put("IsSubmitSucceed", "false");
                 put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(ee.getMessage()));
-                put("Executor", executor.getId());
-                put("ActionUuid", getUuid());
             }});
 
             throw ee;
@@ -258,5 +253,25 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
         }
 
         return this.remoteConnection;
+    }
+
+    public void createAppInsightEvent(@NotNull Executor executor, @NotNull final Map<String, String> postEventProps) {
+        postEventProps.put("Executor", executor.getId());
+        postEventProps.put("ActionUuid", getUuid());
+
+        switch (executor.getId()) {
+            case "Run":
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalRunButtonClick"), null, postEventProps);
+                break;
+            case "Debug":
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigLocalDebugButtonClick"), null, postEventProps);
+                break;
+            case SparkBatchJobRunExecutor.EXECUTOR_ID:
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigRunButtonClick"), null, postEventProps);
+                break;
+            case SparkBatchJobDebugExecutor.EXECUTOR_ID:
+                AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigDebugButtonClick"), null, postEventProps);
+                break;
+        }
     }
 }
