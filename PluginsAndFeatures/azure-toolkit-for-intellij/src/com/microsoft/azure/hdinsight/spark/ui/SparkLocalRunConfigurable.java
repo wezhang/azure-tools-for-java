@@ -60,6 +60,7 @@ public class SparkLocalRunConfigurable {
     private TextFieldWithBrowseButton myDataRootDirectoryFieldWithBrowseButton;
     private JLabel myDataDefaultDirectory;
     private JLabel myHadoopUserDefaultDirectoryLabel;
+    private JPanel myWinutilsLocationPanel;
 
     @Nullable
     private JComponent myAnchor;
@@ -105,7 +106,7 @@ public class SparkLocalRunConfigurable {
         if (SystemUtils.IS_OS_WINDOWS) {
             updateWinUtilsPathTextField(System.getenv(HADOOP_HOME_ENV));
         } else {
-            myWinutilsPathTextFieldWithBrowserButton.setVisible(false);
+            myWinutilsLocationPanel.setVisible(false);
         }
     }
 
