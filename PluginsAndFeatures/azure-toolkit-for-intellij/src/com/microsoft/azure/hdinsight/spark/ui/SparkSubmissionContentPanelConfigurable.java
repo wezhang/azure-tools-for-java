@@ -33,15 +33,14 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -144,10 +143,18 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     }
 
     private void resetClusterDetailsToComboBoxModel(SparkSubmitModel destSubmitModel, List<IClusterDetail> cachedClusterDetails) {
-        destSubmitModel.setCachedClusterDetailsWithTitleMapping(cachedClusterDetails);
+        List<IClusterDetail> clusterDetails = new ArrayList<>();
+
+        try {
+            if (AuthMethodManager.getInstance().isSignedIn()) {
+                clusterDetails = cachedClusterDetails;
+            }
+        } catch (IOException ignored) { }
+
+        destSubmitModel.setCachedClusterDetailsWithTitleMapping(clusterDetails);
 
         destSubmitModel.getClusterComboBoxModel().removeAllElements();
-        cachedClusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail.getTitle()));
+        clusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail.getTitle()));
 
         setSelectedClusterByName(destSubmitModel.getSubmissionParameter().getClusterName());
     }

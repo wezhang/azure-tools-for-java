@@ -28,15 +28,18 @@ import com.google.gson.reflect.TypeToken;
 import com.microsoft.azure.hdinsight.metadata.ClusterMetaDataService;
 import com.microsoft.azure.hdinsight.sdk.cluster.*;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.authmanage.SubscriptionManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
+import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.azure.hdinsight.sdk.common.AggregatedException;
 import com.microsoft.azure.hdinsight.sdk.common.AuthenticationErrorHandler;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -144,9 +147,9 @@ public class ClusterManagerEx {
         }
 
         isListClusterSuccess = false;
-        com.microsoft.azuretools.sdkmanage.AzureManager manager;
+        Optional<AzureManager> manager;
         try {
-            manager = AuthMethodManager.getInstance().getAzureManager();
+            manager = Optional.ofNullable(AuthMethodManager.getInstance().getAzureManager());
         } catch (Exception ex) {
             // not authenticated
             clusterDetails.addAll(hdinsightAdditionalClusterDetails);
@@ -155,26 +158,47 @@ public class ClusterManagerEx {
             return ClusterMetaDataService.getInstance().getCachedClusterDetails();
         }
 
-        List<SubscriptionDetail> subscriptionList = null;
-        try {
-            subscriptionList = manager.getSubscriptionManager().getSubscriptionDetails();
-            clusterDetails = ClusterManager.getInstance().getHDInsightClustersWithSpecificType(subscriptionList, OSTYPE);
+        Optional<List<SubscriptionDetail>> subscriptionList = manager.map(AzureManager::getSubscriptionManager)
+                .flatMap(subscriptionManager -> {
+                    try {
+                        return Optional.ofNullable(subscriptionManager.getSubscriptionDetails());
+                    } catch (IOException e) {
+                        DefaultLoader.getUIHelper().showError("Failed to get HDInsight Clusters. " +
+                                        "Please check your subscription and login at Azure Explorer.",
+                                "List HDInsight Cluster Error");
 
-            // TODO: so far we have not a good way to judge whether it is token expired as we have changed the way to list hdinsight clusters
-            isListClusterSuccess = clusterDetails.size() != 0;
-        } catch (AggregatedException aggregateException) {
-            if (dealWithAggregatedException(aggregateException)) {
-                DefaultLoader.getUIHelper().showError("Failed to get HDInsight Cluster, Please make sure there's no login problem first","List HDInsight Cluster Error");
-            }
-        } catch (Exception ex) {
-            DefaultLoader.getUIHelper().showError("Failed to get HDInsight Clusters","List HDInsight Cluster Error");
-        }
+                        return Optional.empty();
+                    }
+                });
 
-        isSelectedSubscriptionExist = subscriptionList != null && !subscriptionList.isEmpty();
+        subscriptionList
+                .flatMap(list -> {
+                    try {
+                        return Optional.of(ClusterManager.getInstance().getHDInsightClustersWithSpecificType(list, OSTYPE));
+                    } catch (AggregatedException aggregateException) {
+                        if (dealWithAggregatedException(aggregateException)) {
+                            DefaultLoader.getUIHelper().showError(
+                                    "Failed to get HDInsight Cluster, Please make sure there's no login problem first",
+                                    "List HDInsight Cluster Error");
+                        }
 
-        clusterDetails.addAll(hdinsightAdditionalClusterDetails);
-        clusterDetails.addAll(emulatorClusterDetails);
-        ClusterMetaDataService.getInstance().addCachedClusters(clusterDetails);
+                        return Optional.empty();
+                    }
+                })
+                .ifPresent(clusterDetailList -> {
+                    // TODO: so far we have not a good way to judge whether it is token expired as
+                    //       we have changed the way to list HDInsight clusters
+                    isListClusterSuccess = clusterDetailList.size() != 0;
+
+                    clusterDetailList.addAll(hdinsightAdditionalClusterDetails);
+                    clusterDetailList.addAll(emulatorClusterDetails);
+                    ClusterMetaDataService.getInstance().addCachedClusters(clusterDetailList);
+
+                });
+
+        isSelectedSubscriptionExist = subscriptionList.map(list -> list.stream().anyMatch(SubscriptionDetail::isSelected))
+                .orElse(false);
+
         return ClusterMetaDataService.getInstance().getCachedClusterDetails();
     }
 

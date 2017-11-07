@@ -39,6 +39,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitHelper;
 import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveRenderer;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -52,6 +53,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class SparkSubmissionContentPanel extends JPanel{
@@ -261,7 +264,15 @@ public class SparkSubmissionContentPanel extends JPanel{
                         GridBagConstraints.WEST, GridBagConstraints.HORIZONTAL,
                         new Insets(margin, margin, 0, margin), 0, 0));
 
-        errorMessageLabels[ErrorMessageLabelTag.ClusterName.ordinal()] = new JLabel("Cluster Name Should not be null");
+        boolean isSignedIn = false;
+
+        try {
+            isSignedIn = AuthMethodManager.getInstance().isSignedIn();
+        } catch (IOException ignored) { }
+
+        errorMessageLabels[ErrorMessageLabelTag.ClusterName.ordinal()] = new JLabel( isSignedIn ?
+                        "Cluster Name Should not be null, please choose one for submission" :
+                        "Can't list cluster, please login within Azure Explorer and refresh");
         errorMessageLabels[ErrorMessageLabelTag.ClusterName.ordinal()].setForeground(DarkThemeManager.getInstance().getErrorMessageColor());
 
         clustersListComboBox.getComboBox().addItemListener(new ItemListener() {
