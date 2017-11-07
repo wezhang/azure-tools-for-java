@@ -28,15 +28,12 @@ import com.intellij.openapi.project.Project;
 import com.intellij.remote.RemoteProcess;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
-import com.microsoft.azure.hdinsight.spark.common.SparkJobException;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitHelper;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import rx.Subscription;
+import rx.*;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
@@ -45,6 +42,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
 import static rx.exceptions.Exceptions.propagate;
@@ -172,25 +170,51 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                     submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
                     return JobUtils.submit(cluster, submitModel.getSubmissionParameter()).subscribeOn(Schedulers.io());
                 })
-                .map(job -> {
-                    try {
-                        sparkJob = job;
+                .doOnEach(notification -> {
+                    SparkBatchJob job = notification.getValue();
 
-                        jobLogSubscription = job.getSubmissionLog()
-                                .subscribeOn(Schedulers.io())
-                                .subscribe(ctrlSubject::onNext, ctrlSubject::onError);
-
-                        jobStderrLogInputSteam.attachJob(job);
-                        jobStdoutLogInputSteam.attachJob(job);
-                    } catch (IOException e) {
-                        throw propagate(e);
-                    }
-
-                    return job;
+                    jobLogSubscription = job.getSubmissionLog()
+                            .subscribeOn(Schedulers.io())
+                            .subscribe(ctrlSubject::onNext, ctrlSubject::onError);
                 })
                 .toObservable()
-                .flatMap(SparkBatchJob::getJobDoneObservable)
-                .subscribe(state -> disconnect(), err -> {
+                .flatMap(job -> Observable
+                        .create((Subscriber<? super SparkBatchJob> ob) -> {
+                            try {
+                                jobStderrLogInputSteam.attachJob(job);
+                                jobStdoutLogInputSteam.attachJob(job);
+
+                                sparkJob = job;
+
+                                ob.onNext(job);
+                            } catch (IOException e) {
+                                ob.onError(e);
+                            }
+                        })
+                        .retryWhen(attempts -> attempts.flatMap(err -> {
+                            try {
+                                final String state = job.getState();
+
+                                if (state.equals("starting") || state.equals("not_started")) {
+                                    logInfo("Job is waiting for start due to cluster busy, please wait or disconnect (The job will run when the cluster is free).");
+
+                                    return Observable.timer(5, TimeUnit.SECONDS);
+                                }
+                            } catch (IOException ignored) {
+                            }
+
+                            return Observable.error(new SparkJobException("Spark Job Service not available, please check HDInsight cluster status."));
+                        })))
+                .flatMap(runningJob -> runningJob.getJobDoneObservable().subscribeOn(Schedulers.io()))
+                .subscribe(sdPair -> {
+                    if (sdPair.getKey() == SparkBatchJobState.SUCCESS) {
+                        logInfo("Job run successfully.");
+                    } else {
+                        ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Job state is " + sdPair.getKey().toString()));
+                        ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Diagnostics: " + sdPair.getValue()));
+                    }
+                    disconnect();
+                }, err -> {
                     ctrlSubject.onError(err);
                     disconnect();
                 });

@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
 import rx.Observable;
+import rx.Subscriber;
 
 import java.io.IOException;
 import java.net.URI;
@@ -42,7 +43,6 @@ import java.util.regex.Pattern;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
 import static java.lang.Thread.sleep;
-import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
@@ -270,7 +270,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             }
         } while (++retries < this.getRetriesMax());
 
-        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+        throw new UnknownServiceException("Failed to get job state: Unknown service error after " + --retries + " retries");
     }
 
     /**
@@ -312,7 +312,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             }
         } while (++retries < this.getRetriesMax());
 
-        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+        throw new UnknownServiceException("Failed to get job Application ID: Unknown service error after " + --retries + " retries");
     }
 
     /**
@@ -356,7 +356,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             }
         } while (++retries < this.getRetriesMax());
 
-        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+        throw new UnknownServiceException("Failed to get job Yarn application: Unknown service error after " + --retries + " retries");
     }
 
     /**
@@ -399,7 +399,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             }
         } while (++retries < this.getRetriesMax());
 
-        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+        throw new UnknownServiceException("Failed to get job driver log URL: Unknown service error after " + --retries + " retries");
     }
 
     /**
@@ -505,45 +505,69 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             }
         } while (++retries < this.getRetriesMax());
 
-        throw new UnknownServiceException("Unknown service error after " + --retries + " retries");
+        throw new UnknownServiceException("Failed to detect job activity: Unknown service error after " + --retries + " retries");
     }
 
-    public boolean isLogAggregated() throws IOException {
-        String applicationId = this.getSparkJobApplicationId(this.getConnectUri(), this.getBatchId());
-        App yarnApp = this.getSparkJobYarnApplication(this.getConnectUri(), applicationId);
+    public Observable<SimpleImmutableEntry<SparkBatchJobState, String>> getJobDoneObservable() {
+        return Observable.create((Subscriber<? super SimpleImmutableEntry<SparkBatchJobState, String>> ob) -> {
+            try {
+                boolean isJobActive = true;
+                boolean isLogAggregateDone = false;
+                SparkBatchJobState state = SparkBatchJobState.NOT_STARTED;
+                String applicationId = null;
+                String diagnostics = "";
 
-        switch (yarnApp.getLogAggregationStatus().toUpperCase()) {
-            case "SUCCEEDED":
-                return true;
-            case "DISABLED":
-            case "NOT_START":
-            case "RUNNING":
-            case "RUNNING_WITH_FAILURE":
-            case "FAILED":
-            case "TIME_OUT":
-            default:
-                return false;
-        }
-    }
+                while (true) {
+                    if (isJobActive) {
+                        HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
+                                this.getConnectUri().toString(), batchId);
 
-    public Observable<SparkBatchJobState> getJobDoneObservable() {
-        return Observable.interval(200, TimeUnit.MILLISECONDS)
-                .map((times) -> {
-                    try {
-                        return getState();
-                    } catch (IOException e) {
-                        throw propagate(e);
+                        if (httpResponse.getCode() >= 200 && httpResponse.getCode() < 300) {
+                            SparkSubmitResponse jobResp = ObjectConvertUtils.convertJsonToObject(
+                                    httpResponse.getMessage(), SparkSubmitResponse.class)
+                                    .orElseThrow(() -> new UnknownServiceException(
+                                            "Bad spark job response: " + httpResponse.getMessage()));
+
+                            state = SparkBatchJobState.valueOf(jobResp.getState().toUpperCase());
+
+                            isJobActive = !state.isJobDone();
+                            applicationId = jobResp.getAppId();
+                        }
                     }
-                })
-                .map(s -> SparkBatchJobState.valueOf(s.toUpperCase()))
-                .filter(SparkBatchJobState::isJobDone)
-                .filter((state) -> {
-                    try {
-                        return isLogAggregated();
-                    } catch (IOException e) {
-                        throw propagate(e);
+
+                    if (!isLogAggregateDone && applicationId != null) {
+                        App yarnApp = this.getSparkJobYarnApplication(this.getConnectUri(), applicationId);
+                        diagnostics = yarnApp.getDiagnostics();
+
+                        switch (yarnApp.getLogAggregationStatus().toUpperCase()) {
+                            case "SUCCEEDED":
+                            case "FAILED":
+                                isLogAggregateDone = true;
+                                break;
+                            case "DISABLED":
+                            case "NOT_START":
+                            case "RUNNING":
+                            case "RUNNING_WITH_FAILURE":
+                            case "TIME_OUT":
+                            default:
+                                isLogAggregateDone = false;
+                        }
                     }
-                })
-                .delay(3, TimeUnit.SECONDS);
+
+                    // Retry interval
+                    if (!isJobActive && isLogAggregateDone) {
+                        ob.onNext(new SimpleImmutableEntry<>(state, diagnostics));
+                        break;
+                    } else {
+                        sleep(1000);
+                    }
+                }
+            } catch (IOException ex) {
+                ob.onError(ex);
+            } catch (InterruptedException ignored) {
+            } finally {
+                ob.onCompleted();
+            }
+        });
     }
 }
