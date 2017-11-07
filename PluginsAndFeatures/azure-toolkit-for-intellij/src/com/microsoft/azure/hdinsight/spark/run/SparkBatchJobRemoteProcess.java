@@ -187,6 +187,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                                 sparkJob = job;
 
                                 ob.onNext(job);
+                                ob.onCompleted();
                             } catch (IOException e) {
                                 ob.onError(e);
                             }
@@ -213,9 +214,10 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                         ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Job state is " + sdPair.getKey().toString()));
                         ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Diagnostics: " + sdPair.getValue()));
                     }
-                    disconnect();
                 }, err -> {
                     ctrlSubject.onError(err);
+                    disconnect();
+                }, () -> {
                     disconnect();
                 });
     }

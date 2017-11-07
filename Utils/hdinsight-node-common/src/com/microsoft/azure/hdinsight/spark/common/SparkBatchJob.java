@@ -517,7 +517,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 String applicationId = null;
                 String diagnostics = "";
 
-                while (true) {
+                while (isJobActive || !isLogAggregateDone) {
                     if (isJobActive) {
                         HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
                                 this.getConnectUri().toString(), batchId);
@@ -533,9 +533,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                             isJobActive = !state.isJobDone();
                             applicationId = jobResp.getAppId();
                         }
-                    }
-
-                    if (!isLogAggregateDone && applicationId != null) {
+                    } else {
                         App yarnApp = this.getSparkJobYarnApplication(this.getConnectUri(), applicationId);
                         diagnostics = yarnApp.getDiagnostics();
 
@@ -555,13 +553,10 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                     }
 
                     // Retry interval
-                    if (!isJobActive && isLogAggregateDone) {
-                        ob.onNext(new SimpleImmutableEntry<>(state, diagnostics));
-                        break;
-                    } else {
-                        sleep(1000);
-                    }
+                    sleep(1000);
                 }
+
+                ob.onNext(new SimpleImmutableEntry<>(state, diagnostics));
             } catch (IOException ex) {
                 ob.onError(ex);
             } catch (InterruptedException ignored) {
