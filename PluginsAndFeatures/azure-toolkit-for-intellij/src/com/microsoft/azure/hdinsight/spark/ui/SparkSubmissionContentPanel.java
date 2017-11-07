@@ -272,7 +272,7 @@ public class SparkSubmissionContentPanel extends JPanel{
 
         errorMessageLabels[ErrorMessageLabelTag.ClusterName.ordinal()] = new JLabel( isSignedIn ?
                         "Cluster Name Should not be null, please choose one for submission" :
-                        "Can't list cluster, please login within Azure Explorer and refresh");
+                        "Can't list cluster, please login within Azure Explorer (View -> Tool Windows -> Azure Explorer) and refresh");
         errorMessageLabels[ErrorMessageLabelTag.ClusterName.ordinal()].setForeground(DarkThemeManager.getInstance().getErrorMessageColor());
 
         clustersListComboBox.getComboBox().addItemListener(new ItemListener() {
