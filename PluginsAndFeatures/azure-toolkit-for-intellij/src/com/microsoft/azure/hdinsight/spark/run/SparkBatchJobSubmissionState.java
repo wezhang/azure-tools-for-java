@@ -152,6 +152,7 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                             }});
 
                             ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT);
+                            disconnectAction.setEnabled(false);
                         },
                         () -> disconnectAction.setEnabled(false)
                 );
