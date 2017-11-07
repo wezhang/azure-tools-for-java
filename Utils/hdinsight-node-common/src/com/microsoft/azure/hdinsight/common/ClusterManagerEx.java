@@ -164,7 +164,7 @@ public class ClusterManagerEx {
                         return Optional.ofNullable(subscriptionManager.getSubscriptionDetails());
                     } catch (IOException e) {
                         DefaultLoader.getUIHelper().showError("Failed to get HDInsight Clusters. " +
-                                        "Please check your subscription and login at Azure Explorer.",
+                                        "Please check your subscription and login at Azure Explorer (View -> Tool Windows -> Azure Explorer).",
                                 "List HDInsight Cluster Error");
 
                         return Optional.empty();
