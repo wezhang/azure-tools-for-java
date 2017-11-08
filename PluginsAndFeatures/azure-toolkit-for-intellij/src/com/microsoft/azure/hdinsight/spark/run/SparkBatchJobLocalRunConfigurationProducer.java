@@ -84,7 +84,6 @@ public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigura
                             .orElse(false);
                 })
                 .map(mcPair -> {
-                    sourceElement.set(mcPair.getKey());
                     setupConfiguration(configuration, mcPair.getValue(), context);
 
                     return true;
