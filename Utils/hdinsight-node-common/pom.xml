@@ -102,15 +102,19 @@
                         <script><![CDATA[
                             import java.nio.file.Paths
 
-                            def winutilsDir = new File(Paths.get("$targetDir", "tools", "winutils").toString())
+                            if (System.properties['os.name'].toLowerCase().contains('windows')) {
+                                def winutilsDir = new File(Paths.get("$targetDir", "tools", "winutils").toString())
 
-                            if (winutilsDir.exists()) {
-                                log.info("Winutils has been cloned to $winutilsDir, skip clone.")
+                                if (winutilsDir.exists()) {
+                                    log.info("Winutils has been cloned to $winutilsDir, skip clone.")
+                                } else {
+                                    log.info("Clone winutils from https://github.com/steveloughran/winutils to $winutilsDir")
+
+                                    "git clone --depth 1 https://github.com/steveloughran/winutils $winutilsDir"
+                                                .execute().text
+                                }
                             } else {
-                                log.info("Clone winutils from https://github.com/steveloughran/winutils to $winutilsDir")
-
-                                "git clone --depth 1 https://github.com/steveloughran/winutils $winutilsDir"
-                                            .execute().text
+                                log.info("No need to clone winutils for non-Windows platforms.")
                             }
                         ]]></script>
                     </scripts>
