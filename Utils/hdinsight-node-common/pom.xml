@@ -81,27 +81,49 @@
         <defaultGoal>install</defaultGoal>
         <plugins>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>1.6.0</version>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
                 <executions>
                     <execution>
                         <phase>generate-test-resources</phase>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>execute</goal>
                         </goals>
                     </execution>
                 </executions>
                 <configuration>
-                    <workingDirectory>${project.build.directory}/tools/</workingDirectory>
-                    <executable>git</executable>
-                    <arguments>
-                        <argument>clone</argument>
-                        <argument>--depth</argument>
-                        <argument>1</argument>
-                        <argument>https://github.com/steveloughran/winutils</argument>
-                    </arguments>
+                    <properties>
+                        <property>
+                            <name>targetDir</name>
+                            <value>${project.build.directory}</value>
+                        </property>
+                    </properties>
+                    <scripts>
+                        <script><![CDATA[
+                            import java.nio.file.Paths
+
+                            def winutilsDir = new File(Paths.get("$targetDir", "tools", "winutils").toString())
+
+                            if (winutilsDir.exists()) {
+                                log.info("Winutils has been cloned to $winutilsDir, skip clone.")
+                            } else {
+                                log.info("Clone winutils from https://github.com/steveloughran/winutils to $winutilsDir")
+
+                                "git clone --depth 1 https://github.com/steveloughran/winutils $winutilsDir"
+                                            .execute().text
+                            }
+                        ]]></script>
+                    </scripts>
                 </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.groovy</groupId>
+                        <artifactId>groovy-all</artifactId>
+                        <!-- any version of Groovy \>= 1.5.0 should work here -->
+                        <version>2.4.12</version>
+                        <scope>runtime</scope>
+                    </dependency>
+                </dependencies>
             </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
