@@ -22,6 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.mock;
 
 
+import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import mockit.Invocation;
 import mockit.Mock;
 import mockit.MockUp;
@@ -34,7 +35,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
-public class SparkLocalRunner {
+public class SparkLocalRunner implements ILogger {
     private String master;
     private String jobClassName;
     private List<String> jobArguments;
@@ -60,20 +61,22 @@ public class SparkLocalRunner {
 
     private void runJobMain() {
 
-        System.out.println("HADOOP_HOME: " + System.getenv("HADOOP_HOME"));
-        System.out.println("Hadoop user default directory: " + System.getProperty("user.dir"));
+        log().info("HADOOP_HOME: " + System.getenv("HADOOP_HOME"));
+        log().info("Hadoop user default directory: " + System.getProperty("user.dir"));
 
         try {
             final Class<?> jobClass = Class.forName(jobClassName);
 
-            System.out.println("Run Spark Job: " + jobClass.getName());
+            log().info("Run Spark Job: " + jobClass.getName());
 
             final Method jobMain = jobClass.getMethod("main", String[].class);
 
             final Object[] jobArgs = new Object[]{ jobArguments.toArray(new String[0]) };
             jobMain.invoke(null, jobArgs);
-        } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+        } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException e) {
             e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.getTargetException().printStackTrace();
         }
 
     }
