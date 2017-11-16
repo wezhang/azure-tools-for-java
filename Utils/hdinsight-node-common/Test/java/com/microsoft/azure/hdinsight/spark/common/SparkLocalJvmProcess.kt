@@ -43,13 +43,14 @@ class SparkLocalJvmProcess : JvmProcess() {
         val jMockitClass = JMockit::class.java
         val uri = jMockitClass.getResource(
                 "/${jMockitClass.canonicalName.replace('.', '/')}.class")
-        val jarPathRegex = """(zip:|jar:file:/)(.*)!/(.*)""".toRegex()
+        val jarPathRegex = """(zip:|jar:file:)(/.*)!/(.*)""".toRegex()
 
         return jarPathRegex.matchEntire(uri.toString())
                            ?.groups
                            ?.get(2)
+                           ?.let { File(it.value) }
                            ?.let {
-                               val newJvmOptions = "-javaagent:${it.value} $jvmOptions" +
+                               val newJvmOptions = "-javaagent:$it $jvmOptions" +
                                        if (isDebugEnabled)
                                            " -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
                                        else
