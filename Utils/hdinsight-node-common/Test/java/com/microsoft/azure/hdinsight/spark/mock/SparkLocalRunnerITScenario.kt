@@ -30,7 +30,7 @@ import cucumber.api.DataTable
 import org.assertj.core.api.Assertions.*
 
 class SparkLocalRunnerITScenario {
-    var sparkLocalJob: ProcessBuilder? = null
+    private var sparkLocalJob: ProcessBuilder? = null
     private val jvmProcess = SparkLocalJvmProcess()
 
     @And("^enable Spark Job debugging")
@@ -40,14 +40,16 @@ class SparkLocalRunnerITScenario {
     }
 
     @Given("^locally run job '(.*)' with args")
-    fun localRunJob(mainclass: String, jobArgs: List<String>) {
-        val args = arrayOf("--master local[1]", mainclass) + jobArgs
+    fun localRunJob(mainClass: String, jobArgs: List<String>) {
+        val args = arrayOf("--master local[1]", mainClass) + jobArgs
 
         sparkLocalJob = jvmProcess.createProcess("", SparkLocalRunner::class.java, args)
     }
 
-    fun runToGetStdoutLines(): List<String> {
-        assertThat(sparkLocalJob).isNotNull().describedAs("Run Spark Job locally firstly")
+    private fun runToGetStdoutLines(): List<String> {
+        assertThat(sparkLocalJob)
+                .describedAs("Run Spark Job locally firstly")
+                .isNotNull()
 
         sparkLocalJob!!.redirectOutput(ProcessBuilder.Redirect.PIPE)
 
@@ -55,9 +57,10 @@ class SparkLocalRunnerITScenario {
         val outputLines = process.inputStream.reader().readLines()
 
         assertThat(process.waitFor())
-                .isEqualTo(0).describedAs("Spark job exist with error.")
+                .describedAs("Spark job exist with error.")
+                .isEqualTo(0)
 
-        return outputLines;
+        return outputLines
     }
 
     @Then("^locally run stand output should be")

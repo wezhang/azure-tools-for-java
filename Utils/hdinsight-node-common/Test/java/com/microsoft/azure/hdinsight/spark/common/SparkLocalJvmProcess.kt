@@ -45,6 +45,8 @@ class SparkLocalJvmProcess : JvmProcess() {
                 "/${jMockitClass.canonicalName.replace('.', '/')}.class")
         val jarPathRegex = """(zip:|jar:file:)(/.*)!/(.*)""".toRegex()
 
+        additionalEnv["HADOOP_HOME"] = targetDir.resolve("tools").resolve("winutils").resolve("hadoop-2.7.1").path
+
         return jarPathRegex.matchEntire(uri.toString())
                            ?.groups
                            ?.get(2)

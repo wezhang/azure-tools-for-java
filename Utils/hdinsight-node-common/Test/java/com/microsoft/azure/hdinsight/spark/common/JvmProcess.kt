@@ -25,6 +25,7 @@ package com.microsoft.azure.hdinsight.spark.common
 import java.io.File
 import java.nio.file.Paths
 import java.util.*
+import kotlin.collections.HashMap
 
 open class JvmProcess {
     open var workingDirectory: String = System.getProperty("user.dir")
@@ -32,6 +33,8 @@ open class JvmProcess {
     var classpath: String = System.getProperty("java.class.path")
 
     var jvm: String = Paths.get(System.getProperty("java.home"), "bin", "java").toString()
+
+    val additionalEnv = HashMap<String, String>()
 
     var stdOut: ProcessBuilder.Redirect = ProcessBuilder.Redirect.INHERIT
     var stdErr: ProcessBuilder.Redirect = ProcessBuilder.Redirect.INHERIT
@@ -55,6 +58,7 @@ open class JvmProcess {
 
         val env = processBuilder.environment()
         env.put("CLASSPATH", classpath)
+        env.putAll(additionalEnv)
 
         processBuilder.redirectOutput(stdOut)
         processBuilder.redirectError(stdErr)
