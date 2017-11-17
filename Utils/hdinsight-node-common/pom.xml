@@ -12,7 +12,6 @@
         <artifact.name>${project.artifactId}-${project.version}.jar</artifact.name>
         <hdinsight.htmlcopy.enabled>false</hdinsight.htmlcopy.enabled>
         <project.build.encoding>UTF-8</project.build.encoding>
-        <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
     </properties>
 
     <profiles>
