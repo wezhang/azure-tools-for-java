@@ -26,6 +26,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkLocalJvmProcess
 import cucumber.api.java.en.And
 import cucumber.api.java.en.Given
 import cucumber.api.java.en.Then
+import cucumber.api.DataTable
 import org.assertj.core.api.Assertions.*
 
 class SparkLocalRunnerITScenario {
@@ -45,8 +46,7 @@ class SparkLocalRunnerITScenario {
         sparkLocalJob = jvmProcess.createProcess("", SparkLocalRunner::class.java, args)
     }
 
-    @Then("^locally run stand output should be")
-    fun checkLocallyRunStdout(expectOutputs: List<String>) {
+    fun runToGetStdoutLines(): List<String> {
         assertThat(sparkLocalJob).isNotNull().describedAs("Run Spark Job locally firstly")
 
         sparkLocalJob!!.redirectOutput(ProcessBuilder.Redirect.PIPE)
@@ -54,9 +54,32 @@ class SparkLocalRunnerITScenario {
         val process = sparkLocalJob!!.start()
         val outputLines = process.inputStream.reader().readLines()
 
-        assertThat(outputLines).containsAll(expectOutputs)
-
         assertThat(process.waitFor())
                 .isEqualTo(0).describedAs("Spark job exist with error.")
+
+        return outputLines;
+    }
+
+    @Then("^locally run stand output should be")
+    fun checkLocallyRunStdout(expectOutputs: List<String>) {
+        val outputLines = runToGetStdoutLines()
+
+        assertThat(outputLines).containsAll(expectOutputs)
+        assertThat(outputLines).hasSameSizeAs(expectOutputs)
+    }
+
+    @Then("^locally run stand output table should be")
+    fun checkLocallyRunStdoutTable(expectOutputs: DataTable) {
+        val outputTable = runToGetStdoutLines()
+                .filter { !it.matches("""^\+[-+]*\+$""".toRegex()) }
+                .map {
+                    it.split("|")
+                        .toList()
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                }
+                .filter { it.isNotEmpty() }
+
+        assertThat(outputTable).isEqualTo(expectOutputs.raw())
     }
 }
