@@ -81,55 +81,6 @@
         <defaultGoal>install</defaultGoal>
         <plugins>
             <plugin>
-                <groupId>org.codehaus.gmavenplus</groupId>
-                <artifactId>gmavenplus-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>generate-test-resources</phase>
-                        <goals>
-                            <goal>execute</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <properties>
-                        <property>
-                            <name>targetDir</name>
-                            <value>${project.build.directory}</value>
-                        </property>
-                    </properties>
-                    <scripts>
-                        <script><![CDATA[
-                            import java.nio.file.Paths
-
-                            if (System.properties['os.name'].toLowerCase().contains('windows')) {
-                                def winutilsDir = new File(Paths.get("$targetDir", "tools", "winutils").toString())
-
-                                if (winutilsDir.exists()) {
-                                    log.info("Winutils has been cloned to $winutilsDir, skip clone.")
-                                } else {
-                                    log.info("Clone winutils from https://github.com/steveloughran/winutils to $winutilsDir")
-
-                                    "git clone --depth 1 https://github.com/steveloughran/winutils $winutilsDir"
-                                                .execute().text
-                                }
-                            } else {
-                                log.info("No need to clone winutils for non-Windows platforms.")
-                            }
-                        ]]></script>
-                    </scripts>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.codehaus.groovy</groupId>
-                        <artifactId>groovy-all</artifactId>
-                        <!-- any version of Groovy \>= 1.5.0 should work here -->
-                        <version>2.4.12</version>
-                        <scope>runtime</scope>
-                    </dependency>
-                </dependencies>
-            </plugin>
-            <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
@@ -147,6 +98,16 @@
                         <goals>
                             <goal>test-compile</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <id>clone-winutils</id>
+                        <phase>generate-test-resources</phase>
+                        <goals>
+                            <goal>script</goal>
+                        </goals>
+                        <configuration>
+                            <scriptFile>build-tools/cloneWinutils.kts</scriptFile>
+                        </configuration>
                     </execution>
                 </executions>
                 <configuration>
@@ -312,7 +273,7 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jre8</artifactId>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
