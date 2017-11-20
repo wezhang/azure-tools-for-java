@@ -44,7 +44,7 @@ open class JvmProcess {
 
     open fun createProcess(jvmOptions: String, mainClass: String, arguments: Array<String>): ProcessBuilder {
         val options = jvmOptions.split(" ")
-                                .dropWhile { it.isEmpty() }
+                                .filterNot { it.isEmpty() }
 
         val command = ArrayList<String>().apply {
             add(jvm)

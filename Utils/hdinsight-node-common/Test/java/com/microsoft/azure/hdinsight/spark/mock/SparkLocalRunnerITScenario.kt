@@ -54,11 +54,12 @@ class SparkLocalRunnerITScenario {
         sparkLocalJob!!.redirectOutput(ProcessBuilder.Redirect.PIPE)
 
         val process = sparkLocalJob!!.start()
-        val outputLines = process.inputStream.reader().readLines()
 
         assertThat(process.waitFor())
                 .describedAs("Spark job exist with error.")
                 .isEqualTo(0)
+
+        val outputLines = process.inputStream.reader().readLines()
 
         return outputLines
     }
