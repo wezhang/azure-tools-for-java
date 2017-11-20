@@ -39,7 +39,7 @@ class MockRawLocalFileSystemScenario {
 
     @Then("^convert mocked file system path '(.*)' to File should be '(.*)'")
     fun verifyPathToFile(path: String, expected: String) {
-        assertThat(MockRawLocalFileSystem().pathToFile(Path(path)).path)
-                .isEqualTo(File(expected).path)
+        assertThat(MockRawLocalFileSystem().pathToFile(Path(path)).toURI())
+                .isEqualTo(File(expected).toURI())
     }
 }

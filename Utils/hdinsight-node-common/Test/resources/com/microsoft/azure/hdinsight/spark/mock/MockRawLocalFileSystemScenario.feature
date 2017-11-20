@@ -1,7 +1,7 @@
 Feature: Mock File System Unit Test
 
   Scenario: Local file scheme with Window path
-    Then convert mocked file system path 'file:/C:/abc' to File should be 'C:\abc'
+    Then convert mocked file system path 'file:/C:/abc' to File should be '/C:/abc'
 
   Scenario: Default WASB scheme root path
     Given set mocked file system local working directory to '/x/user/current'
