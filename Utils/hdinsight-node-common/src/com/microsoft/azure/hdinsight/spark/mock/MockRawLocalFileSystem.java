@@ -34,6 +34,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 class MockRawLocalFileSystem extends RawLocalFileSystem {
@@ -101,9 +102,12 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
                     .skip((Path.WINDOWS && Path.isWindowsAbsolutePath(path.toUri().getPath(), true)) ? 1 : 0)
                     .collect(Collectors.toList());
 
-            realPath = new Path(
-                    new Path(System.getProperty("user.dir")).getParent().getParent(),
-                    String.join(Path.SEPARATOR, components));
+            Path fsRoot = Optional.ofNullable(originUri.getAuthority())
+                    .filter(auth -> !auth.isEmpty())
+                    .map(auth -> new Path(new Path(System.getProperty("user.dir")).getParent().getParent().getParent(), auth))
+                    .orElse(new Path(System.getProperty("user.dir")).getParent().getParent());
+
+            realPath = new Path(fsRoot, String.join(Path.SEPARATOR, components));
         }
 
         return new File(realPath.toUri().getPath());
