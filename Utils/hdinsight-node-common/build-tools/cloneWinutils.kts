@@ -38,7 +38,15 @@ if (System.getProperty("os.name").toLowerCase().contains("windows")) {
     } else {
         log.info("Clone winutils from https://github.com/steveloughran/winutils to $winutilsDir")
 
-        val proc = ProcessBuilder("git", "clone", "--depth", "1", "https://github.com/steveloughran/winutils", "$winutilsDir")
+        val proc = ProcessBuilder(
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
+                    "--branch",
+                    "tag_2017-08-29-hadoop-2.8.1-native",
+                    "https://github.com/steveloughran/winutils",
+                    "$winutilsDir")
                 .redirectOutput(ProcessBuilder.Redirect.PIPE)
                 .redirectError(ProcessBuilder.Redirect.PIPE)
                 .start()
