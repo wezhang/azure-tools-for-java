@@ -64,13 +64,4 @@ class SparkLocalJvmProcess : JvmProcess() {
     }
 
     var isDebugEnabled = false
-
-    init {
-        // Prepare data directories
-        dataRootDir.deleteRecursively()
-
-        val testDataResource = Paths.get(projectDir.path, "Test", "resources", "data").toFile()
-        testDataResource.copyRecursively(dataRootDir, true)
-        userDefaultDir.mkdirs()
-    }
 }
