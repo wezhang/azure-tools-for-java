@@ -131,6 +131,15 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 SparkBatchJobDisconnectAction disconnectAction = new SparkBatchJobDisconnectAction(remoteProcess);
                 ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), disconnectAction);
 
+                remoteProcess.getEventSubject()
+                        .subscribe(event -> {
+                            switch (event.getEventType()) {
+                                case SUBMITTED:
+                                    disconnectAction.setEnabled(true);
+                                    break;
+                            }
+                        });
+
                 ctrlSubject.subscribe(
                         messageWithType -> {
                             switch (messageWithType.getKey()) {

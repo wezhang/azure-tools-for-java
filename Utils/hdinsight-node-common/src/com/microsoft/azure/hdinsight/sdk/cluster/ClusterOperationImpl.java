@@ -93,7 +93,7 @@ public class ClusterOperationImpl implements IClusterOperation {
                          String managementURI = AuthMethodManager.getInstance().getAzureManager().getManagementURI();
                          return AzureAADHelper.executeRequest(managementURI,
                                  String.format("%s/configurations?api-version=%s", clusterId.replaceAll("/+$", ""), VERSION),
-                                 null,
+                                 RestServiceManager.ContentType.Json,
                                  "GET",
                                  null,
                                  accessToken,
