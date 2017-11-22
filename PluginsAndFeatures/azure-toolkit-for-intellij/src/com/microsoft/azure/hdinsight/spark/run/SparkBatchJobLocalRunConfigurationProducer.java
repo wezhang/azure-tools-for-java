@@ -32,6 +32,7 @@ import com.intellij.execution.application.ApplicationConfigurationType;
 import com.intellij.execution.configurations.ConfigurationUtil;
 import com.intellij.execution.junit.JavaRunConfigurationProducerBase;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -64,30 +65,34 @@ public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigura
 
     @Override
     protected boolean setupConfigurationFromContext(RemoteDebugRunConfiguration configuration, ConfigurationContext context, Ref<PsiElement> sourceElement) {
-        return getMainClassFromContext(context)
-                .filter(mcPair -> {
-                    // To determine if the current context has Spark Context dependence
-                    DependenciesBuilder db = new ForwardDependenciesBuilder(
-                            context.getModule().getProject(), new AnalysisScope(mcPair.getKey().getContainingFile()));
-
-                    db.analyze();
-
-                    return Optional.ofNullable(db.getDependencies().get(mcPair.getKey().getContainingFile()))
-                            .map((Set<PsiFile> t) -> t.stream()
-                                    .map(PsiFile::getVirtualFile)
-                                    .map(VirtualFile::getNameWithoutExtension)
-                                    .anyMatch(className -> className.equals("SparkContext") ||
-                                            className.equals("JavaSparkContext") ||
-                                            className.equals("SparkConf") ||
-                                            className.equals("StreamingContext") ||
-                                            className.equals("SparkSession")))
-                            .orElse(false);
-                })
+        return Optional.ofNullable(context.getModule())
+                .map(Module::getProject)
+                .flatMap(project -> getMainClassFromContext(context)
+                                        .filter(mcPair -> isSparkContext(project, mcPair.getKey().getContainingFile())))
                 .map(mcPair -> {
                     setupConfiguration(configuration, mcPair.getValue(), context);
 
                     return true;
                 })
+                .orElse(false);
+    }
+
+    private boolean isSparkContext(Project project, PsiFile sourceFile) {
+        // To determine if the current context has Spark Context dependence
+        DependenciesBuilder db = new ForwardDependenciesBuilder(
+                project, new AnalysisScope(sourceFile));
+
+        db.analyze();
+
+        return Optional.ofNullable(db.getDependencies().get(sourceFile))
+                .map((Set<PsiFile> t) -> t.stream()
+                        .map(PsiFile::getVirtualFile)
+                        .map(VirtualFile::getNameWithoutExtension)
+                        .anyMatch(className -> className.equals("SparkContext") ||
+                                className.equals("JavaSparkContext") ||
+                                className.equals("SparkConf") ||
+                                className.equals("StreamingContext") ||
+                                className.equals("SparkSession")))
                 .orElse(false);
     }
 
