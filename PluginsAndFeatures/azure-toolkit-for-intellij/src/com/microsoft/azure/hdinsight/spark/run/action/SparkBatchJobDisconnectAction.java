@@ -38,7 +38,7 @@ import java.util.Optional;
 public class SparkBatchJobDisconnectAction extends AnAction {
     @Nullable
     private SparkBatchJobRemoteProcess remoteProcess;
-    private boolean isEnabled = true;
+    private boolean isEnabled = false;
 
     public SparkBatchJobDisconnectAction() {
         super();

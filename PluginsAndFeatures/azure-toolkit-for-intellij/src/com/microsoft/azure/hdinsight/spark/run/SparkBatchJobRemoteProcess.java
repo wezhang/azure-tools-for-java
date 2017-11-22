@@ -62,6 +62,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     private Subscription jobSubscription;
     @Nullable
     private SparkBatchJob sparkJob;
+    @NotNull
+    private final PublishSubject<SparkBatchJobSubmissionEvent> eventSubject = PublishSubject.create();
 
     private boolean isDisconnected;
 
@@ -170,8 +172,9 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                     submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
                     return JobUtils.submit(cluster, submitModel.getSubmissionParameter()).subscribeOn(Schedulers.io());
                 })
-                .doOnEach(notification -> {
-                    SparkBatchJob job = notification.getValue();
+                .doOnSuccess(job -> {
+                    getEventSubject().onNext(new SparkBatchJobSubmissionEvent(
+                            SparkBatchJobSubmissionEvent.Type.SUBMITTED, job));
 
                     jobLogSubscription = job.getSubmissionLog()
                             .subscribeOn(Schedulers.io())
@@ -227,11 +230,17 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         Optional.ofNullable(this.jobLogSubscription).ifPresent(Subscription::unsubscribe);
 
         this.ctrlSubject.onCompleted();
+        this.eventSubject.onCompleted();
 
         this.getJobSubscription().ifPresent(Subscription::unsubscribe);
     }
 
     private void logInfo(String message) {
         ctrlSubject.onNext(new SimpleImmutableEntry<>(Info, message));
+    }
+
+    @NotNull
+    public PublishSubject<SparkBatchJobSubmissionEvent> getEventSubject() {
+        return eventSubject;
     }
 }
