@@ -24,11 +24,13 @@ package com.microsoft.azure.hdinsight.spark.run;
 
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.AbstractMap;
 import java.util.Optional;
 
@@ -51,7 +53,7 @@ public class SparkJobLogInputStream extends InputStream {
 
     public void attachJob(@NotNull SparkBatchJob sparkJob) throws IOException {
         this.sparkBatchJob = sparkJob;
-        this.logUrl = sparkJob.getSparkJobDriverLogUrl(sparkJob.getConnectUri(), sparkJob.getBatchId());
+        refreshLogUrl();
     }
 
     private synchronized Optional<String> fetchLog(long logOffset, int fetchSize) {
@@ -93,10 +95,32 @@ public class SparkJobLogInputStream extends InputStream {
                         offset += slice.length();
 
                         return buffer.length;
-                    }).orElse(0);
+                    }).orElseGet(() -> {
+                        refreshLogUrl();
+
+                        return 0;
+                    });
         } else {
             return buffer.length - bufferPos;
         }
+    }
+
+    private void refreshLogUrl() {
+        getAttachedJob()
+            .ifPresent(
+                    sparkJob -> {
+                        try {
+                            String currentLogUrl = sparkJob.getSparkJobDriverLogUrl(sparkJob.getConnectUri(), sparkJob.getBatchId());
+
+                            if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
+                                // The driver log url's changed due to the job was rerun, read it from beginning
+                                this.logUrl = currentLogUrl;
+                                offset = 0;
+                            }
+                        } catch (IOException ex) {
+                            throw new UncheckedIOException(ex);
+                        }
+                    });
     }
 
     public Optional<String> getLogUrl() {
