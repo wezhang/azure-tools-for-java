@@ -43,6 +43,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRemoteDebugProcess;
 import com.microsoft.azuretools.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import rx.Subscription;
@@ -389,9 +390,7 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                             .orElseThrow(() -> new HDIException(
                                     "No cluster name matched selection: " + selectedClusterName));
 
-                    SparkBatchJobDebuggerRunner debuggerRunner = new SparkBatchJobDebuggerRunner();
-
-                    SparkBatchDebugSession debugSession = debuggerRunner
+                    SparkBatchDebugSession debugSession = SparkBatchJobRemoteDebugProcess
                             .createSparkBatchDebugSession(clusterDetail.getConnectionUrl(), advConfModelToProbe)
                             .open();
 

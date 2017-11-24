@@ -604,6 +604,23 @@ public class JobUtils {
         });
     }
 
+    public static Single<SparkBatchJob> submit(@NotNull SparkBatchJob job) {
+        return Single.create((SingleSubscriber<? super SparkBatchJob> ob) ->
+                ClusterManagerEx.getInstance()
+                        .getClusterDetailByName(job.getSubmissionParameter().getClusterName())
+                        .ifPresent(cluster -> {
+                            try {
+                                SparkBatchSubmission.getInstance()
+                                        .setCredentialsProvider(cluster.getHttpUserName(), cluster.getHttpPassword());
+
+                                job.createBatchJob();
+                                ob.onSuccess(job);
+                            } catch (HDIException | IOException e) {
+                                ob.onError(e);
+                            }
+                        }));
+    }
+
     public static Single<SimpleImmutableEntry<IClusterDetail, String>> deployArtifact(@NotNull String artifactLocalPath,
                                                         @NotNull String clusterName,
                                                         @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> logSubject) {

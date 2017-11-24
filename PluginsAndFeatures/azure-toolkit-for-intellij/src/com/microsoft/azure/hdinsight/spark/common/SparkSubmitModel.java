@@ -393,10 +393,6 @@ public class SparkSubmitModel {
             debugJob.createBatchJob();
 
             return debugJob;
-        } catch (URISyntaxException ex) {
-            throw new HDIException(
-                    "Bad Livy Connection URL " + JobUtils.getLivyConnectionURL(selectedClusterDetail),
-                    ex);
         } catch (IOException ex) {
             HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
                     project,

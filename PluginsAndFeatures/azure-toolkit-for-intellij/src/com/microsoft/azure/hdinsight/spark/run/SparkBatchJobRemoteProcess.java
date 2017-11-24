@@ -41,6 +41,7 @@ import rx.subjects.PublishSubject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -153,6 +154,13 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         return Optional.ofNullable(jobSubscription);
     }
 
+    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) throws SparkJobException {
+        return new SparkBatchJob(
+                URI.create(JobUtils.getLivyConnectionURL(cluster)),
+                submitModel.getSubmissionParameter(),
+                SparkBatchSubmission.getInstance());
+    }
+
     public void start() {
         // Build, deploy and wait for the job done.
         jobSubscription = SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
@@ -245,4 +253,9 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                 .toObservable()
                 .flatMap(this::startJobSubmissionLogReceiver);   // To receive the Livy submission log
     }
+    @NotNull
+    public SparkSubmitModel getSubmitModel() {
+        return submitModel;
+    }
+
 }

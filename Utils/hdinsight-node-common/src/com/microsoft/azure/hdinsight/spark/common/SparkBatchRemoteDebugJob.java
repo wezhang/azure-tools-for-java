@@ -115,10 +115,18 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      * @throws DebugParameterDefinedException the exception for the Spark driver debug option exists
      * @throws URISyntaxException the exception for connectUrl syntax errors
      */
-    static SparkBatchRemoteDebugJob factory(
+    static public SparkBatchRemoteDebugJob factory(
             String connectUrl,
             SparkSubmissionParameter submissionParameter,
-            SparkBatchSubmission submission) throws DebugParameterDefinedException, URISyntaxException {
+            SparkBatchSubmission submission) throws DebugParameterDefinedException {
+
+        SparkSubmissionParameter debugSubmissionParameter = convertToDebugParameter(submissionParameter);
+
+        return new SparkBatchRemoteDebugJob(URI.create(connectUrl), debugSubmissionParameter, submission);
+    }
+
+    static public SparkSubmissionParameter convertToDebugParameter(SparkSubmissionParameter submissionParameter)
+            throws DebugParameterDefinedException {
         final String debugJvmOption = "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=0";
         final String sparkJobDriverJvmOptionConfKey = "spark.driver.extraJavaOptions";
         final String sparkJobExecutorJvmOptionConfKey = "spark.executor.extraJavaOptions";
@@ -151,11 +159,11 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
         }
 
         DebugParameterDefinedException checkingErr = Stream.of(sparkJobDriverNetworkTimeoutKey,
-                                                               sparkJobExecutorMaxFailuresKey,
-                                                               sparkJobDriverRetriesConfKey)
+                sparkJobExecutorMaxFailuresKey,
+                sparkJobDriverRetriesConfKey)
                 .filter(sparkConf::containsKey)
                 .map(key -> new DebugParameterDefinedException(
-                                "The " + key + " is defined in Spark job configuration: " + sparkConf.get(key)))
+                        "The " + key + " is defined in Spark job configuration: " + sparkConf.get(key)))
                 .findFirst()
                 .orElse(null);
 
@@ -177,7 +185,7 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
 
         jobConfigWithDebug.put(SparkSubmissionParameter.Conf, sparkConfigWithDebug);
 
-        SparkSubmissionParameter debugSubmissionParameter = new SparkSubmissionParameter(
+        return new SparkSubmissionParameter(
                 submissionParameter.getClusterName(),
                 submissionParameter.isLocalArtifact(),
                 submissionParameter.getArtifactName(),
@@ -187,9 +195,6 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
                 submissionParameter.getReferencedFiles(),
                 submissionParameter.getReferencedJars(),
                 submissionParameter.getArgs(),
-                jobConfigWithDebug
-        );
-
-        return new SparkBatchRemoteDebugJob(new URI(connectUrl), debugSubmissionParameter, submission);
+                jobConfigWithDebug);
     }
 }

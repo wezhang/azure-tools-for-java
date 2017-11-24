@@ -24,9 +24,26 @@ package com.microsoft.azure.hdinsight.spark.run;
 
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
+public class SparkBatchJobExecutorCreatedEvent extends SparkBatchJobSubmittedEvent {
+    @NotNull
+    private final String host;
+    @NotNull
+    private final String containerId;
 
-interface SparkBatchJobSubmissionEvent {
+    public SparkBatchJobExecutorCreatedEvent(@NotNull SparkBatchJob job, @NotNull String host, @NotNull String containerId) {
+        super(job);
+        this.host = host;
+        this.containerId = containerId;
+    }
+
+    @NotNull
+    public String getHost() {
+        return host;
+    }
+
+    @NotNull
+    public String getContainerId() {
+        return containerId;
+    }
 }

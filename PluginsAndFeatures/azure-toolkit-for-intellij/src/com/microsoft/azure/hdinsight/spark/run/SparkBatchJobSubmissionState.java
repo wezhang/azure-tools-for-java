@@ -113,14 +113,55 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
         try {
             if (executor instanceof SparkBatchJobDebugExecutor) {
-                ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
-                SparkBatchJobDebugProcessHandler process = new SparkBatchJobDebugProcessHandler(myProject);
+//                ConsoleViewImpl consoleView = new ConsoleViewImpl(myProject, false);
+//                SparkBatchJobDebugProcessHandler process = new SparkBatchJobDebugProcessHandler(myProject);
+//
+//                consoleView.attachToProcess(process);
 
-                consoleView.attachToProcess(process);
+//                ExecutionResult result = new DefaultExecutionResult(consoleView, process);
+//                programRunner.onProcessStarted(null, result);
 
-                ExecutionResult result = new DefaultExecutionResult(consoleView, process);
+                SparkBatchJobDebuggerRunner debuggerRunner = (SparkBatchJobDebuggerRunner) programRunner;
+
+                SparkBatchJobRemoteDebugProcess remoteProcess = debuggerRunner.getRemoteDebugProcess()
+                        .orElseThrow(() -> debuggerRunner.getRemoteDebugProcessError()
+                                .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
+//                SparkBatchJobRemoteDebugProcess remoteProcess = new SparkBatchJobRemoteDebugProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
+                SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
+
+                SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
+                jobOutputView.attachToProcess(processHandler);
+
+                ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
+
+                remoteProcess.start();
+                ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler);
+
+                debuggerRunner.getCtrlSubject().subscribe(
+                        messageWithType -> {
+                            switch (messageWithType.getKey()) {
+                                case Info:
+                                    ctrlMessageView.print("INFO: " + messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
+                                    break;
+                                case Warning:
+                                case Log:
+                                    ctrlMessageView.print("LOG: " + messageWithType.getValue() + "\n", ConsoleViewContentType.SYSTEM_OUTPUT);
+                                    break;
+                                default:
+                                    ctrlMessageView.print("ERROR: " + messageWithType.getValue() + "\n", ConsoleViewContentType.ERROR_OUTPUT);
+                            }
+                        },
+                        err -> {
+                            createAppInsightEvent(executor, new HashMap<String, String>() {{
+                                put("IsSubmitSucceed", "false");
+                                put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(err.getMessage()));
+                            }});
+
+                            ctrlMessageView.print("ERROR: " + err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT);
+                        }
+                );
+
                 programRunner.onProcessStarted(null, result);
-
                 return result;
             } else if (executor instanceof SparkBatchJobRunExecutor) {
                 checkSubmissionParameter();
@@ -140,10 +181,8 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
                 remoteProcess.getEventSubject()
                         .subscribe(event -> {
-                            switch (event.getEventType()) {
-                                case SUBMITTED:
-                                    disconnectAction.setEnabled(true);
-                                    break;
+                            if (event instanceof SparkBatchJobSubmittedEvent) {
+                                disconnectAction.setEnabled(true);
                             }
                         });
 
