@@ -22,15 +22,109 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.intellij.debugger.engine.RemoteDebugProcessHandler;
+import com.intellij.execution.ExecutionException;
+import com.intellij.execution.process.ProcessAdapter;
+import com.intellij.execution.process.ProcessEvent;
+import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Key;
+import com.intellij.remote.BaseRemoteProcessHandler;
+import com.intellij.remote.ColoredRemoteProcessHandler;
+import com.intellij.util.concurrency.AppExecutorUtil;
+import com.intellij.util.io.BaseOutputReader;
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import rx.Observer;
+import rx.subjects.PublishSubject;
+
+import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.concurrent.Future;
 
 public class SparkBatchJobDebugProcessHandler extends RemoteDebugProcessHandler {
-    public SparkBatchJobDebugProcessHandler(Project project) {
+    private final SparkBatchJobRemoteDebugProcess remoteDebugProcess;
+    @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+
+    public SparkBatchJobDebugProcessHandler(Project project, SparkSubmitModel submitModel)
+            throws ExecutionException {
         super(project);
+
+        remoteDebugProcess = new SparkBatchJobRemoteDebugProcess(project, submitModel, ctrlSubject);
+
+//        ColoredRemoteProcessHandler<SparkBatchJobRemoteProcess> jobProcessHandler =
+//                new ColoredRemoteProcessHandler<>(remoteDebugProcess, "Starting Spark Job Debug process", null);
+
+        remoteDebugProcess.start();
+    }
+
+    public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
+        return ctrlSubject;
+    }
+
+    public SparkBatchJobRemoteProcess getDebugProcess() {
+        return remoteDebugProcess;
+    }
+
+    class SparkBatchJobLogReader extends BaseOutputReader {
+        private final Key logType;
+
+        SparkBatchJobLogReader(@NotNull InputStream inputStream, Key logType) {
+            super(inputStream, Charset.forName("UTF-8"));
+            this.logType = logType;
+        }
+
+        @Override
+        protected void onTextAvailable(@NotNull String s) {
+            notifyTextAvailable(s, logType);
+        }
+
+        @NotNull
+        @Override
+        protected Future<?> executeOnPooledThread(@NotNull Runnable runnable) {
+            return AppExecutorUtil.getAppExecutorService().submit(runnable);
+        }
+    }
+
+    @Override
+    public void startNotify() {
+        addProcessListener(new ProcessAdapter() {
+            @Override
+            public void startNotified(final ProcessEvent event) {
+                try {
+                    final SparkBatchJobLogReader stdoutReader =
+                            new SparkBatchJobLogReader(remoteDebugProcess.getInputStream(), ProcessOutputTypes.STDOUT);
+                    final SparkBatchJobLogReader stderrReader =
+                            new SparkBatchJobLogReader(remoteDebugProcess.getErrorStream(), ProcessOutputTypes.STDERR);
+
+                    ctrlSubject.subscribe(
+                            log -> {},
+                            err -> {},
+                            () -> {
+                                try {
+                                    stderrReader.waitFor();
+                                    stdoutReader.waitFor();
+                                }
+                                catch (InterruptedException ignore) { }
+                            }
+                    );
+                }
+                finally {
+                    removeProcessListener(this);
+                }
+            }
+        });
+
+        super.startNotify();
     }
 
     @Override
     public boolean detachIsDefault() {
         return false;
     }
+
+
 }

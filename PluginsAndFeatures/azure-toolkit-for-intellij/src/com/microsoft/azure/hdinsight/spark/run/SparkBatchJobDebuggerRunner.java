@@ -83,14 +83,20 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     private Phaser debugProcessPhaser;
     private SparkBatchRemoteDebugJob debugJob;
 
-    private SparkBatchJobRemoteDebugProcess remoteDebugProcess;
+//    private SparkBatchJobRemoteDebugProcess remoteDebugProcess;
 
     // Control Log subject
-    @NotNull
-    private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+//    @NotNull
+//    private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
 
     // More complex pattern, please use grok
     private final Pattern simpleLogPattern = Pattern.compile("\\d{1,2}[/-]\\d{1,2}[/-]\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2} (INFO|WARN|ERROR) .*", Pattern.DOTALL);
+
+    public SparkBatchJobDebugProcessHandler getProcessHandler() {
+        return processHandler;
+    }
+
+    private SparkBatchJobDebugProcessHandler processHandler;
 
     public void setDebugJob(SparkBatchRemoteDebugJob debugJob) {
         this.debugJob = debugJob;
@@ -425,9 +431,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         ReplaySubject<SimpleEntry<String, Key>> debugProcessConsole = ReplaySubject.create();
 
         try {
-            remoteDebugProcess = new SparkBatchJobRemoteDebugProcess(project, submitModel, ctrlSubject);
-            remoteDebugProcess.start();
+//            remoteDebugProcess = new SparkBatchJobRemoteDebugProcess(project, submitModel, ctrlSubject);
+//            remoteDebugProcess.start();
 
+            processHandler = new SparkBatchJobDebugProcessHandler(project, submitModel);
 //            super.execute(buildChildEnvironment(environment, "", isDriver), callback, submissionState);
 
             // new debug process start
@@ -437,8 +444,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
             return;
         }
 
-        remoteDebugProcess
+//        remoteDebugProcess
+        processHandler.getDebugProcess()
                 .getEventSubject()
+//                .subscribeOn(Schedulers.io())
                 .flatMap(event -> {
                     if (event instanceof SparkBatchDebugJobJdbPortForwardedEvent) {
                         return ((SparkBatchDebugJobJdbPortForwardedEvent) event).getRemoteHost()
@@ -459,9 +468,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                     return Observable.empty();
 //                    } else if (event instanceof SparkBatchJobSubmittedEvent)
                 })
+//                .subscribeOn(Schedulers.io())
                 .subscribe(
-                        log -> ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Info, log)),
-                        err -> ctrlSubject.onError(err)
+                        log -> getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Info, log)),
+                        err -> getCtrlSubject().onError(err)
                 );
 
 //        Observable.create((Observable.OnSubscribe<SimpleEntry<String, Key>>) ob -> {
@@ -676,7 +686,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 //                    submitModel.getAdvancedConfigModel())
 //                    .open();
 //
-        return Observable.create(ob -> {
+        return Observable.create((Subscriber<? super String> ob) -> {
                     setDebugSession(event.getDebugSession());
 
                     event.getLocalJdbForwardedPort()
@@ -692,7 +702,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     super.execute(
                                             buildChildEnvironment(environment, host, isDriver),
                                             (runContentDescriptor) -> {
-                                                SparkBatchJobRunProcessHandler handler = (SparkBatchJobRunProcessHandler)
+                                                SparkBatchJobDebugProcessHandler handler = (SparkBatchJobDebugProcessHandler)
                                                         runContentDescriptor.getProcessHandler();
 //
                                                 if (handler != null) {
@@ -719,6 +729,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
 //                                                debugPhaser.arriveAndDeregister();
 
+                                                ob.onCompleted();
                                             },
                                             submissionState);
                                 } catch (ExecutionException e) {
@@ -726,8 +737,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 }
                             });
 
-                    ob.onCompleted();
-                });
+                }).subscribeOn(Schedulers.io());
 
 //                    event.getRemoteHost()
 //                            .ifPresent(host -> {
@@ -844,9 +854,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         return 4096;
     }
 
-    public Optional<SparkBatchJobRemoteDebugProcess> getRemoteDebugProcess() {
-        return Optional.ofNullable(remoteDebugProcess);
-    }
+//    public Optional<SparkBatchJobRemoteDebugProcess> getRemoteDebugProcess() {
+//        return Optional.ofNullable(remoteDebugProcess);
+//    }
 
     public void setJdbLocalPort(int jdbLocalPort) {
         this.jdbLocalPort = jdbLocalPort;
@@ -863,7 +873,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
     @NotNull
     public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
-        return ctrlSubject;
+        return processHandler.getCtrlSubject();
     }
 
 }

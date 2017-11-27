@@ -122,12 +122,13 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 //                programRunner.onProcessStarted(null, result);
 
                 SparkBatchJobDebuggerRunner debuggerRunner = (SparkBatchJobDebuggerRunner) programRunner;
-
-                SparkBatchJobRemoteDebugProcess remoteProcess = debuggerRunner.getRemoteDebugProcess()
-                        .orElseThrow(() -> debuggerRunner.getRemoteDebugProcessError()
-                                .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
+//
+//                SparkBatchJobRemoteDebugProcess remoteProcess = debuggerRunner.getRemoteDebugProcess()
+//                        .orElseThrow(() -> debuggerRunner.getRemoteDebugProcessError()
+//                                .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 //                SparkBatchJobRemoteDebugProcess remoteProcess = new SparkBatchJobRemoteDebugProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
-                SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
+                SparkBatchJobDebugProcessHandler processHandler = debuggerRunner.getProcessHandler();
+//                SparkBatchJobDebugProcessHandler processHandler = new SparkBatchJobDebugProcessHandler(myProject, getSubmitModel());
 
                 SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
                 jobOutputView.attachToProcess(processHandler);
