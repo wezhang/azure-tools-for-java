@@ -134,8 +134,11 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
                 ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
 
-                remoteProcess.start();
+//                remoteProcess.start();
                 ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler);
+//                ExecutionResult result = debuggerRunner.getExecutionResult()
+//                        .orElseThrow(() -> debuggerRunner.getExecutionError()
+//                        .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 
                 debuggerRunner.getCtrlSubject().subscribe(
                         messageWithType -> {
