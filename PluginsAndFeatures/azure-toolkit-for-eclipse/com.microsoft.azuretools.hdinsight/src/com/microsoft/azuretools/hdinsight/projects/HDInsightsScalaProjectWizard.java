@@ -23,6 +23,8 @@ import java.awt.Dialog;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Optional;
+
 import org.eclipse.jface.dialogs.ProgressMonitorDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.core.runtime.CoreException;
@@ -50,7 +52,6 @@ public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements I
 	private String id;
 	public static NewJavaProjectWizardPageOne hdInsightScalaPageOne;
 	public NewJavaProjectWizardPageTwo hdInsightScalaPageTwo;
-	public static final String scalaClasspathContainerId = "org.scala-ide.sdt.launching.SCALA_CONTAINER";
 	
 	public HDInsightsScalaProjectWizard() {
 		this(
@@ -88,6 +89,10 @@ public class HDInsightsScalaProjectWizard extends JavaProjectWizard implements I
 	
 	public void setSparkVersion(SparkVersion val) {
 		sparkVersion = val;
+	}
+	
+	public Optional<String> getScalaVersion() {
+		return Optional.ofNullable(sparkVersion).map(SparkVersion::getScalaVersion);
 	}
 	
 	private static boolean setFocusToInstallationWindow() {
