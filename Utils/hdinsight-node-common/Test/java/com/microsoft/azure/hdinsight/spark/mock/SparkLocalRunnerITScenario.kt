@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.spark.mock
 
 import com.microsoft.azure.hdinsight.spark.common.SparkLocalJvmProcess
+import com.microsoft.azure.hdinsight.spark.mock.jobapp.CatCmd
 import cucumber.api.java.en.And
 import cucumber.api.java.en.Given
 import cucumber.api.java.en.Then
@@ -46,14 +47,10 @@ class SparkLocalRunnerITScenario {
         sparkLocalJob = jvmProcess.createProcess("", SparkLocalRunner::class.java, args)
     }
 
-    private fun runToGetStdoutLines(): List<String> {
-        assertThat(sparkLocalJob)
-                .describedAs("Run Spark Job locally firstly")
-                .isNotNull()
+    private fun runToGetStdoutLines(job: ProcessBuilder): List<String> {
+        job.redirectOutput(ProcessBuilder.Redirect.PIPE)
 
-        sparkLocalJob!!.redirectOutput(ProcessBuilder.Redirect.PIPE)
-
-        val process = sparkLocalJob!!.start()
+        val process = job.start()
 
         assertThat(process.waitFor())
                 .describedAs("Spark job exist with error.")
@@ -66,7 +63,7 @@ class SparkLocalRunnerITScenario {
 
     @Then("^locally run stand output should be")
     fun checkLocallyRunStdout(expectOutputs: List<String>) {
-        val outputLines = runToGetStdoutLines()
+        val outputLines = runToGetStdoutLines(sparkLocalJob!!)
 
         assertThat(outputLines).containsAll(expectOutputs)
         assertThat(outputLines).hasSameSizeAs(expectOutputs)
@@ -74,7 +71,7 @@ class SparkLocalRunnerITScenario {
 
     @Then("^locally run stand output table should be")
     fun checkLocallyRunStdoutTable(expectOutputs: DataTable) {
-        val outputTable = runToGetStdoutLines()
+        val outputTable = runToGetStdoutLines(sparkLocalJob!!)
                 .filter { !it.matches("""^\+[-+]*\+$""".toRegex()) }
                 .map {
                     it.split("|")
@@ -85,5 +82,21 @@ class SparkLocalRunnerITScenario {
                 .filter { it.isNotEmpty() }
 
         assertThat(outputTable).isEqualTo(expectOutputs.raw())
+    }
+
+    @Then("^locally cat '(.*)' should be")
+    fun checkLocallyRunFile(fileUri: String, expectOutputs: List<String>) {
+        runToGetStdoutLines(sparkLocalJob!!)
+
+        // Start another job to read the file
+
+        val args = arrayOf("--master local[1]", CatCmd::class.java.canonicalName, fileUri)
+
+        val catJob = jvmProcess.createProcess("", SparkLocalRunner::class.java, args)
+
+        val outputLines = runToGetStdoutLines(catJob!!)
+
+        assertThat(outputLines).containsAll(expectOutputs)
+        assertThat(outputLines).hasSameSizeAs(expectOutputs)
     }
 }

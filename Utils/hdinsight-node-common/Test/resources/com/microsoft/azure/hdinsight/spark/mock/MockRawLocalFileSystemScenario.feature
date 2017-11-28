@@ -18,3 +18,7 @@ Feature: Mock File System Unit Test
   Scenario: WASB container blob path
     Given set mocked file system local working directory to '/data/__default__/user/current'
     Then convert mocked file system path 'wasb://account@blob1/abc/def' to File should be '/data/account@blob1/abc/def'
+
+  Scenario: WASB container blob root path
+    Given set mocked file system local working directory to '/data/__default__/user/current'
+    Then convert mocked file system path 'wasb://account@blob1/' to File should be '/data/account@blob1/'

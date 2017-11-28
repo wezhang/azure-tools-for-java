@@ -22,33 +22,19 @@
 
 package com.microsoft.azure.hdinsight.spark.mock.jobapp
 
-import org.apache.spark._
+import org.apache.spark.{SparkConf, SparkContext}
 
-object WordCountTest {
+object CatCmd {
   def main(args: Array[String]) {
     val inputFile = args(0)
-    val outputFileOption = if (args.length <= 1) None else Some(args(1))
-    val conf = new SparkConf().setAppName("wordCount")
+
+    val conf = new SparkConf().setAppName("DFS cat command")
     // Create a Scala Spark Context.
     val sc = new SparkContext(conf)
     // Load our input data.
-    val input =  sc.textFile(inputFile)
-    // Split up into words.
-    val words = input.flatMap(line => line.split(" "))
-    // Transform into word and count.
-    val counts = words.map(word => (word, 1)).reduceByKey{case (x, y) => x + y}
-
-    outputFileOption match {
-      // Save the word count back out to a text file, causing evaluation.
-      case Some(outputFile) => {
-        val dfs = org.apache.hadoop.fs.FileSystem.get(new java.net.URI(outputFile), sc.hadoopConfiguration)
-        dfs.delete(new org.apache.hadoop.fs.Path(outputFile), true)
-
-        counts.saveAsTextFile(outputFile)
-      }
-      // just output to stdout
-      case None =>
-        counts.collect().foreach { case (word, count) => println(s"$word,$count") }
-    }
+    val input = sc.textFile(inputFile)
+    // output line by line
+    input
+      .foreach(l => println(l))
   }
 }
