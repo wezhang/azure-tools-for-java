@@ -91,7 +91,10 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
     private FileStatus getNativeFileLinkStatus(final Path f,
                                                boolean dereference) throws IOException {
         Stat stat = new Stat(f, getDefaultBlockSize(f), dereference, this);
-        return stat.getFileStatus();
+        FileStatus status = stat.getFileStatus();
+        status.setPath(f);
+
+        return status;
     }
 
     private FileStatus getFileLinkStatusInternal(final Path f,
