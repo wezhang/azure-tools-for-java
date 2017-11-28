@@ -90,7 +90,7 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
     // Get File or Link status from supported native file system
     private FileStatus getNativeFileLinkStatus(final Path f,
                                                boolean dereference) throws IOException {
-        Stat stat = new Stat(f, getDefaultBlockSize(f), dereference, this);
+        MockStat stat = new MockStat(f, getDefaultBlockSize(f), dereference, this);
         FileStatus status = stat.getFileStatus();
         status.setPath(f);
 
@@ -318,6 +318,28 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
                 loadPermissionInfo();
             }
             super.write(out);
+        }
+    }
+
+    class MockStat extends Stat {
+        private Path originPath;
+
+        public MockStat(Path path, long blockSize, boolean deref, FileSystem fs) throws IOException {
+            super(path, blockSize, deref, fs);
+
+            this.originPath = path;
+        }
+
+        @Override
+        protected String[] getExecString() {
+            String[] execArgs = super.getExecString();
+
+            if (execArgs.length > 1) {
+                // Override the wasb or mockfs path with the converted local file path
+                execArgs[execArgs.length - 1] = pathToFile(this.originPath).getPath();
+            }
+
+            return execArgs;
         }
     }
 }
