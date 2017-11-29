@@ -23,8 +23,10 @@ package com.microsoft.azure.hdinsight.spark.mock;
 
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 
@@ -38,135 +40,34 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 class MockRawLocalFileSystem extends RawLocalFileSystem {
-    private boolean useWindowsFileStatus = !Stat.isAvailable();
-
-    @Override
-    public URI getUri() {
-        try {
-            return new URI("mockfs:///");
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public Path getWorkingDirectory() {
-        Path workingDir = new Path("/user/current");
-
-        // Default URI is wasb:///
-        return workingDir.makeQualified(URI.create("wasb:///"), workingDir);
-    }
-
-    @Override
-    protected void checkPath(Path path) { }
+    private String authority;
+    private String scheme = "wasb";
+    private URI uri;
 
     @Override
     public FileStatus getFileStatus(Path f) throws IOException {
-        return getFileLinkStatusInternal(f, true);
-    }
-
-    @Override
-    public FileStatus getFileLinkStatus(final Path f) throws IOException {
-        FileStatus fi = getFileLinkStatusInternal(f, false);
-        // getFileLinkStatus is supposed to return a symlink with a
-        // qualified path
-        if (fi.isSymlink()) {
-            Path targetQualifiedSymlink = FSLinkResolver.qualifySymlinkTarget(this.getUri(),
-                    fi.getPath(), fi.getSymlink());
-            fi.setSymlink(targetQualifiedSymlink);
-        }
-
-        return fi;
-    }
-
-    @Override
-    public Path getLinkTarget(Path f) throws IOException {
-        FileStatus fi = getFileLinkStatusInternal(f, false);
-        // return an unqualified symlink target
-        return fi.getSymlink();
-    }
-
-    // Refer to RawLocalFileSystem, override private codes
-    // Get File or Link status from supported native file system
-    private FileStatus getNativeFileLinkStatus(final Path f,
-                                               boolean dereference) throws IOException {
-        MockStat stat = new MockStat(f, getDefaultBlockSize(f), dereference, this);
-        FileStatus status = stat.getFileStatus();
-        status.setPath(f);
-
-        return status;
-    }
-
-    private FileStatus getFileLinkStatusInternal(final Path f,
-                                                 boolean dereference) throws IOException {
-        if (!useWindowsFileStatus) {
-            return getNativeFileLinkStatus(f, dereference);
-        } else if (dereference) {
-            File path = pathToFile(f);
-            if (path.exists()) {
-                return new WindowsRawLocalFileStatus(pathToFile(f), getDefaultBlockSize(f), f);
-            } else {
-                throw new FileNotFoundException("File " + f + " does not exist");
-            }
+        File path = pathToFile(f);
+        if (path.exists()) {
+            return new RawLocalFileStatus(pathToFile(f), getDefaultBlockSize(f), makeQualified(f));
         } else {
-            return getWindowsFileLinkStatusInternal(f);
-        }
-    }
-
-    private FileStatus getWindowsFileLinkStatusInternal(final Path f)
-            throws IOException {
-        String target = FileUtil.readLink(new File(f.toString()));
-
-        try {
-            FileStatus fs = getFileStatus(f);
-            // If f refers to a regular file or directory
-            if (target.isEmpty()) {
-                return fs;
-            }
-            // Otherwise f refers to a symlink
-            return new FileStatus(fs.getLen(),
-                    false,
-                    fs.getReplication(),
-                    fs.getBlockSize(),
-                    fs.getModificationTime(),
-                    fs.getAccessTime(),
-                    fs.getPermission(),
-                    fs.getOwner(),
-                    fs.getGroup(),
-                    new Path(target),
-                    f);
-        } catch (FileNotFoundException e) {
-            /* The exists method in the File class returns false for dangling
-             * links so we can get a FileNotFoundException for links that exist.
-             * It's also possible that we raced with a delete of the link. Use
-             * the readBasicFileAttributes method in java.nio.file.attributes
-             * when available.
-             */
-            if (!target.isEmpty()) {
-                return new FileStatus(0, false, 0, 0, 0, 0, FsPermission.getDefault(),
-                        "", "", new Path(target), f);
-            }
-            // f refers to a file or directory that does not exist
-            throw e;
+            throw new FileNotFoundException("File " + f + " does not exist");
         }
     }
 
     @Override
     public FileStatus[] listStatus(Path f) throws IOException {
-        File localFile = pathToFile(f);
+        File localf = pathToFile(f);
         FileStatus[] results;
 
-        if (!localFile.exists()) {
+        if (!localf.exists()) {
             throw new FileNotFoundException("File " + f + " does not exist");
         }
-        if (localFile.isFile()) {
-            if (!useWindowsFileStatus) {
-                return new FileStatus[] { getFileStatus(f) };
-            }
-            return new FileStatus[] { new WindowsRawLocalFileStatus(localFile, getDefaultBlockSize(f), f) };
+        if (localf.isFile()) {
+            return new FileStatus[] {
+                    new RawLocalFileStatus(localf, getDefaultBlockSize(f), makeQualified(f)) };
         }
 
-        String[] names = localFile.list();
+        String[] names = localf.list();
         if (names == null) {
             return null;
         }
@@ -186,54 +87,52 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
         if (j == names.length) {
             return results;
         }
-
         return Arrays.copyOf(results, j);
     }
 
     @Override
-    public File pathToFile(Path path) {
-        @NotNull
-        Path realPath;
+    public void initialize(URI uri, Configuration conf) throws IOException {
+        super.initialize(uri, conf);
 
-        URI originUri = path.toUri();
+        this.authority = uri.getAuthority();
+        this.scheme = uri.getScheme();
 
-        if (originUri.getScheme() != null &&
-                (originUri.getScheme().toLowerCase().equals("file") ||
-                 originUri.getScheme().toLowerCase().equals("mockfs"))) {
-            realPath = path;
-        } else {
-            if (!path.isAbsolute()) {
-                path = new Path(getWorkingDirectory(), path);
-            }
-
-            List<String> components = Arrays.stream(path.toUri().getPath().split(Path.SEPARATOR))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    // skip the driver name, like C:, D:
-                    .skip((Path.WINDOWS && Path.isWindowsAbsolutePath(path.toUri().getPath(), true)) ? 1 : 0)
-                    .collect(Collectors.toList());
-
-            Path fsRoot = Optional.ofNullable(originUri.getAuthority())
-                    .filter(auth -> !auth.isEmpty())
-                    .map(auth -> new Path(new Path(System.getProperty("user.dir")).getParent().getParent().getParent(), auth))
-                    .orElse(new Path(System.getProperty("user.dir")).getParent().getParent());
-
-            realPath = new Path(fsRoot,
-                                Optional.of(String.join(Path.SEPARATOR, components))
-                                        .filter(child -> !child.trim().isEmpty())
-                                        .orElse("."));
+        try {
+            this.uri = new URI(scheme, authority, "/", null, null);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
         }
-
-        return new File(realPath.toUri().getPath());
     }
 
-    static class WindowsRawLocalFileStatus extends FileStatus {
-        File file;
+    @Override
+    public URI getUri() {
+        return Optional.ofNullable(uri)
+                .orElse(URI.create("wasb:///"));
+    }
+
+    @Override
+    public Path getWorkingDirectory() {
+        Path workingDir = new Path("/user/current");
+
+        // Default URI is wasb:///
+        return workingDir.makeQualified(URI.create("wasb:///"), workingDir);
+    }
+
+    @Override
+    protected void checkPath(Path path) { }
+
+    static class RawLocalFileStatus extends FileStatus {
+        private final File file;
+
+        /* We can add extra fields here. It breaks at least CopyFiles.FilePair().
+         * We recognize if the information is already loaded by check if
+         * onwer.equals("").
+         */
         private boolean isPermissionLoaded() {
             return !super.getOwner().isEmpty();
         }
 
-        WindowsRawLocalFileStatus(File f, long defaultBlockSize, Path p) {
+        RawLocalFileStatus(File f, long defaultBlockSize, Path p) {
             super(f.length(), f.isDirectory(), 1, defaultBlockSize, f.lastModified(), p);
             this.file = f;
         }
@@ -271,14 +170,11 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
                 String output = Shell.execCommand(args.toArray(new String[0]));
 
                 StringTokenizer t = new StringTokenizer(output, Shell.TOKEN_SEPARATOR_REGEX);
-
                 //expected format
                 //-rw-------    1 username groupname ...
                 String permission = t.nextToken();
-                if (permission.length() > FsPermission.MAX_PERMISSION_LENGTH) {
-                    //files with ACLs might have a '+'
-                    permission = permission.substring(0,
-                            FsPermission.MAX_PERMISSION_LENGTH);
+                if (permission.length() > 10) { //files with ACLs might have a '+'
+                    permission = permission.substring(0, 10);
                 }
                 setPermission(FsPermission.valueOf(permission));
                 t.nextToken();
@@ -321,25 +217,42 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
         }
     }
 
-    class MockStat extends Stat {
-        private Path originPath;
+    @Override
+    public File pathToFile(Path path) {
+        @NotNull
+        Path realPath;
 
-        public MockStat(Path path, long blockSize, boolean deref, FileSystem fs) throws IOException {
-            super(path, blockSize, deref, fs);
+        URI originUri = path.toUri();
 
-            this.originPath = path;
-        }
-
-        @Override
-        protected String[] getExecString() {
-            String[] execArgs = super.getExecString();
-
-            if (execArgs.length > 1) {
-                // Override the wasb or mockfs path with the converted local file path
-                execArgs[execArgs.length - 1] = pathToFile(this.originPath).getPath();
+        if (originUri.getScheme() != null &&
+                (originUri.getScheme().toLowerCase().equals("file") ||
+                 originUri.getScheme().toLowerCase().equals("mockfs"))) {
+            realPath = path;
+        } else {
+            if (!path.isAbsolute()) {
+                path = new Path(getWorkingDirectory(), path);
             }
 
-            return execArgs;
+            List<String> components = Arrays.stream(path.toUri().getPath().split(Path.SEPARATOR))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    // skip the driver name, like C:, D:
+                    .skip((Path.WINDOWS && Path.isWindowsAbsolutePath(path.toUri().getPath(), true)) ? 1 : 0)
+                    .collect(Collectors.toList());
+
+            Path fsRoot = Optional.ofNullable(Optional.ofNullable(originUri.getAuthority())
+                                                      .orElse(this.authority))
+                    .filter(auth -> !auth.isEmpty())
+                    .map(auth -> new Path(new Path(System.getProperty("user.dir")).getParent().getParent().getParent(), auth))
+                    .orElse(new Path(System.getProperty("user.dir")).getParent().getParent());
+
+            realPath = new Path(fsRoot,
+                                Optional.of(String.join(Path.SEPARATOR, components))
+                                        .filter(child -> !child.trim().isEmpty())
+                                        .orElse("."));
         }
+
+        return new File(realPath.toUri().getPath());
     }
+
 }
