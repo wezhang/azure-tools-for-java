@@ -122,11 +122,11 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
     private void checkSubmissionParameter(SparkSubmissionParameter parameter) throws ExecutionException {
         if (StringUtils.isEmpty(parameter.getArtifactName())) {
-            throw new ExecutionException("The artifact to submit is not selected, please config it at Run/Debug configuration.");
+            throw new ExecutionException("The artifact to submit is not selected, please config it at Run/Debug configuration -> Remotely Run in Cluster.");
         }
 
         if (StringUtils.isEmpty(parameter.getClusterName())) {
-            throw new ExecutionException("The HDInsight cluster to submit is not selected, please config it at Run/Debug configuration.");
+            throw new ExecutionException("The HDInsight cluster to submit is not selected, please config it at Run/Debug configuration -> Remotely Run in Cluster.");
         }
     }
 
@@ -137,6 +137,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         Project project = submitModel.getProject();
 
         checkSubmissionParameter(submitModel.getSubmissionParameter());
+
+        if (!submitModel.getAdvancedConfigModel().enableRemoteDebug) {
+            throw new ExecutionException("The Spark remote debugging is not enabled, please config it at Run/Debug configuration -> Remotely Run in Cluster -> Advanced configuration.");
+        }
 
         JobStatusManager jobStatusMgmt = HDInsightUtil.getSparkSubmissionToolWindowManager(project)
                 .getJobStatusManager();
