@@ -48,6 +48,7 @@ import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
 import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner;
 import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
@@ -55,6 +56,7 @@ import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -121,6 +123,8 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
                 return result;
             } else if (executor instanceof SparkBatchJobRunExecutor) {
+                checkSubmissionParameter();
+
                 SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
                 PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
                 SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
@@ -300,4 +304,17 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 break;
         }
     }
+
+    public void checkSubmissionParameter() throws ExecutionException {
+        SparkSubmissionParameter parameter = getSubmitModel().getSubmissionParameter();
+
+        if (StringUtils.isEmpty(parameter.getClusterName())) {
+            throw new ExecutionException("The HDInsight cluster to submit is not selected, please config it at 'Run/Debug configuration -> Remotely Run in Cluster'.");
+        }
+
+        if (StringUtils.isEmpty(parameter.getArtifactName())) {
+            throw new ExecutionException("The artifact to submit is not selected, please config it at 'Run/Debug configuration -> Remotely Run in Cluster'.");
+        }
+    }
+
 }
