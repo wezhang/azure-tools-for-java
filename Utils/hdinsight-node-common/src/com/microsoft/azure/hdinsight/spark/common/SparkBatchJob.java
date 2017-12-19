@@ -22,12 +22,22 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.gargoylesoftware.htmlunit.BrowserVersion;
+import com.gargoylesoftware.htmlunit.Cache;
+import com.gargoylesoftware.htmlunit.ScriptException;
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
+import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppAttempt;
+import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppAttemptsResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -35,14 +45,17 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
 import static java.lang.Thread.sleep;
+import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
@@ -74,6 +87,11 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * The setting of delay seconds between tries in RestAPI calling
      */
     private int delaySeconds = 10;
+
+    /**
+     * The global cache for fetched Yarn UI page by browser
+     */
+    private Cache globalCache = JobUtils.getGlobalCache();
 
     public SparkBatchJob(
             URI connectUri,
@@ -357,6 +375,155 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         } while (++retries < this.getRetriesMax());
 
         throw new UnknownServiceException("Failed to get job Yarn application: Unknown service error after " + --retries + " retries");
+    }
+
+    /**
+     * New RxAPI: Get current job application Id
+     *
+     * @return Application Id Observable
+     */
+    public Observable<String> getSparkJobApplicationIdObservable() {
+        return Observable.create(ob -> {
+            try {
+                HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
+                        getConnectUri().toString(), getBatchId());
+
+                if (httpResponse.getCode() >= 200 && httpResponse.getCode() < 300) {
+                    SparkSubmitResponse jobResp = ObjectConvertUtils.convertJsonToObject(
+                            httpResponse.getMessage(), SparkSubmitResponse.class)
+                            .orElseThrow(() -> new UnknownServiceException(
+                                    "Bad spark job response: " + httpResponse.getMessage()));
+
+                    if (jobResp.getAppId() != null) {
+                        ob.onNext(jobResp.getAppId());
+                    }
+                }
+            } catch (IOException ex) {
+                log().warn("Got exception " + ex.toString());
+                ob.onError(ex);
+            } finally {
+                ob.onCompleted();
+            }
+        });
+    }
+
+    /**
+     * New RxAPI: Get the current Spark job Yarn application most recent attempt
+     *
+     * @return Yarn Application Attempt info Observable
+     */
+    public Observable<AppAttempt> getSparkJobYarnCurrentAppAttempt() {
+        return getSparkJobApplicationIdObservable()
+                .flatMap(appId -> {
+                    URI getYarnAppAttemptsURI = getConnectUri().resolve("/yarnui/ws/v1/cluster/apps/" + appId +
+                                                                        "/appattempts");
+
+                    try {
+                        HttpResponse httpResponse = this.getSubmission()
+                                .getHttpResponseViaGet(getYarnAppAttemptsURI.toString());
+
+                        if (httpResponse.getCode() >= 200 && httpResponse.getCode() < 300) {
+                            Optional<AppAttemptsResponse> appResponse = ObjectConvertUtils.convertJsonToObject(
+                                    httpResponse.getMessage(), AppAttemptsResponse.class);
+
+                            return Observable.just(appResponse
+                                    .flatMap(resp ->
+                                            Optional.ofNullable(resp.getAppAttempts())
+                                                .flatMap(appAttempts ->
+                                                        appAttempts.appAttempt.stream()
+                                                                .max(Comparator.comparingInt(AppAttempt::getId)))
+                                    )
+                                    .orElseThrow(() -> new UnknownServiceException(
+                                            "Bad response when getting from " + getYarnAppAttemptsURI + ", " +
+                                                    "response " + httpResponse.getMessage())));
+                        }
+                    } catch (IOException ex) {
+                        log().warn("Got exception " + ex.toString());
+                        throw propagate(ex);
+                    }
+
+                    return Observable.empty();
+                });
+    }
+
+    /**
+     * New RxAPI: Get the current Spark job Yarn application attempt containers
+     *
+     * @return The string pair Observable of Host and Container Id
+     */
+    public Observable<SimpleImmutableEntry<String, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
+        return Observable.create((Subscriber<? super HtmlPage> ob) -> {
+                    String getYarnUiAppAttemptsURL = getConnectUri()
+                            .resolve("/yarnui/hn/cluster/appattempt/")
+                            .resolve(appAttempt.getAppAttemptId())
+                            .toString();
+
+
+                    final WebClient HTTP_WEB_CLIENT = new WebClient(BrowserVersion.CHROME);
+                    HTTP_WEB_CLIENT.setCache(globalCache);
+
+                    if (getSubmission().getCredentialsProvider() != null) {
+                        HTTP_WEB_CLIENT.setCredentialsProvider(getSubmission().getCredentialsProvider());
+                    }
+
+                    try {
+                        ob.onNext(HTTP_WEB_CLIENT.getPage(getYarnUiAppAttemptsURL));
+                    } catch (IOException e) {
+                        log().warn("get Spark job Yarn attempts detail IO Error", e);
+                        ob.onError(e);
+                    } catch (ScriptException ignored) {
+                        log().debug("get Spark job Yarn attempts detail browser rendering Error", ignored);
+                    } finally {
+                        ob.onCompleted();
+                    }
+                })
+                .retry(getRetriesMax())
+                .delay(3, TimeUnit.SECONDS) // Workaround to waiting for the page loading finished
+                .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
+                .takeUntil(this::isSparkJobYarnAppAttemptNotInLaunched)
+                .filter(this::isSparkJobYarnAppAttemptNotInLaunched)
+                .flatMap(htmlPage -> {
+                    // Get the container table by XPath
+                    HtmlTableBody containerBody = htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody");
+
+                    return Observable
+                            .from(containerBody
+                                    .getRows()
+                                    .stream()
+                                    .map(row -> {
+                                        String hostUrl = row.getCell(1).getTextContent().trim();
+                                        String host = URI.create(hostUrl).getHost();
+                                        String containerId = row.getCell(0).getTextContent().trim();
+
+                                        return new SimpleImmutableEntry<>(host, containerId);
+                                    })
+                                    .collect(Collectors.toList())
+                            );
+                });
+    }
+
+    /*
+     * Parsing the Application Attempt HTML page to determine if the attempt is running
+     */
+    private Boolean isSparkJobYarnAppAttemptNotJustLaunched(@NotNull HtmlPage htmlPage) {
+        // Get the info table by XPath
+        HtmlTableBody infoBody = htmlPage.getFirstByXPath("//*[@class=\"info\"]/tbody");
+
+        return infoBody
+                .getRows()
+                .stream()
+                .filter(row -> row.getCell(0)
+                                  .getTextContent()
+                                  .trim()
+                                  .toLowerCase()
+                                  .equals("application attempt state:"))
+                .map(row -> !row.getCell(1)
+                                .getTextContent()
+                                .trim()
+                                .toLowerCase()
+                                .equals("launched"))
+                .findFirst()
+                .orElse(false);
     }
 
     /**

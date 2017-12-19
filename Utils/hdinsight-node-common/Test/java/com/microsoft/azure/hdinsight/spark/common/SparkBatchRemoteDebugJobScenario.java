@@ -22,12 +22,14 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
+import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppAttempt;
 import cucumber.api.java.Before;
+import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
+import rx.Observable;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -227,5 +229,22 @@ public class SparkBatchRemoteDebugJobScenario {
             caught = e;
             assertEquals(expectedHost, "__exception_got__");
         }
+    }
+
+    @And("^mock method getSparkJobApplicationIdObservable to return '(.+)' Observable$")
+    public void mockMethodGetSparkJobApplicationIdObservable(String appIdMock) {
+        when(debugJobMock.getSparkJobApplicationIdObservable()).thenReturn(Observable.just(appIdMock));
+    }
+
+    @Then("^getting current Yarn App attempt should be '(.+)'$")
+    public void checkGetCurrentYarnAppAttemptResult(String appAttemptIdExpect) {
+        when(debugJobMock.getConnectUri()).thenReturn(URI.create(httpServerMock.completeUrl("/")));
+
+        AppAttempt appAttempt = debugJobMock
+                .getSparkJobYarnCurrentAppAttempt()
+                .toBlocking()
+                .first();
+
+        assertEquals(appAttemptIdExpect, appAttempt.getAppAttemptId());
     }
 }

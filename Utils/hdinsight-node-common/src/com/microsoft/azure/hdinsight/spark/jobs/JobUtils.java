@@ -586,4 +586,7 @@ public class JobUtils {
         });
     }
 
+    public static Cache getGlobalCache() {
+        return globalCache;
+    }
 }

@@ -85,7 +85,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
     // More complex pattern, please use grok
     private final Pattern simpleLogPattern = Pattern.compile("\\d{1,2}[/-]\\d{1,2}[/-]\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2} (INFO|WARN|ERROR) .*", Pattern.DOTALL);
-    private final Pattern executorLogUrlPattern = Pattern.compile("^\\s+SPARK_LOG_URL_STDERR -> https?://([^:]+):?\\d*/node/containerlogs/(container.*)/livy/stderr.*");
 
     public void setDebugJob(SparkBatchRemoteDebugJob debugJob) {
         this.debugJob = debugJob;
@@ -158,6 +157,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
                         // Create Driver debug process
                         createDebugProcess(
+                                remoteDebugJob,
                                 environment,
                                 callback,
                                 submissionState,
@@ -383,7 +383,8 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     /*
      * Create a debug process, if it's a Driver process, the following Executor processes will be created
      */
-    private void createDebugProcess(@NotNull ExecutionEnvironment environment,
+    private void createDebugProcess(SparkBatchRemoteDebugJob remoteDebugJob,
+                                    @NotNull ExecutionEnvironment environment,
                                     @Nullable Callback callback,
                                     @NotNull SparkBatchJobSubmissionState submissionState,
                                     boolean isDriver,
@@ -392,7 +393,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     String remoteHost,
                                     int remotePort,
                                     String logUrl,
-                                    final CredentialsProvider credentialsProvider ) {
+                                    final CredentialsProvider credentialsProvider) {
         SparkBatchDebugSession session = getDebugSession().orElse(null);
         if (session == null) {
             return;
@@ -412,7 +413,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 if (isDriver) {
                     debugProcessOb = debugProcessOb.share();
 
-                    matchExecutorFromDebugProcessObservable(debugProcessOb)
+                    getExecutorsObservable(remoteDebugJob)
                             .subscribe(hostContainerPair -> {
                                 String host = hostContainerPair.getKey();
                                 String containerId = hostContainerPair.getValue();
@@ -448,7 +449,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     }
 
                                     // create debug process for the Spark job executor
-                                    createDebugProcess( environment,
+                                    createDebugProcess(remoteDebugJob, environment,
                                                         callback,
                                                         newExecutorState,
                                                         false,
@@ -515,6 +516,18 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         .subscribe(debugProcessConsole::onNext, debugSessionSubscriber::onError, debugPhaser::arriveAndDeregister);
     }
 
+    /**
+     * To get Executor from Yarn UI App Attempt page
+     */
+    private Observable<SimpleEntry<String, String>> getExecutorsObservable(@NotNull SparkBatchRemoteDebugJob sparkDebugJob) {
+        return sparkDebugJob
+                .getSparkJobYarnCurrentAppAttempt()
+                .flatMap(appAttempt -> sparkDebugJob.getSparkJobYarnContainersObservable(appAttempt)
+                                                    .filter(hostContainerPair -> !StringUtils.equals(
+                                                            hostContainerPair.getValue(), appAttempt.getContainerId())))
+                .map(kv -> new SimpleEntry<>(kv.getKey(), kv.getValue()));
+    }
+
     /*
      * Create an Observable for a debug process, the Yarn log 'stderr' will be considered as the events
      * with its type key.
@@ -545,39 +558,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             return new SimpleEntry<>(line, lastLineKeyPair.getValue());
                         })
                 .filter(lineKeyPair -> lineKeyPair.getKey() != null);
-    }
-
-    /**
-     * To match Executor lunch content from debug process Observable
-     *
-     * @param debugProcessOb the debug process Observable to match
-     * @return matched Executor Observable, the event is SimpleEntry with host, containerId pair
-     */
-    private Observable<SimpleEntry<String, String>> matchExecutorFromDebugProcessObservable(
-                                                        Observable<SimpleEntry<String, Key>> debugProcessOb) {
-        PublishSubject<String> closeSubject = PublishSubject.create();
-        PublishSubject<String> openSubject = PublishSubject.create();
-
-        return debugProcessOb
-                .map(lineKeyPair -> {
-                    String line = lineKeyPair.getKey();
-
-                    if (line.matches("^YARN executor launch context:$")) {
-                        openSubject.onNext("YARN executor launch");
-                    }
-
-                    if (line.matches("^={5,}$")) {
-                        closeSubject.onNext("=====");
-                    }
-
-                    return line;
-                })
-                .window(openSubject, s -> closeSubject)
-                .flatMap(executorLunchContextOb -> executorLunchContextOb
-                                                    .map(executorLogUrlPattern::matcher)
-                                                    .filter(Matcher::matches)
-                                                    .map(matcher -> new SimpleEntry<>(matcher.group(1), matcher.group(2)))
-                );
     }
 
     protected int getLogReadBlockSize() {
