@@ -26,6 +26,8 @@ import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.Cache;
 import com.gargoylesoftware.htmlunit.ScriptException;
 import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.DomElement;
+import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
@@ -42,6 +44,7 @@ import rx.Observable;
 import rx.Subscriber;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleImmutableEntry;
@@ -452,53 +455,36 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * @return The string pair Observable of Host and Container Id
      */
     public Observable<SimpleImmutableEntry<String, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
-        return Observable.create((Subscriber<? super HtmlPage> ob) -> {
-                    String getYarnUiAppAttemptsURL = getConnectUri()
-                            .resolve("/yarnui/hn/cluster/appattempt/")
-                            .resolve(appAttempt.getAppAttemptId())
-                            .toString();
-
-
-                    final WebClient HTTP_WEB_CLIENT = new WebClient(BrowserVersion.CHROME);
-                    HTTP_WEB_CLIENT.setCache(globalCache);
-
-                    if (getSubmission().getCredentialsProvider() != null) {
-                        HTTP_WEB_CLIENT.setCredentialsProvider(getSubmission().getCredentialsProvider());
-                    }
-
-                    try {
-                        ob.onNext(HTTP_WEB_CLIENT.getPage(getYarnUiAppAttemptsURL));
-                    } catch (IOException e) {
-                        log().warn("get Spark job Yarn attempts detail IO Error", e);
-                        ob.onError(e);
-                    } catch (ScriptException ignored) {
-                        log().debug("get Spark job Yarn attempts detail browser rendering Error", ignored);
-                    } finally {
-                        ob.onCompleted();
-                    }
-                })
+        return Observable.just(appAttempt)
+                .map(attempt -> getConnectUri()
+                        .resolve("/yarnui/hn/cluster/appattempt/")
+                        .resolve(attempt.getAppAttemptId())
+                        .toString())
+                .flatMap(this::loadPageByBrowserObservable)
                 .retry(getRetriesMax())
-                .delay(3, TimeUnit.SECONDS) // Workaround to waiting for the page loading finished
                 .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
                 .takeUntil(this::isSparkJobYarnAppAttemptNotJustLaunched)
                 .filter(this::isSparkJobYarnAppAttemptNotJustLaunched)
                 .flatMap(htmlPage -> {
-                    // Get the container table by XPath
-                    HtmlTableBody containerBody = htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody");
+                            // Get the container table by XPath
+                            HtmlTableBody containerBody = htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody");
 
-                    return Observable
-                            .from(containerBody
-                                    .getRows()
-                                    .stream()
+                            return Observable
+                                    .from(containerBody.getRows())
+                                    .flatMap(row -> Observable.just(getConnectUri())
+                                                    .map(baseUri -> baseUri.resolve(((HtmlAnchor) row.getCell(3).getFirstChild())
+                                                                .getHrefAttribute())
+                                                                .toString())
+                                                    .flatMap(this::loadPageByBrowserObservable)
+                                                    .filter(this::isSparkJobYarnContainerLogAvailable)
+                                                    .map(page -> row))
                                     .map(row -> {
                                         String hostUrl = row.getCell(1).getTextContent().trim();
                                         String host = URI.create(hostUrl).getHost();
                                         String containerId = row.getCell(0).getTextContent().trim();
 
                                         return new SimpleImmutableEntry<>(host, containerId);
-                                    })
-                                    .collect(Collectors.toList())
-                            );
+                                    });
                 });
     }
 
@@ -524,6 +510,38 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                                 .equals("launched"))
                 .findFirst()
                 .orElse(false);
+    }
+
+    private Boolean isSparkJobYarnContainerLogAvailable(@NotNull HtmlPage htmlPage) {
+        Optional<DomElement> firstContent = Optional.ofNullable(
+                htmlPage.getFirstByXPath("//*[@id=\"layout\"]/tbody/tr/td[2]"));
+
+        return firstContent.map(DomElement::getTextContent)
+                           .map(line -> !line.trim()
+                                            .toLowerCase()
+                                            .contains("no logs available"))
+                           .orElse(false);
+    }
+
+    private Observable<HtmlPage> loadPageByBrowserObservable(String url) {
+        final WebClient HTTP_WEB_CLIENT = new WebClient(BrowserVersion.CHROME);
+        HTTP_WEB_CLIENT.setCache(globalCache);
+
+        if (getSubmission().getCredentialsProvider() != null) {
+            HTTP_WEB_CLIENT.setCredentialsProvider(getSubmission().getCredentialsProvider());
+        }
+
+        return Observable.create(ob -> {
+            try {
+                ob.onNext(HTTP_WEB_CLIENT.getPage(url));
+            } catch (ScriptException ignored) {
+                log().debug("get Spark job Yarn attempts detail browser rendering Error", ignored);
+            } catch (IOException e) {
+                ob.onError(e);
+            } finally {
+                ob.onCompleted();
+            }
+        });
     }
 
     /**
