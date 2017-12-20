@@ -480,8 +480,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 .retry(getRetriesMax())
                 .delay(3, TimeUnit.SECONDS) // Workaround to waiting for the page loading finished
                 .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
-                .takeUntil(this::isSparkJobYarnAppAttemptNotInLaunched)
-                .filter(this::isSparkJobYarnAppAttemptNotInLaunched)
+                .takeUntil(this::isSparkJobYarnAppAttemptNotJustLaunched)
+                .filter(this::isSparkJobYarnAppAttemptNotJustLaunched)
                 .flatMap(htmlPage -> {
                     // Get the container table by XPath
                     HtmlTableBody containerBody = htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody");
