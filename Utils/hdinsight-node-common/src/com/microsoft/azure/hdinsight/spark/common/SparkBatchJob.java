@@ -462,6 +462,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         .toString())
                 .flatMap(this::loadPageByBrowserObservable)
                 .retry(getRetriesMax())
+                .delay(3, TimeUnit.SECONDS) // Workaround to waiting for the page loading finished
                 .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
                 .takeUntil(this::isSparkJobYarnAppAttemptNotJustLaunched)
                 .filter(this::isSparkJobYarnAppAttemptNotJustLaunched)
