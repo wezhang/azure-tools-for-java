@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.event.DocumentListener;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
 
 public class SparkLocalRunCommonParametersPanel extends CommonJavaParametersPanel{
@@ -52,7 +53,9 @@ public class SparkLocalRunCommonParametersPanel extends CommonJavaParametersPane
             myEnvVariablesComponentField.setAccessible(true);
             return ((EnvironmentVariablesComponent) myEnvVariablesComponentField.get(this)).getEnvs();
         } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
+            return new HashMap<String, String>() {{
+                put("HADOOP_HOME", System.getenv("HADOOP_HOME"));
+            }};
         }
     }
 }

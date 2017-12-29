@@ -22,6 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Key;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
@@ -40,6 +41,8 @@ import java.net.URI;
 import java.util.Optional;
 
 public class SparkSubmissionExDialog extends JDialog {
+    private static final Key<SparkSubmitModel> SUBMISSION_DATA_KEY = Key.create("azure.hdinsight.spark.job.submission");
+
     @Nullable
     private SparkSubmissionContentPanelConfigurable contentControl;
 
@@ -55,7 +58,9 @@ public class SparkSubmissionExDialog extends JDialog {
     public SparkSubmissionExDialog(@NotNull Project project, @Nullable CallBack callBack) {
         this.project = project;
         this.callBack = callBack;
-        submitModel = new SparkSubmitModel(project);
+
+        this.submitModel = Optional.ofNullable(this.project.getUserData(SUBMISSION_DATA_KEY))
+                .orElseGet(() -> new SparkSubmitModel(project));
 
         initializeComponents();
         setSubmitButtonStatus();
@@ -71,6 +76,7 @@ public class SparkSubmissionExDialog extends JDialog {
             setSubmitButtonStatus();
             pack();
         });
+        contentControl.setData(this.submitModel);
         setContentPane(getContentPane());
 
         setModal(true);
@@ -147,6 +153,7 @@ public class SparkSubmissionExDialog extends JDialog {
 
     private void onOK() {
         contentControl.getData(submitModel);
+        this.project.putUserData(SUBMISSION_DATA_KEY, submitModel);
         submitModel.action(submitModel.getSubmissionParameter());
         dispose();
     }

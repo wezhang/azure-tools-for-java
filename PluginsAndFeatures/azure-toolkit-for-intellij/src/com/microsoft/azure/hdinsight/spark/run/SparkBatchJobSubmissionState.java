@@ -262,7 +262,7 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                     .map(File::exists)
                     .orElse(false)) {
                 throw new ExecutionException(
-                        "winutils.exe should be in %HADOOP_HOME%\\bin\\ directory for Windows platform.");
+                        "winutils.exe should be in %HADOOP_HOME%\\bin\\ directory for Windows platform, please config it at 'Run/Debug Configuration -> Locally Run -> WINUTILS.exe location'.");
             }
         }
 
