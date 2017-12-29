@@ -156,17 +156,17 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         destSubmitModel.getClusterComboBoxModel().removeAllElements();
         clusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail.getTitle()));
 
-        setSelectedClusterByName(destSubmitModel.getSubmissionParameter().getClusterName());
+        setSelectedClusterByName(destSubmitModel, destSubmitModel.getSubmissionParameter().getClusterName());
     }
 
     private void loadJobConfigMapFromPropertyFile(String propertyFilePath) {
         submitModel.getTableModel().loadJobConfigMapFromPropertyFile(propertyFilePath);
     }
 
-    private void setSelectedClusterByName(String clusterName) {
-        final DefaultComboBoxModel<String> clusterComboBoxModel = submitModel.getClusterComboBoxModel();
+    private void setSelectedClusterByName(SparkSubmitModel destSubmitModel, String clusterName) {
+        final DefaultComboBoxModel<String> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
 
-        submitModel.getCachedClusterDetails().stream()
+        destSubmitModel.getCachedClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getName().equals(clusterName))
                 .map(IClusterDetail::getTitle)
                 .findFirst()
@@ -184,7 +184,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         submitModel.setSubmissionParameters(parameter);
 
-        setSelectedClusterByName(parameter.getClusterName());
+        setSelectedClusterByName(submitModel, parameter.getClusterName());
 
         if (parameter.isLocalArtifact()) {
             submissionPanel.getLocalArtifactRadioButton().setSelected(true);
