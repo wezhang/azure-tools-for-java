@@ -52,15 +52,11 @@ public class SparkSubmissionExDialog extends JDialog {
     private JButton buttonSubmit;
 
     private Project project;
-    private SparkSubmitModel submitModel;
     private CallBack callBack;
 
     public SparkSubmissionExDialog(@NotNull Project project, @Nullable CallBack callBack) {
         this.project = project;
         this.callBack = callBack;
-
-        this.submitModel = Optional.ofNullable(this.project.getUserData(SUBMISSION_DATA_KEY))
-                .orElseGet(() -> new SparkSubmitModel(project));
 
         initializeComponents();
         setSubmitButtonStatus();
@@ -76,7 +72,8 @@ public class SparkSubmissionExDialog extends JDialog {
             setSubmitButtonStatus();
             pack();
         });
-        contentControl.setData(this.submitModel);
+        contentControl.setData(Optional.ofNullable(this.project.getUserData(SUBMISSION_DATA_KEY))
+                                       .orElseGet(() -> new SparkSubmitModel(project)));
         setContentPane(getContentPane());
 
         setModal(true);
@@ -152,6 +149,7 @@ public class SparkSubmissionExDialog extends JDialog {
     }
 
     private void onOK() {
+        SparkSubmitModel submitModel = new SparkSubmitModel(project);
         contentControl.getData(submitModel);
         this.project.putUserData(SUBMISSION_DATA_KEY, submitModel);
         submitModel.action(submitModel.getSubmissionParameter());
