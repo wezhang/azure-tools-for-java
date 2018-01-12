@@ -136,8 +136,6 @@ public class ClusterManagerEx {
     }
 
     public synchronized ImmutableList<IClusterDetail> getClusterDetails() {
-        List<IClusterDetail> clusterDetails = new ArrayList<>();
-
         if(!isLIstAdditionalClusterSuccess) {
             hdinsightAdditionalClusterDetails = getAdditionalClusters();
         }
@@ -147,18 +145,24 @@ public class ClusterManagerEx {
         }
 
         isListClusterSuccess = false;
-        Optional<AzureManager> manager;
+        AzureManager manager;
         try {
-            manager = Optional.ofNullable(AuthMethodManager.getInstance().getAzureManager());
+            manager = AuthMethodManager.getInstance().getAzureManager();
         } catch (Exception ex) {
+            manager = null;
+        }
+
+        if (manager == null) {
             // not authenticated
+            List<IClusterDetail> clusterDetails = new ArrayList<>();
+
             clusterDetails.addAll(hdinsightAdditionalClusterDetails);
             clusterDetails.addAll(emulatorClusterDetails);
             ClusterMetaDataService.getInstance().addCachedClusters(clusterDetails);
             return ClusterMetaDataService.getInstance().getCachedClusterDetails();
         }
 
-        Optional<List<SubscriptionDetail>> subscriptionList = manager.map(AzureManager::getSubscriptionManager)
+        Optional<List<SubscriptionDetail>> subscriptionList = Optional.ofNullable(manager.getSubscriptionManager())
                 .flatMap(subscriptionManager -> {
                     try {
                         return Optional.ofNullable(subscriptionManager.getSubscriptionDetails());
@@ -182,7 +186,7 @@ public class ClusterManagerEx {
                                     "List HDInsight Cluster Error");
                         }
 
-                        return Optional.empty();
+                        return Optional.of(new ArrayList<IClusterDetail>());
                     }
                 })
                 .ifPresent(clusterDetailList -> {

@@ -29,6 +29,7 @@ import com.intellij.packaging.impl.elements.ManifestFileUtil;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
+import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
@@ -148,6 +149,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         try {
             if (AuthMethodManager.getInstance().isSignedIn()) {
                 clusterDetails = cachedClusterDetails;
+            } else {
+                clusterDetails = cachedClusterDetails.stream()
+                        .filter(HDInsightAdditionalClusterDetail.class::isInstance)
+                        .collect(Collectors.toList());
             }
         } catch (IOException ignored) { }
 

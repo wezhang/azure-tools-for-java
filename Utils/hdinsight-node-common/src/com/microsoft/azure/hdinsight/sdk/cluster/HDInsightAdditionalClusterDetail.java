@@ -115,7 +115,7 @@ public class HDInsightAdditionalClusterDetail implements IClusterDetail {
 
     @Override
     public SubscriptionDetail getSubscription() {
-        return null;
+        return new SubscriptionDetail("[LinkedCluster]", "[NoSubscription]", "", false);
     }
 
     @Override
