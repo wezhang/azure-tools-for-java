@@ -248,7 +248,7 @@ public class ClusterManagerEx {
                         .orElseGet(this::getClusterDetails);
 
         for (IClusterDetail clusterDetail : cachedClusterDetails) {
-            if (clusterDetail.getName().equals(clusterName)) {
+            if (clusterDetail.getName().equals(clusterName) && clusterDetail instanceof HDInsightAdditionalClusterDetail) {
                 try {
                     if (clusterDetail.getStorageAccount().getName().equals(storageName)) {
                         return 1;
