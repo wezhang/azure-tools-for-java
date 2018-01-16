@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class ClusterManagerEx {
 
@@ -194,10 +195,17 @@ public class ClusterManagerEx {
                     //       we have changed the way to list HDInsight clusters
                     isListClusterSuccess = clusterDetailList.size() != 0;
 
-                    clusterDetailList.addAll(hdinsightAdditionalClusterDetails);
-                    clusterDetailList.addAll(emulatorClusterDetails);
-                    ClusterMetaDataService.getInstance().addCachedClusters(clusterDetailList);
+                    List<IClusterDetail> mergedClusters = clusterDetailList.stream()
+                            // replace the duplicated cluster with linked one
+                            .map(cluster -> hdinsightAdditionalClusterDetails.stream()
+                                                .filter(linkedCluster -> linkedCluster.getName().equals(cluster.getName()))
+                                                .findFirst()
+                                                .orElse(cluster))
+                            .collect(Collectors.toList());
 
+                    mergedClusters.addAll(emulatorClusterDetails);
+
+                    ClusterMetaDataService.getInstance().addCachedClusters(mergedClusters);
                 });
 
         isSelectedSubscriptionExist = subscriptionList.map(list -> list.stream().anyMatch(SubscriptionDetail::isSelected))
