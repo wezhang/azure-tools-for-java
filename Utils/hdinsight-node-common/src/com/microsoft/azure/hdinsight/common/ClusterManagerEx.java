@@ -194,15 +194,23 @@ public class ClusterManagerEx {
                     // TODO: so far we have not a good way to judge whether it is token expired as
                     //       we have changed the way to list HDInsight clusters
                     isListClusterSuccess = clusterDetailList.size() != 0;
+                    ArrayList<IClusterDetail> additionalCluster = new ArrayList<>(hdinsightAdditionalClusterDetails);
 
                     List<IClusterDetail> mergedClusters = clusterDetailList.stream()
+                            .filter(clusterDetail -> clusterDetail.getSubscription().isSelected())
                             // replace the duplicated cluster with linked one
-                            .map(cluster -> hdinsightAdditionalClusterDetails.stream()
-                                                .filter(linkedCluster -> linkedCluster.getName().equals(cluster.getName()))
-                                                .findFirst()
-                                                .orElse(cluster))
+                            .map(cluster -> {
+                                Optional<IClusterDetail> linkedAndInSubscriptionCluster = additionalCluster.stream()
+                                        .filter(linkedCluster -> linkedCluster.getName().equals(cluster.getName()))
+                                        .findFirst();
+
+                                linkedAndInSubscriptionCluster.ifPresent(additionalCluster::remove);
+
+                                return linkedAndInSubscriptionCluster.orElse(cluster);
+                            })
                             .collect(Collectors.toList());
 
+                    mergedClusters.addAll(additionalCluster);
                     mergedClusters.addAll(emulatorClusterDetails);
 
                     ClusterMetaDataService.getInstance().addCachedClusters(mergedClusters);
