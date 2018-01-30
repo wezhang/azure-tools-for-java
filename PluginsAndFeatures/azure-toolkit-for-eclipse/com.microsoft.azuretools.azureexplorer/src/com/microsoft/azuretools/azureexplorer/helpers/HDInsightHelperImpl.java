@@ -32,6 +32,7 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleException;
 
 import com.microsoft.azure.hdinsight.common.HDInsightHelper;
+import com.microsoft.azure.hdinsight.common.HDInsightLoader;
 import com.microsoft.azure.hdinsight.common.JobViewManager;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -107,5 +108,11 @@ public class HDInsightHelperImpl implements HDInsightHelper {
     @Override
     public boolean isOptIn() {
         return isOptIn;
+    }
+
+    public static synchronized void initHDInsightLoader() {
+        if (HDInsightLoader.getHDInsightHelper() == null) {
+            HDInsightLoader.setHHDInsightHelper(new com.microsoft.azuretools.azureexplorer.helpers.HDInsightHelperImpl());
+        }
     }
 }

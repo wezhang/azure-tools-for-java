@@ -62,7 +62,8 @@ public class Activator extends AbstractUIPlugin {
 		super.start(context);
 		plugin = this;
         DefaultLoader.setUiHelper(new UIHelperImpl());
-		HDInsightLoader.setHHDInsightHelper(new com.microsoft.azuretools.azureexplorer.helpers.HDInsightHelperImpl());
+        com.microsoft.azuretools.azureexplorer.helpers.HDInsightHelperImpl.initHDInsightLoader();
+
         Node.setNode2Actions(NodeActionsMap.node2Actions);
 //        ServiceExplorerView serviceExplorerView = (ServiceExplorerView) PlatformUI
 //                .getWorkbench().getActiveWorkbenchWindow()
