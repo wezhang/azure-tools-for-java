@@ -20,32 +20,41 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
+package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api;
 
-import java.util.Map;
+import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
+import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session;
+
+import java.util.List;
 
 /**
- * A sratementOutput represents the output of an execution statement.
+ * The response body after getting all Livy active interactive sessions
  *
  * Based on Apache Livy, v0.4.0-incubating, refer to http://livy.incubator.apache.org./docs/0.4.0-incubating/rest-api.html
+ *
+ * For the following URI:
+ *   http://<livy base>/sessions
+ *
+ * HTTP Operations Supported
+ *   GET
+ *
+ * Query Parameters Supported
+ *   None
  */
+public class GetSessionsResponse implements IConvertible {
+    private int             from;           // The start index to fetch sessions
+    private int             size;           // Number of sessions to fetch
+    private List<Session>   sessions;       // Session list
 
-public class StatementOutput implements IConvertible {
-    private String              status;             // Execution status
-    private int                 execution_count;    // A monotonically increasing number
-    private Map<String, String> data;               // Statement output. An object mapping a mime type to the result.
-                                                    // If the mime type is ``application/json``, the value is a
-                                                    // JSON value
-
-    public String getStatus() {
-        return status;
+    public int getFrom() {
+        return from;
     }
 
-    public int getExecution_count() {
-        return execution_count;
+    public int getSize() {
+        return size;
     }
 
-    public Map<String, String> getData() {
-        return data;
+    public List<Session> getSessions() {
+        return sessions;
     }
 }

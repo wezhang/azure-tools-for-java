@@ -28,7 +28,7 @@ package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
  * Based on Apache Livy, v0.4.0-incubating, refer to http://livy.incubator.apache.org./docs/0.4.0-incubating/rest-api.html
  */
 
-public class Statement {
+public class Statement implements IConvertible {
     private int             id;         // The statement id
     private String          code;       // The execution code
     private StatementState  state;      // The execution state
