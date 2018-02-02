@@ -23,4 +23,13 @@
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
 public enum SessionKind {
+    SPARK,
+    PYSPARK,
+    PYSPARK3,
+    SPARKR
+    ;
+
+    static public SessionKind parse(String kind) {
+        return SessionKind.valueOf(kind.trim().toUpperCase());
+    }
 }
