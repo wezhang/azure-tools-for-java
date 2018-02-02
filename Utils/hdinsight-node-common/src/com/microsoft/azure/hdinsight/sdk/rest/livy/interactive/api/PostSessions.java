@@ -46,21 +46,21 @@ import java.util.Map;
  *   @see com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session
  */
 public class PostSessions implements IConvertible {
-    SessionKind         kind;                       // The session kind (required)
-    String              proxyUser;                  // User to impersonate when starting the session
-    List<String>        jars;                       // jars to be used in this session
-    List<String>        pyFiles;                    // Python files to be used in this session
-    List<String>        files;                      // files to be used in this session
-    String              driverMemory;               // Amount of memory to use for the driver process
-    int                 driverCores;                // Number of cores to use for the driver process
-    String              executorMemory;             // Amount of memory to use per executor process
-    int                 executorCores;              // Number of cores to use for each executor
-    int                 numExecutors;               // Number of executors to launch for this session
-    List<String>        archives;                   // Archives to be used in this session
-    String              queue;                      // The name of the YARN queue to which submitted
-    String              name;                       // The name of this session
-    Map<String, String> conf;                       // Spark configuration properties
-    int                 heartbeatTimeoutInSecond;   // Timeout in second to which session be orphaned
+    private SessionKind         kind;                       // The session kind (required)
+    private String              proxyUser;                  // User to impersonate when starting the session
+    private List<String>        jars;                       // jars to be used in this session
+    private List<String>        pyFiles;                    // Python files to be used in this session
+    private List<String>        files;                      // files to be used in this session
+    private String              driverMemory;               // Amount of memory to use for the driver process
+    private int                 driverCores;                // Number of cores to use for the driver process
+    private String              executorMemory;             // Amount of memory to use per executor process
+    private int                 executorCores;              // Number of cores to use for each executor
+    private int                 numExecutors;               // Number of executors to launch for this session
+    private List<String>        archives;                   // Archives to be used in this session
+    private String              queue;                      // The name of the YARN queue to which submitted
+    private String              name;                       // The name of this session
+    private Map<String, String> conf;                       // Spark configuration properties
+    private int                 heartbeatTimeoutInSecond;   // Timeout in second to which session be orphaned
 
     public SessionKind getKind() {
         return kind;
