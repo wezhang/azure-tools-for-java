@@ -23,12 +23,19 @@
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
 public enum SessionKind {
-    SPARK,
-    PYSPARK,
-    PYSPARK3,
-    SPARKR
+    SPARK,          // Interactive Scala Spark session
+    PYSPARK,        // Interactive Python 2 Spark session
+    PYSPARK3,       // Interactive Python 3 Spark session
+    SPARKR          // Interactive R Spark session
     ;
 
+    /**
+     * To convert the string to SessionKind type with case insensitive
+     *
+     * @param kind Session kind string
+     * @return SessionKind parsed
+     * @throws IllegalArgumentException for no enum value matched
+     */
     static public SessionKind parse(String kind) {
         return SessionKind.valueOf(kind.trim().toUpperCase());
     }
