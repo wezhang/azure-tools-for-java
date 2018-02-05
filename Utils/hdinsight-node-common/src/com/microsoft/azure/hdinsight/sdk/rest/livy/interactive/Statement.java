@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
+import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
+
 /**
  * A statement represents the result of an execution statement.
  *
