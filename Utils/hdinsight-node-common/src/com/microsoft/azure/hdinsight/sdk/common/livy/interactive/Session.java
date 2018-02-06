@@ -28,6 +28,7 @@ import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.Appl
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.SessionNotStartException;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionState;
+import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.StatementOutput;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.PostSessions;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
@@ -37,7 +38,6 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
@@ -117,6 +117,7 @@ public abstract class Session {
                     .retry()
                     .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
                     .takeUntil(session -> session.appId != null)
+                    .filter(session -> session.appId != null)
                     .timeout(3, TimeUnit.MINUTES)
                     .map(session -> {
                         if (session.appId == null || session.appId.isEmpty()) {
@@ -147,6 +148,19 @@ public abstract class Session {
 
     private void setLastState(@NotNull SessionState lastState) {
         this.lastState = lastState;
+    }
+
+    /*
+     * Helper APIs
+     */
+    public boolean isStarted() {
+        return getLastState() != SessionState.STARTING &&
+                getLastState() != SessionState.NOT_STARTED;
+    }
+
+    public boolean isStatementRunnable() {
+        return getLastState() == SessionState.IDLE ||
+                getLastState() == SessionState.BUSY;
     }
 
     /*
@@ -242,11 +256,20 @@ public abstract class Session {
                 .get(uri.toString(), null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class);
     }
 
-    public Observable<Statement> runStatement(@NotNull Statement statement) {
-        return statement.run();
+    public Observable<StatementOutput> runStatement(@NotNull Statement statement) {
+        return awaitReady()
+            .flatMap(session -> statement.run());
     }
 
-    public Observable<Statement> runCodes(@NotNull String codes) {
+    private Observable<Session> awaitReady() {
+        return get()
+                .retry()
+                .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                .takeUntil(Session::isStatementRunnable)
+                .filter(Session::isStatementRunnable);
+    }
+
+    public Observable<StatementOutput> runCodes(@NotNull String codes) {
         return runStatement(new Statement(this, new ByteArrayInputStream(codes.getBytes(StandardCharsets.UTF_8))));
     }
 

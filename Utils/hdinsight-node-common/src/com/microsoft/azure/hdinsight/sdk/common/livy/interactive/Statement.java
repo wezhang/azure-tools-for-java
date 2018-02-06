@@ -31,7 +31,6 @@ import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.session.PostS
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.io.IOUtils;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.StringEntity;
 import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -39,11 +38,8 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-
-import static rx.exceptions.Exceptions.propagate;
+import java.util.concurrent.TimeUnit;
 
 public class Statement {
     public static final String REST_SEGMENT_STATEMENTS = "statements";
@@ -87,8 +83,7 @@ public class Statement {
 
     @NotNull
     public URI getUri() throws StatementNotStartException, SessionNotStartException {
-        return Paths.get(getSession().getUri().toString(), REST_SEGMENT_STATEMENTS, String.valueOf(getId()))
-                .toUri();
+        return URI.create(getSession().getUri().toString() + "/" + REST_SEGMENT_STATEMENTS + "/" + String.valueOf(getId()));
     }
 
     public int getId() throws StatementNotStartException {
@@ -126,9 +121,29 @@ public class Statement {
      * Observable APIs, all IO operations
      */
 
-    public Observable<Statement> run() {
+    public Observable<StatementOutput> run() {
         return runStatementRequest()
-                .map(this::updateWithResponse);
+                .map(this::updateWithResponse)
+                .flatMap(statement -> statement.get()    // Get statement result with retry
+                        .retry()
+                        .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                        .takeUntil(Statement::isDone)
+                        .filter(Statement::isDone)
+                )
+                .map(Statement::getOutput);
+    }
+
+    public boolean isDoneWithError()
+    {
+        return getLastState() == StatementState.ERROR || getLastState() == StatementState.CANCELLED;
+    }
+
+    public boolean isDoneWithSuccess() {
+        return getLastState() == StatementState.AVAILABLE;
+    }
+
+    public boolean isDone() {
+        return isDoneWithError() || isDoneWithSuccess();
     }
 
     private Statement updateWithResponse(com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement statementResp) {
@@ -144,8 +159,7 @@ public class Statement {
         PostStatements postBody = new PostStatements();
 
         try {
-            uri = Paths.get(getSession().getUri().toString(), REST_SEGMENT_STATEMENTS)
-                    .toUri();
+            uri = URI.create(getSession().getUri().toString() + "/" + REST_SEGMENT_STATEMENTS);
             postBody.setCode(IOUtils.toString(getCodeInputStream(), StandardCharsets.UTF_8));
         } catch (SessionNotStartException | IOException e) {
             return Observable.error(e);
@@ -159,6 +173,25 @@ public class Statement {
 
         return getHttp()
                 .post(uri.toString(), entity, null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement.class);
+    }
+
+    public Observable<Statement> get() {
+        return getStatementRequest()
+                .map(this::updateWithResponse)
+                .defaultIfEmpty(this);
+    }
+
+    private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement> getStatementRequest() {
+        URI uri;
+
+        try {
+            uri = getUri();
+        } catch (StatementNotStartException | SessionNotStartException e) {
+            return Observable.empty();
+        }
+
+        return getHttp()
+                .get(uri.toString(), null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement.class);
     }
 
     public Observable<Statement> cancel() {
