@@ -100,7 +100,7 @@ public class HttpObservable {
         // Create global request configuration
         this.defaultRequestConfig = RequestConfig.custom()
                 .setCookieSpec(CookieSpecs.DEFAULT)
-                .setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.NTLM, AuthSchemes.DIGEST, AuthSchemes.BASIC))
+                .setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.KERBEROS, AuthSchemes.DIGEST, AuthSchemes.BASIC))
                 .setProxyPreferredAuthSchemes(Collections.singletonList(AuthSchemes.BASIC))
                 .build();
 
