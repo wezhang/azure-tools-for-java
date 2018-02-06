@@ -22,12 +22,20 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum SessionKind {
     SPARK,          // Interactive Scala Spark session
     PYSPARK,        // Interactive Python 2 Spark session
     PYSPARK3,       // Interactive Python 3 Spark session
     SPARKR          // Interactive R Spark session
     ;
+
+    @JsonValue
+    public String getKind() {
+        return name().toLowerCase();
+    }
 
     /**
      * To convert the string to SessionKind type with case insensitive
@@ -36,6 +44,7 @@ public enum SessionKind {
      * @return SessionKind parsed
      * @throws IllegalArgumentException for no enum value matched
      */
+    @JsonCreator
     static public SessionKind parse(String kind) {
         return SessionKind.valueOf(kind.trim().toUpperCase());
     }
