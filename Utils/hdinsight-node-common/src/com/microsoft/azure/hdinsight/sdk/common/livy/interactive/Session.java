@@ -108,7 +108,6 @@ public abstract class Session {
         return id;
     }
 
-    @Nullable
     public Observable<String> getAppId() {
         return appId != null ?
                 Observable.just(appId) :

@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.livy.interactive
 
+import com.github.tomakehurst.wiremock.client.WireMock
+import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.microsoft.azure.hdinsight.spark.common.MockHttpService
 import cucumber.api.java.Before
 import cucumber.api.java.en.And
@@ -91,5 +93,14 @@ class SessionScenario {
                 .single()
 
         assertThat(appIdGot).isEqualTo(appIdExpect)
+    }
+
+    @Then("^check the delete operation request sent to '(.*)' when killing the session$")
+    fun checkKillSession(urlExpect: String) {
+        sessionMock!!.kill()
+                .toBlocking()
+                .single()
+
+        WireMock.verify(WireMock.deleteRequestedFor(urlEqualTo(urlExpect)))
     }
 }

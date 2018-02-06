@@ -19,6 +19,14 @@ Feature: Livy Interactive Session Tests
       | id        | 6 |
     Then check getting app ID with waiting for livy interactive session application run should be 'application_1517029729598_0086'
 
+  Scenario: Session.kill() IT positive case with mocked http server
+    Given setup a mock livy interactive service for POST request '/sessions' to return '{"id":6,"appId":null,"owner":null,"proxyUser":null,"state":"starting","kind":"spark","appInfo":{"driverLogUrl":null,"sparkUiUrl":null},"log":[]}' with status code 200
+    And setup a mock livy interactive service for DELETE request '/sessions/6' to return '{}' with status code 200
+    And create a livy Spark interactive session instance with name 'testSparkREPL'
+    Then check the returned livy interactive session after creating should be
+      | id        | 6 |
+    Then check the delete operation request sent to '/sessions/6' when killing the session
+
   Scenario: Session.create() IT real case
     Given create a real livy Spark interactive session instance with name 'testSparkREPL'
     Then check getting app ID with waiting for livy interactive session application run should be 'abc'
