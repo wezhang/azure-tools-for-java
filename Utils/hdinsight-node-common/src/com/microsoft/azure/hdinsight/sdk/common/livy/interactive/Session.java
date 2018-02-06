@@ -22,9 +22,10 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.livy.interactive;
 
-import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
+import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.ApplicationNotStartException;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.SessionNotStartException;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
@@ -38,17 +39,16 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.concurrent.TimeUnit;
 
 import static rx.exceptions.Exceptions.propagate;
 
 public abstract class Session {
-    public static final String REST_SEGMENT = "sessions";
+    public static final String REST_SEGMENT_SESSION = "sessions";
 
     @NotNull
-    private URL baseUrl;            // Session base URL
+    private URI baseUrl;            // Session base URL
 
     private int id;                 // Session ID of server
 
@@ -61,19 +61,24 @@ public abstract class Session {
     @NotNull
     private String name;
 
+    @NotNull
+    private SessionState lastState; // Last session state gotten
+
     /*
      * Constructor
      */
 
-    public Session(@NotNull String name, @NotNull URL baseUrl) {
+    public Session(@NotNull String name, @NotNull URI baseUrl) {
         this.name = name;
         this.baseUrl = baseUrl;
+        this.lastState = SessionState.NOT_STARTED;
         this.http = new HttpObservable();
     }
 
-    public Session(@NotNull String name, @NotNull final URL baseUrl, @NotNull final String username, @NotNull final String password) {
+    public Session(@NotNull String name, @NotNull final URI baseUrl, @NotNull final String username, @NotNull final String password) {
         this.name = name;
         this.baseUrl = baseUrl;
+        this.lastState = SessionState.NOT_STARTED;
         this.http = new HttpObservable(username, password);
     }
 
@@ -91,7 +96,7 @@ public abstract class Session {
 
     @NotNull
     public URI getUri() throws SessionNotStartException {
-        throw new NotImplementedException();
+        return baseUrl.resolve(REST_SEGMENT_SESSION + "/" + String.valueOf(getId()));
     }
 
     private void setId(int id) {
@@ -99,12 +104,30 @@ public abstract class Session {
     }
 
     public int getId() throws SessionNotStartException {
+        if (getLastState() == SessionState.NOT_STARTED) {
+            throw new SessionNotStartException(getName() + " isn't created. Call create() firstly before getting ID.");
+        }
+
         return id;
     }
 
     @Nullable
-    public String getAppId() {
-        return appId;
+    public Observable<String> getAppId() {
+        return appId != null ?
+                Observable.just(appId) :
+                this.get()
+                    .retry()
+                    .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                    .takeUntil(session -> session.appId != null)
+                    .timeout(3, TimeUnit.MINUTES)
+                    .map(session -> {
+                        if (session.appId == null || session.appId.isEmpty()) {
+                            throw propagate(new ApplicationNotStartException(
+                                    getName() + " application isn't started in 3 minutes."));
+                        }
+
+                        return session.appId;
+                    });
     }
 
     private void setAppId(@Nullable String appId) {
@@ -115,13 +138,17 @@ public abstract class Session {
     public abstract SessionKind getKind();
 
     @NotNull
-    public SessionState getState() {
-        throw new NotImplementedException();
+    public HttpObservable getHttp() {
+        return http;
     }
 
     @NotNull
-    public HttpObservable getHttp() {
-        return http;
+    public SessionState getLastState() {
+        return lastState;
+    }
+
+    private void setLastState(@NotNull SessionState lastState) {
+        this.lastState = lastState;
     }
 
     /*
@@ -133,14 +160,17 @@ public abstract class Session {
      *
      * @return An updated Session instance Observable
      */
-    public Observable<Session> create() throws URISyntaxException {
+    public Observable<Session> create() {
         return createSessionRequest()
-                .map(sessionResp -> {
-                    this.setId(sessionResp.getId());
-                    this.setAppId(sessionResp.getAddId());
+                .map(this::updateWithResponse);
+    }
 
-                    return this;
-                });
+    private Session updateWithResponse(com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session sessionResp) {
+        this.setId(sessionResp.getId());
+        this.setAppId(sessionResp.getAppId());
+        this.setLastState(sessionResp.getState());
+
+        return this;
     }
 
     @NotNull
@@ -152,12 +182,23 @@ public abstract class Session {
         return postBody;
     }
 
-    private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session> createSessionRequest()
-            throws URISyntaxException {
-        URI uri = baseUrl.toURI().resolve(REST_SEGMENT);
+    @NotNull
+    private com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session convertJsonResponseToSession(HttpResponse resp) {
+        try {
+            return ObjectConvertUtils.convertJsonToObject(
+                    resp.getMessage(),
+                    com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class)
+                    .orElseThrow(() -> propagate(
+                            new HDIException("Unknown Livy server response: " + resp.getMessage())));
+        } catch (IOException e) {
+            throw propagate(e);
+        }
+    }
+
+    private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session> createSessionRequest() {
+        URI uri = baseUrl.resolve(REST_SEGMENT_SESSION);
 
         PostSessions postBody = preparePostSessions();
-
         String json = postBody.convertToJson()
                 .orElseThrow(() -> new IllegalArgumentException("Bad session arguments to post."));
 
@@ -166,27 +207,42 @@ public abstract class Session {
 
         return getHttp()
                 .post(uri.toString(), entity, null, null)
-                .flatMap(HttpObservable::toStringResponse)
-                .map(resp -> {
-                    try {
-                        return ObjectConvertUtils.convertJsonToObject(
-                                resp.getMessage(),
-                                com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class)
-                                .orElseThrow(() -> propagate(
-                                        new HDIException("Unknown Livy server response: " + resp.getMessage())));
-                    } catch (IOException e) {
-                        throw propagate(e);
-                    }
-                });
+                .flatMap(HttpObservable::toStringOnlyOkResponse)
+                .map(this::convertJsonResponseToSession);
     }
 
     /**
      * To kill a session, if it's opened, cancel all running statements and close it, otherwise, do nothing
      *
-     * @return An updated Session instance Observable
+     * @return an updated Session instance Observable
      */
     public Observable<Session> kill() {
         throw new NotImplementedException();
+    }
+
+    /**
+     * To get a session status.
+     *
+     * @return an updated Session instance Observable
+     */
+    public Observable<Session> get() {
+        return getSessionRequest()
+                .map(this::updateWithResponse);
+    }
+
+    private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session> getSessionRequest() {
+        URI uri;
+
+        try {
+            uri = getUri();
+        } catch (SessionNotStartException e) {
+            return Observable.empty();
+        }
+
+        return getHttp()
+                .get(uri.toString(), null, null)
+                .flatMap(HttpObservable::toStringOnlyOkResponse)
+                .map(this::convertJsonResponseToSession);
     }
 
     public Observable<Statement> runStatement(@NotNull Statement statement) {

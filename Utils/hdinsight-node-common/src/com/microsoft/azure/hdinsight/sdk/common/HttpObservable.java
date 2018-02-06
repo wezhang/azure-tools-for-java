@@ -29,10 +29,12 @@ import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
@@ -96,8 +98,7 @@ public class HttpObservable {
         // Create global request configuration
         this.defaultRequestConfig = RequestConfig.custom()
                 .setCookieSpec(CookieSpecs.DEFAULT)
-                .setExpectContinueEnabled(true)
-                .setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.NTLM, AuthSchemes.DIGEST))
+                .setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.NTLM, AuthSchemes.DIGEST, AuthSchemes.BASIC))
                 .setProxyPreferredAuthSchemes(Collections.singletonList(AuthSchemes.BASIC))
                 .build();
 
@@ -183,13 +184,28 @@ public class HttpObservable {
     /*
      * Helper functions
      */
-    public static Observable<HttpResponse> toStringResponse(CloseableHttpResponse closeableHttpResponse) {
+
+    /**
+     * Helper to convert the closeable stream good Http response (2xx) to String result.
+     * If the response is bad, propagate a HttpResponseException
+     *
+     * @param closeableHttpResponse the source closeable stream
+     * @return Http Response as String
+     */
+    public static Observable<HttpResponse> toStringOnlyOkResponse(CloseableHttpResponse closeableHttpResponse) {
         return Observable.using(
                 // Resource factory
                 () -> closeableHttpResponse,
                 // Observable factory
                 streamResp -> {
                     try {
+                        StatusLine status = streamResp.getStatusLine();
+
+                        if (status.getStatusCode() >= 300) {
+                            return Observable.error(new HttpResponseException(status.getStatusCode(),
+                                                                              status.getReasonPhrase()));
+                        }
+
                         return Observable.just(StreamUtil.getResultFromHttpResponse(streamResp));
                     } catch (IOException e) {
                         return Observable.error(e);
@@ -217,7 +233,9 @@ public class HttpObservable {
             URIBuilder builder = new URIBuilder(httpRequest.getURI());
 
             // Add parameters
-            builder.addParameters(Optional.ofNullable(parameters).orElse(Collections.emptyList()));
+            Optional.ofNullable(parameters)
+                    .filter(pairs -> !pairs.isEmpty())
+                    .ifPresent(builder::addParameters);
 
             httpRequest.setURI(builder.build());
 

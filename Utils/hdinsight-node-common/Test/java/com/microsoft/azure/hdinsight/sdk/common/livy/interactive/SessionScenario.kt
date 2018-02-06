@@ -27,9 +27,10 @@ import cucumber.api.java.Before
 import cucumber.api.java.en.And
 import cucumber.api.java.en.Given
 import cucumber.api.java.en.Then
+import org.apache.http.client.HttpResponseException
 import org.assertj.core.api.Assertions.assertThat
-import java.net.URL
-import kotlin.test.assertFails
+import java.net.URI
+import kotlin.test.fail
 
 class SessionScenario {
     var httpServerMock: MockHttpService? = null
@@ -40,15 +41,18 @@ class SessionScenario {
         httpServerMock = MockHttpService()
     }
 
-    @Given("^setup a mock livy service for (.+) request '(.+)' to return '(.+)' with status code (\\d+)$")
+    @Given("^setup a mock livy interactive service for (.+) request '(.+)' to return '(.+)' with status code (\\d+)$")
     fun mockLivyInteractiveService(action: String, serviceUrl: String, response: String, statusCode: Int) {
         httpServerMock!!.stub(action, serviceUrl, statusCode, response)
     }
 
     @And("^create a livy Spark interactive session instance with name '(.+)'$")
     fun newSparkSession(name: String) {
-        sessionMock = SparkSession(name, URL(httpServerMock!!.completeUrl("/")))
+        sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")))
+    }
 
+    @And("^create a real livy Spark interactive session instance with name '(.+)'$")
+    fun newRealSparkSession(name: String) {
     }
 
     @Then("^check the returned livy interactive session after creating should be$")
@@ -57,12 +61,35 @@ class SessionScenario {
                 .subscribe(
                         { session -> expect.keys.forEach { when(it) {
                             "id" -> assertThat(session.id).isEqualTo(expect[it]!!.toInt())
-                            "appId" -> assertThat(session.appId).isEqualTo(expect[it]!!)
                         }}},
                         {
                             err -> throw err
                         }
                 )
 
+    }
+
+    @Then("^check the HttpResponseException\\((\\d+)\\) when creating livy interactive session after creating should be thrown$")
+    fun checkCreateSessionException(statusCodeExpect: Int) {
+        sessionMock!!.create()
+                .subscribe(
+                        {
+                            fail("Get a normal session return without exceptions.")
+                        },
+                        { err -> run {
+                            assertThat(err).isInstanceOf(HttpResponseException::class.java)
+                            assertThat((err as HttpResponseException).statusCode).isEqualTo(statusCodeExpect)
+                        }}
+                )
+
+    }
+
+    @Then("^check getting app ID with waiting for livy interactive session application run should be '(.*)'$")
+    fun checkGettingAppId(appIdExpect: String) {
+        val appIdGot = sessionMock!!.appId
+                .toBlocking()
+                .single()
+
+        assertThat(appIdGot).isEqualTo(appIdExpect)
     }
 }

@@ -20,26 +20,14 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.sdk.common.livy.interactive;
+package com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions;
 
-import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
-import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-
-import java.net.URI;
-import java.net.URL;
-
-public class SparkSession extends Session {
-    public SparkSession(@NotNull String name, @NotNull URI baseUrl) {
-        super(name, baseUrl);
+public class ApplicationNotStartException extends LivyInteractiveException {
+    public ApplicationNotStartException(String message) {
+        super(message);
     }
 
-    public SparkSession(@NotNull String name, @NotNull URI baseUrl, @NotNull String username, @NotNull String password) {
-        super(name, baseUrl, username, password);
-    }
-
-    @NotNull
-    @Override
-    public SessionKind getKind() {
-        return SessionKind.SPARK;
+    public ApplicationNotStartException(String message, Throwable throwable) {
+        super(message, throwable);
     }
 }
