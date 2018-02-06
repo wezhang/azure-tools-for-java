@@ -22,6 +22,10 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+
 /**
  * StatementState represents the state of an execution statement.
  *
@@ -37,13 +41,19 @@ public enum StatementState {
     CANCELLED       // Statement is cancelled
     ;
 
+    @JsonValue
+    public String getKind() {
+        return name().toLowerCase();
+    }
+
     /**
      * To convert the string to StatementState type with case insensitive
      * @param state Statement state string
      * @return statementState parsed
      * @throws IllegalArgumentException for no enum value matched
      */
-    static public StatementState parse(String state) {
+    @JsonCreator
+    static public StatementState parse(@NotNull String state) {
         return StatementState.valueOf(state.trim().toUpperCase());
     }
 }

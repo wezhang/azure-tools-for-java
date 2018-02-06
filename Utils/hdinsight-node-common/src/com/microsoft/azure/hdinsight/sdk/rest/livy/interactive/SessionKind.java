@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 public enum SessionKind {
     SPARK,          // Interactive Scala Spark session
@@ -45,7 +46,7 @@ public enum SessionKind {
      * @throws IllegalArgumentException for no enum value matched
      */
     @JsonCreator
-    static public SessionKind parse(String kind) {
+    static public SessionKind parse(@NotNull String kind) {
         return SessionKind.valueOf(kind.trim().toUpperCase());
     }
 }
