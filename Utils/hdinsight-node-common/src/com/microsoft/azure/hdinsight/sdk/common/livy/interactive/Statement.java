@@ -22,44 +22,85 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.livy.interactive;
 
+import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.SessionNotStartException;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.StatementNotStartException;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.StatementOutput;
+import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.StatementState;
+import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.session.PostStatements;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.StringEntity;
 import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+
+import static rx.exceptions.Exceptions.propagate;
 
 public class Statement {
+    public static final String REST_SEGMENT_STATEMENTS = "statements";
+
     @NotNull
-    private URL baseUrl;            // Statement base URL
-    @NotNull
-    private Session session;        // Statement owner session
-    private int id;                 // Statement ID of server
+    private Session session;            // Statement owner session
+
+    private int id;                     // Statement ID of server
+
     @Nullable
-    private StatementOutput output; // Statement outputs
+    private StatementOutput output;     // Statement outputs
+
     @NotNull
-    private InputStream codeStream; // Codes to run
+    private InputStream codeStream;     // Codes to run
+
+    @Nullable
+    private StatementState lastState;   // Last statement state gotten
 
     public Statement(@NotNull Session session, @NotNull InputStream codeStream) {
         this.session = session;
+        this.codeStream = codeStream;
     }
+
+    /*
+     * Getter / Setter
+     */
 
     @NotNull
     public InputStream getCodeInputStream() {
         return codeStream;
     }
 
+    @Nullable
+    public StatementState getLastState() {
+        return lastState;
+    }
+
+    public void setLastState(@Nullable StatementState lastState) {
+        this.lastState = lastState;
+    }
+
     @NotNull
-    public URI getUri() throws StatementNotStartException {
-        throw new NotImplementedException();
+    public URI getUri() throws StatementNotStartException, SessionNotStartException {
+        return Paths.get(getSession().getUri().toString(), REST_SEGMENT_STATEMENTS, String.valueOf(getId()))
+                .toUri();
     }
 
     public int getId() throws StatementNotStartException {
-        throw new NotImplementedException();
+        if (getLastState() == null) {
+            throw new StatementNotStartException("The statement isn't created. Call run() firstly before getting ID.");
+        }
+
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     @NotNull
@@ -67,12 +108,57 @@ public class Statement {
         return this.session;
     }
 
+    @NotNull
+    public HttpObservable getHttp() {
+        return getSession().getHttp();
+    }
+
+    @Nullable
+    public StatementOutput getOutput() {
+        return output;
+    }
+
+    private void setOutput(@Nullable StatementOutput output) {
+        this.output = output;
+    }
+
     /*
      * Observable APIs, all IO operations
      */
 
     public Observable<Statement> run() {
-        throw new NotImplementedException();
+        return runStatementRequest()
+                .map(this::updateWithResponse);
+    }
+
+    private Statement updateWithResponse(com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement statementResp) {
+        this.setId(statementResp.getId());
+        this.setLastState(statementResp.getState());
+        this.setOutput(statementResp.getOutput());
+
+        return this;
+    }
+
+    private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement> runStatementRequest() {
+        URI uri;
+        PostStatements postBody = new PostStatements();
+
+        try {
+            uri = Paths.get(getSession().getUri().toString(), REST_SEGMENT_STATEMENTS)
+                    .toUri();
+            postBody.setCode(IOUtils.toString(getCodeInputStream(), StandardCharsets.UTF_8));
+        } catch (SessionNotStartException | IOException e) {
+            return Observable.error(e);
+        }
+
+        String json = postBody.convertToJson()
+                .orElseThrow(() -> new IllegalArgumentException("Bad statement arguments to post."));
+
+        StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
+        entity.setContentType("application/json");
+
+        return getHttp()
+                .post(uri.toString(), entity, null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement.class);
     }
 
     public Observable<Statement> cancel() {

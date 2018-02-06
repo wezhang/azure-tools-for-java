@@ -35,8 +35,10 @@ import org.apache.http.entity.StringEntity;
 import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static rx.exceptions.Exceptions.propagate;
@@ -96,7 +98,7 @@ public abstract class Session {
         return baseUrl.resolve(REST_SEGMENT_SESSION + "/" + String.valueOf(getId()));
     }
 
-    private void setId(int id) {
+    public void setId(int id) {
         this.id = id;
     }
 
@@ -185,7 +187,7 @@ public abstract class Session {
         String json = postBody.convertToJson()
                 .orElseThrow(() -> new IllegalArgumentException("Bad session arguments to post."));
 
-        StringEntity entity = new StringEntity(json, Charset.forName("UTF-8"));
+        StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
         entity.setContentType("application/json");
 
         return getHttp()
@@ -241,11 +243,11 @@ public abstract class Session {
     }
 
     public Observable<Statement> runStatement(@NotNull Statement statement) {
-        throw new NotImplementedException();
+        return statement.run();
     }
 
     public Observable<Statement> runCodes(@NotNull String codes) {
-        throw new NotImplementedException();
+        return runStatement(new Statement(this, new ByteArrayInputStream(codes.getBytes(StandardCharsets.UTF_8))));
     }
 
     public Observable<String> getLog() {
