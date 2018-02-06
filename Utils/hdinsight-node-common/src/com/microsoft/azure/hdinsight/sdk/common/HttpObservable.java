@@ -57,6 +57,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static rx.exceptions.Exceptions.propagate;
+
 public class HttpObservable {
     @NotNull
     private RequestConfig defaultRequestConfig;
@@ -222,8 +224,27 @@ public class HttpObservable {
                 });
     }
 
+    /**
+     * Helper to convert the http response to a specified type
+     *
+     * @param resp HTTP response, consumed as String content
+     * @param clazz the target type to convert
+     * @param <T> the target type
+     * @return the specified type class instance
+     */
+    @NotNull
+    public <T> T convertJsonResponseToObject(@NotNull final HttpResponse resp, @NotNull final Class<T> clazz) {
+        try {
+            return ObjectConvertUtils.convertJsonToObject(resp.getMessage(), clazz)
+                    .orElseThrow(() -> propagate(
+                            new HDIException("Unknown HTTP server response: " + resp.getMessage())));
+        } catch (IOException e) {
+            throw propagate(e);
+        }
+    }
+
     /*
-     * Operations
+     * Core request
      */
     public Observable<CloseableHttpResponse> request(@NotNull final HttpRequestBase httpRequest,
                                                      @Nullable final HttpEntity entity,
@@ -256,35 +277,49 @@ public class HttpObservable {
         });
     }
 
-    public Observable<CloseableHttpResponse> head(@NotNull final String uri,
-                                                  @NotNull final List<NameValuePair> parameters,
-                                                  @NotNull final List<Header> addOrReplaceHeaders) {
-        return request(new HttpHead(uri), null, parameters, addOrReplaceHeaders);
+    /*
+     * RESTful API operations with response conversion for specified type
+     */
+    public Observable<HttpResponse> head(@NotNull final String uri,
+                                         @NotNull final List<NameValuePair> parameters,
+                                         @NotNull final List<Header> addOrReplaceHeaders) {
+        return request(new HttpHead(uri), null, parameters, addOrReplaceHeaders)
+                .flatMap(HttpObservable::toStringOnlyOkResponse);
     }
 
-    public Observable<CloseableHttpResponse> get(@NotNull final String uri,
-                                                 @Nullable final List<NameValuePair> parameters,
-                                                 @Nullable final List<Header> addOrReplaceHeaders) {
-        return request(new HttpGet(uri), null, parameters, addOrReplaceHeaders);
+    public <T> Observable<T> get(@NotNull final String uri,
+                                 @Nullable final List<NameValuePair> parameters,
+                                 @Nullable final List<Header> addOrReplaceHeaders,
+                                 @NotNull final Class<T> clazz) {
+        return request(new HttpGet(uri), null, parameters, addOrReplaceHeaders)
+                .flatMap(HttpObservable::toStringOnlyOkResponse)
+                .map(resp -> this.convertJsonResponseToObject(resp, clazz));
     }
 
-    public Observable<CloseableHttpResponse> put(@NotNull final String uri,
-                                                 @Nullable final HttpEntity entity,
-                                                 @Nullable final List<NameValuePair> parameters,
-                                                 @Nullable final List<Header> addOrReplaceHeaders) {
-        return request(new HttpPut(uri), entity, parameters, addOrReplaceHeaders);
+    public <T> Observable<T> put(@NotNull final String uri,
+                                 @Nullable final HttpEntity entity,
+                                 @Nullable final List<NameValuePair> parameters,
+                                 @Nullable final List<Header> addOrReplaceHeaders,
+                                 @NotNull final Class<T> clazz) {
+        return request(new HttpPut(uri), entity, parameters, addOrReplaceHeaders)
+                .flatMap(HttpObservable::toStringOnlyOkResponse)
+                .map(resp -> this.convertJsonResponseToObject(resp, clazz));
     }
 
-    public Observable<CloseableHttpResponse> post(@NotNull final String uri,
-                                                  @Nullable final HttpEntity entity,
-                                                  @Nullable final List<NameValuePair> parameters,
-                                                  @Nullable final List<Header> addOrReplaceHeaders) {
-        return request(new HttpPost(uri), entity, parameters, addOrReplaceHeaders);
+    public <T> Observable<T> post(@NotNull final String uri,
+                                  @Nullable final HttpEntity entity,
+                                  @Nullable final List<NameValuePair> parameters,
+                                  @Nullable final List<Header> addOrReplaceHeaders,
+                                  @NotNull final Class<T> clazz) {
+        return request(new HttpPost(uri), entity, parameters, addOrReplaceHeaders)
+                .flatMap(HttpObservable::toStringOnlyOkResponse)
+                .map(resp -> this.convertJsonResponseToObject(resp, clazz));
     }
 
-    public Observable<CloseableHttpResponse> delete(@NotNull final String uri,
-                                                    @Nullable final List<NameValuePair> parameters,
-                                                    @Nullable final List<Header> addOrReplaceHeaders) {
-        return request(new HttpDelete(uri), null, parameters, addOrReplaceHeaders);
+    public Observable<HttpResponse> delete(@NotNull final String uri,
+                                           @Nullable final List<NameValuePair> parameters,
+                                           @Nullable final List<Header> addOrReplaceHeaders) {
+        return request(new HttpDelete(uri), null, parameters, addOrReplaceHeaders)
+                .flatMap(HttpObservable::toStringOnlyOkResponse);
     }
 }

@@ -22,12 +22,10 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.livy.interactive;
 
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.ApplicationNotStartException;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.SessionNotStartException;
-import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionState;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.PostSessions;
@@ -37,7 +35,6 @@ import org.apache.http.entity.StringEntity;
 import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
@@ -59,7 +56,7 @@ public abstract class Session {
     private HttpObservable http;    // Http connection
 
     @NotNull
-    private String name;
+    private String name;            // Session name
 
     @NotNull
     private SessionState lastState; // Last session state gotten
@@ -182,19 +179,6 @@ public abstract class Session {
         return postBody;
     }
 
-    @NotNull
-    private com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session convertJsonResponseToSession(HttpResponse resp) {
-        try {
-            return ObjectConvertUtils.convertJsonToObject(
-                    resp.getMessage(),
-                    com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class)
-                    .orElseThrow(() -> propagate(
-                            new HDIException("Unknown Livy server response: " + resp.getMessage())));
-        } catch (IOException e) {
-            throw propagate(e);
-        }
-    }
-
     private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session> createSessionRequest() {
         URI uri = baseUrl.resolve(REST_SEGMENT_SESSION);
 
@@ -206,9 +190,7 @@ public abstract class Session {
         entity.setContentType("application/json");
 
         return getHttp()
-                .post(uri.toString(), entity, null, null)
-                .flatMap(HttpObservable::toStringOnlyOkResponse)
-                .map(this::convertJsonResponseToSession);
+                .post(uri.toString(), entity, null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class);
     }
 
     /**
@@ -217,7 +199,22 @@ public abstract class Session {
      * @return an updated Session instance Observable
      */
     public Observable<Session> kill() {
-        throw new NotImplementedException();
+        return deleteSessionRequest()
+                .map(resp -> this)
+                .defaultIfEmpty(this);
+    }
+
+    private Observable<HttpResponse> deleteSessionRequest() {
+        URI uri;
+
+        try {
+            uri = getUri();
+        } catch (SessionNotStartException e) {
+            return Observable.empty();
+        }
+
+        return getHttp()
+                .delete(uri.toString(), null, null);
     }
 
     /**
@@ -227,7 +224,8 @@ public abstract class Session {
      */
     public Observable<Session> get() {
         return getSessionRequest()
-                .map(this::updateWithResponse);
+                .map(this::updateWithResponse)
+                .defaultIfEmpty(this);
     }
 
     private Observable<com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session> getSessionRequest() {
@@ -240,9 +238,7 @@ public abstract class Session {
         }
 
         return getHttp()
-                .get(uri.toString(), null, null)
-                .flatMap(HttpObservable::toStringOnlyOkResponse)
-                .map(this::convertJsonResponseToSession);
+                .get(uri.toString(), null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class);
     }
 
     public Observable<Statement> runStatement(@NotNull Statement statement) {
