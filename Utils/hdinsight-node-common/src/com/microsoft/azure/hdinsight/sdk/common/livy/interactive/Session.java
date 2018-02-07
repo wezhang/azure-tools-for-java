@@ -37,13 +37,15 @@ import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static rx.exceptions.Exceptions.propagate;
 
-public abstract class Session {
+public abstract class Session implements AutoCloseable, Closeable {
     public static final String REST_SEGMENT_SESSION = "sessions";
 
     @NotNull
@@ -148,6 +150,14 @@ public abstract class Session {
 
     private void setLastState(@NotNull SessionState lastState) {
         this.lastState = lastState;
+    }
+
+    /*
+     * Overrides
+     */
+    @Override
+    public void close() throws IOException {
+        kill().toBlocking().single();
     }
 
     /*
