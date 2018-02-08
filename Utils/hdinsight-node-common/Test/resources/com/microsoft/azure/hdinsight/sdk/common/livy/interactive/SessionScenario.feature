@@ -40,11 +40,3 @@ Feature: Livy Interactive Session Tests
       | println("Hello World!") |
     Then check Spark interactive session statement run result stdout should be
       | Hello World! |
-
-  Scenario: Session IT real case
-    Given create a real livy Spark interactive session instance with name 'testSparkREPL'
-    And run the following codes in livy Spark interactive session
-      | println("Hello World!") |
-    And kill the livy Spark interactive session
-    Then check Spark interactive session statement run result stdout should be
-      | Hello World! |

@@ -28,34 +28,52 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 
-public class ClusterFileBufferedOutputStream extends OutputStream {
+public class ClusterFileBase64BufferedOutputStream extends OutputStream {
+    private static final int DEFAULT_BLOCK_SIZE_KB = 64;      // 16KB block size
+
     @NotNull
-    private Session session;
-    private final String preloadedCodes = "val jarOutput = \"%s\"" +
-            "val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)\n" +
-            "val jarFileOutput = fs.create(new org.apache.hadoop.fs.Path(jarOutput), true)\n" +
-            "val out = new DataOutputStream(new BufferedOutputStream(jarFileOutput))\n" +
-            "\n" +
-            "import java.io._\n" +
-            "import java.util.Base64\n" +
-            "\n" +
-            "def writePage(encodedBase64: String) = {\n" +
-            "    val pageBytes = Base64.getDecoder.decode(encodedBase64)\n" +
-            "\n" +
-            "    out.write(pageBytes, 0, pageBytes.size)\n" +
-            "}\n";
+    private final Session session;
+
+    @NotNull
+    private final ByteBuffer buf;
+
+    private final String preloadedCodes = String.join("\n",
+            "import java.io._",
+            "import java.util.Base64",
+            "",
+            "val jarOutput = \"%s\"",
+            "val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)",
+            "val jarFileOutput = fs.create(new org.apache.hadoop.fs.Path(jarOutput), true)",
+            "val out = new DataOutputStream(new BufferedOutputStream(jarFileOutput))",
+            "",
+            "def writePage(encodedBase64: String) = {",
+            "    val pageBytes = Base64.getDecoder.decode(encodedBase64)",
+            "",
+            "    out.write(pageBytes, 0, pageBytes.size)",
+            "}");
 
 
-    public ClusterFileBufferedOutputStream(@NotNull Session session, @NotNull URI destination) {
+    public ClusterFileBase64BufferedOutputStream(@NotNull Session session, @NotNull URI destination, final int blockSizeKB) {
         this.session = session;
+        this.buf = ByteBuffer.allocate(blockSizeKB * 1024); // Due to BASE64 requirement, the block size
+                                                            // must be aligned to 4 bytes
 
+        // Pre-load
         session.runCodes(String.format(preloadedCodes, destination.toString()))
-                .subscribe();
+                .toBlocking()
+                .single();
+    }
+
+    public ClusterFileBase64BufferedOutputStream(@NotNull Session session, @NotNull URI destination) {
+        this(session, destination, DEFAULT_BLOCK_SIZE_KB);
     }
 
     @Override
     public void close() throws IOException {
+        flush();
+
         session.runCodes("out.close()")
                 .toBlocking()
                 .single();
@@ -69,17 +87,23 @@ public class ClusterFileBufferedOutputStream extends OutputStream {
 
     @Override
     public void write(int b) throws IOException {
-        bufBuilder.append(b);
+        if (!buf.hasRemaining()) {
+            flush();
+        }
+
+        buf.put((byte) b);
     }
 
     @Override
     public void flush() throws IOException {
-        String codesPage = bufBuilder.toString();
-        bufBuilder = new StringBuilder();
+        if (buf.position() > 0) {
+            String codesPage = new String(buf.array(), 0, buf.position());
 
-        session.runCodes(String.format("writePage(\"%s\")", codesPage))
-                .toBlocking()
-                .single();
+            buf.clear();
+            session.runCodes(String.format("writePage(\"%s\")", codesPage))
+                    .toBlocking()
+                    .single();
+        }
 
         super.flush();
     }

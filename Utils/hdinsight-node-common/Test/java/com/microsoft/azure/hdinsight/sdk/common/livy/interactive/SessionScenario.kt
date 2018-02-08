@@ -24,7 +24,6 @@ package com.microsoft.azure.hdinsight.sdk.common.livy.interactive
 
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
-import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.StatementOutput
 import com.microsoft.azure.hdinsight.spark.common.MockHttpService
 import cucumber.api.java.Before
 import cucumber.api.java.en.And
@@ -39,7 +38,7 @@ class SessionScenario {
     var httpServerMock: MockHttpService? = null
     var sessionMock: Session? = null
     var code: String = ""
-    var result: StatementOutput? = null
+    var result: Map<String, String>? = null
 
     @Before
     fun setUp() {
@@ -54,13 +53,6 @@ class SessionScenario {
     @And("^create a livy Spark interactive session instance with name '(.+)'$")
     fun newSparkSession(name: String) {
         sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")))
-    }
-
-    @And("^create a real livy Spark interactive session instance with name '(.+)'$")
-    fun newRealSparkSession(name: String) {
-        sessionMock!!.create()
-                .toBlocking()
-                .single()
     }
 
     @Then("^check the returned livy interactive session after creating should be$")
@@ -124,8 +116,7 @@ class SessionScenario {
 
     @Then("^check Spark interactive session statement run result stdout should be$")
     fun checkStatementRunResultOutput(outputExpect: List<String>) {
-        assertThat(result!!.status).isEqualToIgnoringCase("ok")
-        assertThat(result!!.data["text/plain"]!!.split("\n"))
+        assertThat(result!!["text/plain"]!!.split("\n"))
                 .containsExactlyElementsOf(outputExpect)
     }
 }

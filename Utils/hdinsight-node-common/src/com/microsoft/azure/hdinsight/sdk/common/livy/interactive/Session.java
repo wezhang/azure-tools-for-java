@@ -26,9 +26,9 @@ import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.ApplicationNotStartException;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.SessionNotStartException;
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.exceptions.StatementExecutionError;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionState;
-import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.StatementOutput;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.PostSessions;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
@@ -41,12 +41,15 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static rx.exceptions.Exceptions.propagate;
 
 public abstract class Session implements AutoCloseable, Closeable {
-    public static final String REST_SEGMENT_SESSION = "sessions";
+    private static final String REST_SEGMENT_SESSION = "sessions";
 
     @NotNull
     private URI baseUrl;            // Session base URL
@@ -64,6 +67,9 @@ public abstract class Session implements AutoCloseable, Closeable {
 
     @NotNull
     private SessionState lastState; // Last session state gotten
+
+    @Nullable
+    private List<String> lastLogs;  // Last session logs
 
     /*
      * Constructor
@@ -116,7 +122,6 @@ public abstract class Session implements AutoCloseable, Closeable {
         return appId != null ?
                 Observable.just(appId) :
                 this.get()
-                    .retry()
                     .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
                     .takeUntil(session -> session.appId != null)
                     .filter(session -> session.appId != null)
@@ -152,6 +157,15 @@ public abstract class Session implements AutoCloseable, Closeable {
         this.lastState = lastState;
     }
 
+    public void setLastLogs(@Nullable List<String> lastLogs) {
+        this.lastLogs = lastLogs;
+    }
+
+    @Nullable
+    public List<String> getLastLogs() {
+        return lastLogs;
+    }
+
     /*
      * Overrides
      */
@@ -166,6 +180,12 @@ public abstract class Session implements AutoCloseable, Closeable {
     public boolean isStarted() {
         return getLastState() != SessionState.STARTING &&
                 getLastState() != SessionState.NOT_STARTED;
+    }
+
+    public boolean isStop() {
+        return getLastState() == SessionState.SHUTTING_DOWN ||
+                getLastState() == SessionState.NOT_STARTED ||
+                getLastState() == SessionState.DEAD;
     }
 
     public boolean isStatementRunnable() {
@@ -191,6 +211,7 @@ public abstract class Session implements AutoCloseable, Closeable {
         this.setId(sessionResp.getId());
         this.setAppId(sessionResp.getAppId());
         this.setLastState(sessionResp.getState());
+        this.setLastLogs(sessionResp.getLog());
 
         return this;
     }
@@ -266,25 +287,43 @@ public abstract class Session implements AutoCloseable, Closeable {
                 .get(uri.toString(), null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session.class);
     }
 
-    public Observable<StatementOutput> runStatement(@NotNull Statement statement) {
+    public Observable<Map<String, String>> runStatement(@NotNull Statement statement) {
         return awaitReady()
-            .flatMap(session -> statement.run());
+            .flatMap(session -> statement
+                    .run()
+                    .map(result -> {
+                        if (!result.getStatus().toLowerCase().equals("ok")) {
+                            throw propagate(new StatementExecutionError(
+                                    result.getEname(), result.getEvalue(), result.getTraceback()));
+                        }
+
+                        return result.getData();
+                    }));
     }
 
     private Observable<Session> awaitReady() {
         return get()
-                .retry()
+                .map(ses -> {
+                    if (ses.isStop()) {
+                        throw propagate(new SessionNotStartException(
+                                "Session " + getName() + " is " + getLastState() + ". " +
+                                        Optional.ofNullable(ses.getLastLogs())
+                                                .map(logs -> String.join("\n", logs))
+                                                .orElse("")));
+                    }
+
+                    return ses;
+                })
                 .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
                 .takeUntil(Session::isStatementRunnable)
                 .filter(Session::isStatementRunnable);
     }
 
-    public Observable<StatementOutput> runCodes(@NotNull String codes) {
+    public Observable<Map<String, String>> runCodes(@NotNull String codes) {
         return runStatement(new Statement(this, new ByteArrayInputStream(codes.getBytes(StandardCharsets.UTF_8))));
     }
 
     public Observable<String> getLog() {
         throw new NotImplementedException();
     }
-
 }

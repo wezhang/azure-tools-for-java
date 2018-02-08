@@ -124,9 +124,9 @@ public class Statement {
     public Observable<StatementOutput> run() {
         return runStatementRequest()
                 .map(this::updateWithResponse)
-                .flatMap(statement -> statement.get()    // Get statement result with retry
-                        .retry()
-                        .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                .flatMap(statement -> statement.get()                    // Get statement result
+                        .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS)) // The unmet state won't trigger retries,
+                                                                         // which is handled by repeatWhen()
                         .takeUntil(Statement::isDone)
                         .filter(Statement::isDone)
                 )

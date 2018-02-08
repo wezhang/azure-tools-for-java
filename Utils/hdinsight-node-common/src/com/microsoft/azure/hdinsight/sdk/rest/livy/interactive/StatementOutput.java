@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive;
 
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,6 +36,9 @@ import java.util.Map;
 public class StatementOutput implements IConvertible {
     private String              status;             // Execution status
     private int                 execution_count;    // A monotonically increasing number
+    private String              ename;              // Error name, only for "error" status
+    private String              evalue;             // Error value, only for "error" status
+    private List<String>        traceback;          // Error traceback lines, only for "error" status
     private Map<String, String> data;               // Statement output. An object mapping a mime type to the result.
                                                     // If the mime type is ``application/json``, the value is a
                                                     // JSON value
@@ -45,6 +49,18 @@ public class StatementOutput implements IConvertible {
 
     public int getExecution_count() {
         return execution_count;
+    }
+
+    public String getEname() {
+        return ename;
+    }
+
+    public String getEvalue() {
+        return evalue;
+    }
+
+    public List<String> getTraceback() {
+        return traceback;
     }
 
     public Map<String, String> getData() {
