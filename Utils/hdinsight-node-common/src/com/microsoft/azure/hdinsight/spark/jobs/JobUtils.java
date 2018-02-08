@@ -37,6 +37,8 @@ import com.microsoft.azure.hdinsight.sdk.cluster.EmulatorClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession;
+import com.microsoft.azure.hdinsight.sdk.io.spark.ClusterFileBase64BufferedOutputStream;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.ApplicationMasterLogs;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
@@ -44,7 +46,6 @@ import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
-import com.microsoft.azure.hdinsight.spark.common.SparkJobException;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivyBatchesInformation;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivySession;
@@ -58,6 +59,8 @@ import com.microsoft.tooling.msservices.helpers.azure.sdk.StorageClientSDKManage
 import com.microsoft.tooling.msservices.model.storage.BlobContainer;
 import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 import com.sun.net.httpserver.HttpExchange;
+import org.apache.commons.codec.binary.Base64OutputStream;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -70,9 +73,9 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.*;
 import rx.Observable;
 import rx.Observer;
+import rx.*;
 import rx.schedulers.Schedulers;
 
 import java.awt.*;
@@ -81,8 +84,8 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.*;
+import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -90,6 +93,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
+import static rx.exceptions.Exceptions.propagate;
 
 public class JobUtils {
     private static Logger LOGGER = LoggerFactory.getLogger(JobUtils.class);
@@ -397,6 +401,7 @@ public class JobUtils {
         return null;
     }
 
+    @Deprecated
     public static String uploadFileToAzure(@NotNull File file,
                                            @NotNull IHDIStorageAccount storageAccount,
                                            @NotNull String defaultContainerName,
@@ -516,18 +521,46 @@ public class JobUtils {
 
     public static String uploadFileToHDFS(@NotNull IClusterDetail selectedClusterDetail,
                                           @NotNull String buildJarPath,
-                                          @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> logSubject) throws Exception {
-
+                                          @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> logSubject) throws HDIException {
         logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Get target jar from %s.", buildJarPath)));
 
-        final String uploadShortPath = getFormatPathByDate();
-        return uploadFileToAzure(
-                new File(buildJarPath),
-                selectedClusterDetail.getStorageAccount(),
-                selectedClusterDetail.getStorageAccount().getDefaultContainerOrRootPath(),
-                uploadShortPath,
-                logSubject,
-                null);
+        File srcJarFile = new File(buildJarPath);
+        URI destUri = URI.create(String.format("/SparkSubmission/%s/%s", getFormatPathByDate(), srcJarFile.getName()));
+
+        String username = selectedClusterDetail.getHttpUserName();
+        String password = selectedClusterDetail.getHttpPassword();
+        String sessionName = "Helper session to upload " + destUri.toString();
+        URI livyUri = getLivyBaseUri(selectedClusterDetail);
+
+        return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
+                                SparkSession::create,
+                                SparkSession::close)
+                .map(sparkSession -> {
+                    ClusterFileBase64BufferedOutputStream clusterFileBase64Out = new ClusterFileBase64BufferedOutputStream(
+                            sparkSession, destUri);
+                    Base64OutputStream base64Enc = new Base64OutputStream(clusterFileBase64Out, true);
+                    InputStream inFile;
+
+                    try {
+                        inFile = new BufferedInputStream(new FileInputStream(srcJarFile));
+
+                        logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploading to %s...", destUri)));
+                        IOUtils.copy(inFile, base64Enc);
+
+                        inFile.close();
+                        base64Enc.close();
+                    } catch (FileNotFoundException fnfEx) {
+                        throw propagate(new HDIException(String.format("Source file %s not found.", srcJarFile), fnfEx));
+                    } catch (IOException ioEx) {
+                        throw propagate(new HDIException(String.format("Failed to upload file %s.", destUri), ioEx));
+                    }
+
+                    logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploaded to %s.", destUri)));
+
+                    return destUri.toString();
+                })
+                .toBlocking()
+                .single();
     }
 
     public static String uploadFileToCluster(@NotNull final IClusterDetail selectedClusterDetail,
@@ -540,11 +573,15 @@ public class JobUtils {
     }
 
     public static String getLivyConnectionURL(IClusterDetail clusterDetail) {
+        return getLivyBaseUri(clusterDetail).resolve("batches").toString();
+    }
+
+    public static URI getLivyBaseUri(IClusterDetail clusterDetail) {
         if(clusterDetail.isEmulator()){
-            return clusterDetail.getConnectionUrl() + "/batches";
+            return URI.create(clusterDetail.getConnectionUrl()).resolve("/");
         }
 
-        return clusterDetail.getConnectionUrl() + "/livy/batches";
+        return URI.create(clusterDetail.getConnectionUrl()).resolve("/livy/");
     }
 
     public static Single<SparkBatchJob> submit(@NotNull IClusterDetail cluster, @NotNull SparkSubmissionParameter parameter) {

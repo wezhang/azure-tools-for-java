@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.sdk.io.spark;
 
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.Session;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import org.apache.commons.codec.binary.Base64;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -31,7 +32,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 
 public class ClusterFileBase64BufferedOutputStream extends OutputStream {
-    private static final int DEFAULT_BLOCK_SIZE_KB = 64;      // 16KB block size
+    private static final int DEFAULT_BLOCK_SIZE_KB = 64;      // 64KB block size
 
     @NotNull
     private final Session session;
@@ -91,7 +92,9 @@ public class ClusterFileBase64BufferedOutputStream extends OutputStream {
             flush();
         }
 
-        buf.put((byte) b);
+        if (Base64.isBase64((byte) b)) {
+            buf.put((byte) b);
+        }
     }
 
     @Override

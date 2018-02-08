@@ -170,7 +170,7 @@ public abstract class Session implements AutoCloseable, Closeable {
      * Overrides
      */
     @Override
-    public void close() throws IOException {
+    public void close() {
         kill().toBlocking().single();
     }
 
