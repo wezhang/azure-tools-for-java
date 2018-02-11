@@ -32,7 +32,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 
 public class ClusterFileBase64BufferedOutputStream extends OutputStream {
-    private static final int DEFAULT_BLOCK_SIZE_KB = 64;      // 64KB block size
+    private static final int DEFAULT_BLOCK_SIZE_KB = 32;      // 32KB block size
 
     @NotNull
     private final Session session;
