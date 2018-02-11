@@ -30,6 +30,7 @@ import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -163,7 +164,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                                         .orElseThrow(() -> propagate(new SparkJobException("Can't find jar path to upload"))),
                                 submitModel.getSubmissionParameter().getClusterName(),
                                 ctrlSubject)
-                        .subscribeOn(Schedulers.io());
+                        .subscribeOn(IdeaSchedulers.processBarVisable());
+//                        .subscribeOn(Schedulers.io());
                 })
                 .flatMap(clusterArtifactUriPair -> {
                     logInfo("The Spark job is submitting ...");
