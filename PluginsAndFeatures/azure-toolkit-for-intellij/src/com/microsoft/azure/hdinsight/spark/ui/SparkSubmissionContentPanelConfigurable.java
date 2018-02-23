@@ -69,13 +69,8 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         ManifestFileUtil.setupMainClassField(myProject, submissionPanel.getMainClassTextField());
 
-        this.submissionPanel.addClusterListRefreshActionListener(e -> {
-            List<IClusterDetail> clusterDetails = ClusterManagerEx.getInstance().getClusterDetails();
-            Optional<String> selectedClusterTitle = submitModel.getSelectedClusterDetail()
-                    .map(IClusterDetail::getTitle);
-            resetClusterDetailsToComboBoxModel(submitModel, clusterDetails);
-            selectedClusterTitle.ifPresent(selectedTitle -> setSelectedClusterByTitle(submitModel, selectedTitle));
-        });
+        this.submissionPanel.addClusterListRefreshActionListener(e ->
+                refreshClusterSelection(ClusterManagerEx.getInstance().getClusterDetails()));
 
         this.submissionPanel.addJobConfigurationLoadButtonActionListener(e -> {
             FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(
@@ -118,6 +113,17 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         return submissionPanel;
     }
 
+    private void refreshClusterSelection(List<IClusterDetail> clusters) {
+        Optional<String> selectedClusterTitle = submitModel.getSelectedClusterDetail()
+                .map(IClusterDetail::getTitle);
+        resetClusterDetailsToComboBoxModel(submitModel, clusters);
+        if (selectedClusterTitle.isPresent()) {
+            setSelectedClusterByTitle(submitModel, selectedClusterTitle.get());
+        } else {
+            setSelectedClusterByName(submitModel, submitModel.getSubmissionParameter().getClusterName());
+        }
+    }
+
     private void refreshClusterListAsync() {
         submissionPanel.setClustersListRefreshEnabled(false);
 
@@ -139,10 +145,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(myProject, "Error: Failed to list additional cluster");
             }
 
-            Optional<String> selectedClusterTitle = submitModel.getSelectedClusterDetail()
-                    .map(IClusterDetail::getTitle);
-            resetClusterDetailsToComboBoxModel(submitModel, cachedClusters);
-            selectedClusterTitle.ifPresent(selectedTitle -> setSelectedClusterByTitle(submitModel, selectedTitle));
+            refreshClusterSelection(cachedClusters);
 
             submissionPanel.setClustersListRefreshEnabled(true);
             submissionPanel.getClusterSelectedSubject().onNext((String) submissionPanel.getClustersListComboBox().getComboBox().getSelectedItem());
@@ -178,6 +181,20 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         destSubmitModel.getCachedClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getTitle().equals(clusterTitleToSelect))
+                .map(IClusterDetail::getTitle)
+                .findFirst()
+                .ifPresent(clusterTitle -> {
+                    if (clusterComboBoxModel.getIndexOf(clusterTitle) >= 0) {
+                        clusterComboBoxModel.setSelectedItem(clusterTitle);
+                    }
+                });
+    }
+
+    private void setSelectedClusterByName(SparkSubmitModel destSubmitModel, String clusterNameToSelect) {
+        final DefaultComboBoxModel<String> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
+
+        destSubmitModel.getCachedClusterDetails().stream()
+                .filter(clusterDetail -> clusterDetail.getName().equals(clusterNameToSelect))
                 .map(IClusterDetail::getTitle)
                 .findFirst()
                 .ifPresent(clusterTitle -> {
