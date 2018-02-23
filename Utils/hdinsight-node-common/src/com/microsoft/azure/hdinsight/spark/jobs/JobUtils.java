@@ -532,6 +532,8 @@ public class JobUtils {
         String sessionName = "Helper session to upload " + destUri.toString();
         URI livyUri = getLivyBaseUri(selectedClusterDetail);
 
+        logSubject.onNext(new SimpleImmutableEntry<>(Info, "Create Spark helper interactive session..."));
+
         return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
                                 SparkSession::create,
                                 SparkSession::close)
@@ -544,7 +546,7 @@ public class JobUtils {
                     try {
                         inFile = new BufferedInputStream(new FileInputStream(srcJarFile));
 
-                        logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploading to %s...", destUri)));
+                        logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploading %s...", srcJarFile)));
                         IOUtils.copy(inFile, base64Enc);
 
                         inFile.close();

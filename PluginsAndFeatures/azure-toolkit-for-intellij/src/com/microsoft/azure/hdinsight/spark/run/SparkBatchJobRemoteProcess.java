@@ -156,23 +156,17 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     public void start() {
         // Build, deploy and wait for the job done.
         jobSubscription = SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
-                .flatMap(artifact -> {
-                    logInfo("Deploy the jar file into cluster...");
-
-                    return JobUtils.deployArtifact(
-                                submitModel.getArtifactPath(artifact.getName())
-                                        .orElseThrow(() -> propagate(new SparkJobException("Can't find jar path to upload"))),
-                                submitModel.getSubmissionParameter().getClusterName(),
-                                ctrlSubject)
-                        .subscribeOn(IdeaSchedulers.processBarVisable());
-//                        .subscribeOn(Schedulers.io());
-                })
+                .flatMap(artifact -> JobUtils.deployArtifact(
+                            submitModel.getArtifactPath(artifact.getName())
+                                    .orElseThrow(() -> propagate(new SparkJobException("Can't find jar path to upload"))),
+                            submitModel.getSubmissionParameter().getClusterName(),
+                            ctrlSubject)
+                    .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Deploy the jar file into cluster")))
                 .flatMap(clusterArtifactUriPair -> {
-                    logInfo("The Spark job is submitting ...");
-
                     IClusterDetail cluster = clusterArtifactUriPair.getKey();
                     submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
-                    return JobUtils.submit(cluster, submitModel.getSubmissionParameter()).subscribeOn(Schedulers.io());
+                    return JobUtils.submit(cluster, submitModel.getSubmissionParameter())
+                            .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Submit the Spark batch job"));
                 })
                 .doOnSuccess(job -> {
                     getEventSubject().onNext(new SparkBatchJobSubmissionEvent(
@@ -201,7 +195,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                             try {
                                 final String state = job.getState();
 
-                                if (state.equals("starting") || state.equals("not_started")) {
+                                if (state.equals("starting") || state.equals("not_started") || state.equals("running")) {
                                     logInfo("Job is waiting for start due to cluster busy, please wait or disconnect (The job will run when the cluster is free).");
 
                                     return Observable.timer(5, TimeUnit.SECONDS);
@@ -209,7 +203,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                             } catch (IOException ignored) {
                             }
 
-                            return Observable.error(new SparkJobException("Spark Job Service not available, please check HDInsight cluster status."));
+                            return Observable.error(new SparkJobException("Spark Job Service not available, please check HDInsight cluster status.", err));
                         })))
                 .flatMap(runningJob -> runningJob.getJobDoneObservable().subscribeOn(Schedulers.io()))
                 .subscribe(sdPair -> {

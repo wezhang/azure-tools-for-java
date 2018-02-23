@@ -22,6 +22,7 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
 
@@ -45,6 +46,7 @@ import java.util.Map;
  * Response Type
  *   @see com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Session
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PostSessions implements IConvertible {
     private SessionKind         kind;                       // The session kind (required)
     private String              proxyUser;                  // User to impersonate when starting the session

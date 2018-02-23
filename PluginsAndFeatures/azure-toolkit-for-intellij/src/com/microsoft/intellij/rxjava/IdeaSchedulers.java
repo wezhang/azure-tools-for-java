@@ -22,11 +22,29 @@
 
 package com.microsoft.intellij.rxjava;
 
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
+import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.NotNull;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
 public class IdeaSchedulers {
-    public static Scheduler processBarVisable() {
-        return Schedulers.from(new ApplicationManagerInvokeAndWaitExecutor());
+    public static Scheduler processBarVisibleAsync(@NotNull Project project, @NotNull String title) {
+        return Schedulers.from(command -> ApplicationManager.getApplication().invokeLater(() -> {
+            final Task.Backgroundable task = new Task.Backgroundable(project, title) {
+                @Override
+                public void run(@NotNull ProgressIndicator progressIndicator) {
+                    command.run();
+                }
+            };
+
+            final ProgressIndicator progressIndicator = new BackgroundableProcessIndicator(task);
+
+            ProgressManager.getInstance().runProcessWithProgressAsynchronously(task, progressIndicator);
+        }));
     }
 }
