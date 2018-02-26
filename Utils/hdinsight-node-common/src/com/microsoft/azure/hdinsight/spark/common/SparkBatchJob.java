@@ -40,6 +40,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppAttemptsResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -89,7 +90,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
      * The setting of delay seconds between tries in RestAPI calling
      */
-    private int delaySeconds = 10;
+    private int delaySeconds = 2;
 
     /**
      * The global cache for fetched Yarn UI page by browser
@@ -548,11 +549,17 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
      * Get Spark Job driver log URL with retries
      *
+     * @deprecated
+     * The Livy Rest API driver log Url field only get the running job.
+     * Use getSparkJobDriverLogUrlObservable() please, with RxJava supported.
+     *
      * @param batchBaseUri the connection URI
      * @param batchId the Livy batch job ID
      * @return the Spark Job driver log URL
      * @throws IOException exceptions in transaction
      */
+    @Nullable
+    @Deprecated
     public String getSparkJobDriverLogUrl(URI batchBaseUri, int batchId) throws IOException {
         int retries = 0;
 
@@ -628,9 +635,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 int start = 0;
                 final int maxLinesPerGet = 128;
                 int linesGot = 0;
-                boolean isJobActive = true;
+                boolean isSubmitting = true;
 
-                while (isJobActive) {
+                while (isSubmitting) {
                     String logUrl = String.format("%s/%d/log?from=%d&size=%d",
                             this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
 
@@ -650,7 +657,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                     // Retry interval
                     if (linesGot == 0) {
                         sleep(TimeUnit.SECONDS.toMillis(this.getDelaySeconds()));
-                        isJobActive = this.isActive();
+                        isSubmitting = this.getState().equals("starting");
                     }
                 }
             } catch (IOException ex) {
@@ -750,5 +757,18 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 ob.onCompleted();
             }
         });
+    }
+
+    /**
+     * New RxAPI: Get Job Driver Log URL from the container
+     *
+     * @return Job Driver log URL observable
+     */
+    public Observable<String> getSparkJobDriverLogUrlObservable() {
+        return getSparkJobYarnCurrentAppAttempt()
+                .map(AppAttempt::getLogsLink)
+                .map(URI::create)
+                .map(logUriWithIP -> getConnectUri().resolve(
+                        String.format("/yarnui/%s%s", logUriWithIP.getHost(), logUriWithIP.getPath())).toString());
     }
 }

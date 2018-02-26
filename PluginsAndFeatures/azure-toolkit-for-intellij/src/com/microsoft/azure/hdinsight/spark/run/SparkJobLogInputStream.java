@@ -30,7 +30,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.AbstractMap;
 import java.util.Optional;
 
@@ -51,9 +50,11 @@ public class SparkJobLogInputStream extends InputStream {
         this.logType = logType;
     }
 
-    public void attachJob(@NotNull SparkBatchJob sparkJob) throws IOException {
+    public SparkBatchJob attachJob(@NotNull SparkBatchJob sparkJob) {
+        refreshLogUrl(sparkJob);
         this.sparkBatchJob = sparkJob;
-        refreshLogUrl();
+
+        return sparkJob;
     }
 
     private synchronized Optional<String> fetchLog(long logOffset, int fetchSize) {
@@ -96,7 +97,7 @@ public class SparkJobLogInputStream extends InputStream {
 
                         return buffer.length;
                     }).orElseGet(() -> {
-                        refreshLogUrl();
+                        getAttachedJob().ifPresent(this::refreshLogUrl);
 
                         return 0;
                     });
@@ -105,22 +106,14 @@ public class SparkJobLogInputStream extends InputStream {
         }
     }
 
-    private void refreshLogUrl() {
-        getAttachedJob()
-            .ifPresent(
-                    sparkJob -> {
-                        try {
-                            String currentLogUrl = sparkJob.getSparkJobDriverLogUrl(sparkJob.getConnectUri(), sparkJob.getBatchId());
+    private void refreshLogUrl(SparkBatchJob sparkJob) {
+        String currentLogUrl = sparkJob.getSparkJobDriverLogUrlObservable().toBlocking().single();
 
-                            if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
-                                // The driver log url's changed due to the job was rerun, read it from beginning
-                                this.logUrl = currentLogUrl;
-                                offset = 0;
-                            }
-                        } catch (IOException ex) {
-                            throw new UncheckedIOException(ex);
-                        }
-                    });
+        if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
+            // The driver log url's changed due to the job was rerun, read it from beginning
+            this.logUrl = currentLogUrl;
+            offset = 0;
+        }
     }
 
     public Optional<String> getLogUrl() {
