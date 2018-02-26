@@ -175,7 +175,7 @@ public class ClusterManagerEx {
         }
     }
 
-    List<IClusterDetail> getHdinsightAdditionalClusterDetails() {
+    public List<IClusterDetail> getHdinsightAdditionalClusterDetails() {
         return hdinsightAdditionalClusterDetails;
     }
 
@@ -293,6 +293,7 @@ public class ClusterManagerEx {
         return 1: cluster already exist in current cluster list
         return 2: cluster is valid to add to cluster list but storage account is not default
      */
+    @Deprecated
     public int isHDInsightAdditionalStorageExist(String clusterName, String storageName) {
         final ImmutableList<IClusterDetail> cachedClusterDetails =
                 Optional.of(ClusterMetaDataService.getInstance().getCachedClusterDetails())

@@ -30,6 +30,7 @@ import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 
 import java.io.IOException;
@@ -43,9 +44,10 @@ public class HDInsightAdditionalClusterDetail implements IClusterDetail {
     private String passWord;
 
     @Expose
+    @Nullable
     private HDStorageAccount defaultStorageAccount;
 
-    public HDInsightAdditionalClusterDetail(String clusterName, String userName, String passWord, HDStorageAccount storageAccount) {
+    public HDInsightAdditionalClusterDetail(String clusterName, String userName, String passWord, @Nullable HDStorageAccount storageAccount) {
         this.clusterName = clusterName;
         this.userName = userName;
         this.passWord = passWord;
@@ -139,6 +141,7 @@ public class HDInsightAdditionalClusterDetail implements IClusterDetail {
     }
 
     @Override
+    @Nullable
     public IHDIStorageAccount getStorageAccount() throws HDIException {
         return defaultStorageAccount;
     }

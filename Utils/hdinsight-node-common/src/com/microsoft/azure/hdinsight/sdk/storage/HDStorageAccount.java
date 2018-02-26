@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.sdk.storage;
 
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 
 public class HDStorageAccount extends ClientStorageAccount implements IHDIStorageAccount {
@@ -31,7 +32,7 @@ public class HDStorageAccount extends ClientStorageAccount implements IHDIStorag
     private String defaultContainer;
     private IClusterDetail clusterDetail;
 
-    public HDStorageAccount(IClusterDetail clusterDetail, String fullStorageBlobName, String key, boolean isDefault, String defaultContainer) {
+    public HDStorageAccount(@Nullable IClusterDetail clusterDetail, String fullStorageBlobName, String key, boolean isDefault, String defaultContainer) {
         super(getStorageShortName(fullStorageBlobName));
         this.setPrimaryKey(key);
         this.fullStorageBlobName = fullStorageBlobName;

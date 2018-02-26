@@ -31,6 +31,8 @@ import com.microsoft.azure.storage.blob.BlobContainerPermissions;
 import com.microsoft.azure.storage.blob.BlobContainerProperties;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsConstants;
 import com.microsoft.azuretools.telemetry.TelemetryProperties;
@@ -52,7 +54,7 @@ public class StorageAccountNode extends RefreshableNode implements TelemetryProp
 
     private IHDIStorageAccount storageAccount;
 
-    public StorageAccountNode(Node parent, IHDIStorageAccount storageAccount, boolean isDefaultStorageAccount) {
+    public StorageAccountNode(Node parent, @NotNull IHDIStorageAccount storageAccount, boolean isDefaultStorageAccount) {
        super(STORAGE_ACCOUNT_MODULE_ID, isDefaultStorageAccount ? storageAccount.getName() + DEFAULT_STORAGE_FLAG : storageAccount.getName(), parent, getIconPath(storageAccount));
         this.storageAccount = storageAccount;
         load(false);

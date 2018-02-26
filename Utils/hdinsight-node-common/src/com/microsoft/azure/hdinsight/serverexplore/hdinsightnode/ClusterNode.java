@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.serverexplore.hdinsightnode;
 import com.microsoft.azure.hdinsight.common.*;
 import com.microsoft.azure.hdinsight.sdk.cluster.*;
 import com.microsoft.azure.hdinsight.sdk.common.CommonConstant;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsConstants;
 import com.microsoft.azuretools.telemetry.TelemetryProperties;
@@ -43,9 +44,10 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
     private static final String CLUSTER_MODULE_ID = ClusterNode.class.getName();
     private static final String ICON_PATH = CommonConst.ClusterIConPath;
 
+    @NotNull
     private IClusterDetail clusterDetail;
 
-    public ClusterNode(Node parent, IClusterDetail clusterDetail) {
+    public ClusterNode(Node parent, @NotNull IClusterDetail clusterDetail) {
         super(CLUSTER_MODULE_ID, getClusterNameWitStatus(clusterDetail), parent, ICON_PATH, true);
         this.clusterDetail = clusterDetail;
         this.loadActions();
@@ -160,7 +162,7 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
     }
 
     private void openUrlLink(String linkUrl) {
-        if (clusterDetail != null && !StringHelper.isNullOrWhiteSpace(clusterDetail.getName())) {
+        if (!StringHelper.isNullOrWhiteSpace(clusterDetail.getName())) {
             try {
                 Desktop.getDesktop().browse(new URI(linkUrl));
             } catch (Exception exception) {

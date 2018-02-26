@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.serverexplore.hdinsightnode;
 import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
@@ -31,14 +32,16 @@ import com.microsoft.tooling.msservices.serviceexplorer.RefreshableNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.storage.asm.StorageNode;
 
 import java.util.List;
+import java.util.Optional;
 
 public class StorageAccountFolderNode extends RefreshableNode {
     private static final String STORAGE_ACCOUNT_FOLDER_MODULE_ID = StorageAccountFolderNode.class.getName();
     private static final String STORAGE_ACCOUNT_NAME = "Storage Accounts";
     private static final String ICON_PATH = CommonConst.StorageAccountFoldIConPath;
 
+    @NotNull
     private IClusterDetail clusterDetail;
-    public StorageAccountFolderNode(Node parent, IClusterDetail clusterDetail) {
+    public StorageAccountFolderNode(Node parent, @NotNull IClusterDetail clusterDetail) {
         super(STORAGE_ACCOUNT_FOLDER_MODULE_ID, STORAGE_ACCOUNT_NAME, parent, ICON_PATH);
         this.clusterDetail = clusterDetail;
         load(false);
@@ -47,10 +50,14 @@ public class StorageAccountFolderNode extends RefreshableNode {
     @Override
     protected void refreshItems()
             throws AzureCmdException {
-        if (clusterDetail != null && !clusterDetail.isEmulator()) {
+        if (!clusterDetail.isEmulator()) {
             try {
                 clusterDetail.getConfigurationInfo();
-                addChildNode(new StorageAccountNode(this, clusterDetail.getStorageAccount(), true));
+
+                Optional.ofNullable(clusterDetail.getStorageAccount())
+                        .map(defaultStorageAccount -> new StorageAccountNode(this, defaultStorageAccount, true))
+                        .ifPresent(this::addChildNode);
+
                 List<HDStorageAccount> additionalStorageAccount = clusterDetail.getAdditionalStorageAccounts();
                 if (additionalStorageAccount != null) {
                     for (HDStorageAccount account : additionalStorageAccount) {
