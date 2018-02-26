@@ -29,13 +29,17 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
+import javax.swing.*;
+import java.lang.reflect.InvocationTargetException;
+
 public class IdeaSchedulers {
-    public static Scheduler processBarVisibleAsync(@NotNull Project project, @NotNull String title) {
+    public static Scheduler processBarVisibleAsync(@Nullable Project project, @NotNull String title) {
         return Schedulers.from(command -> ApplicationManager.getApplication().invokeLater(() -> {
-            final Task.Backgroundable task = new Task.Backgroundable(project, title) {
+            final Task.Backgroundable task = new Task.Backgroundable(project, title, false) {
                 @Override
                 public void run(@NotNull ProgressIndicator progressIndicator) {
                     command.run();
@@ -46,5 +50,24 @@ public class IdeaSchedulers {
 
             ProgressManager.getInstance().runProcessWithProgressAsynchronously(task, progressIndicator);
         }));
+    }
+
+    public static Scheduler processBarVisibleSync(@Nullable Project project, @NotNull String title) {
+        return Schedulers.from(command -> ApplicationManager.getApplication().invokeAndWait(() -> {
+            final Task.Backgroundable task = new Task.Backgroundable(project, title, false) {
+                @Override
+                public void run(@NotNull ProgressIndicator progressIndicator) {
+                    command.run();
+                }
+            };
+
+            final ProgressIndicator progressIndicator = new BackgroundableProcessIndicator(task);
+
+            ProgressManager.getInstance().runProcessWithProgressAsynchronously(task, progressIndicator);
+        }));
+    }
+
+    public static Scheduler dispatchThread() {
+        return Schedulers.from(SwingUtilities::invokeLater);
     }
 }
