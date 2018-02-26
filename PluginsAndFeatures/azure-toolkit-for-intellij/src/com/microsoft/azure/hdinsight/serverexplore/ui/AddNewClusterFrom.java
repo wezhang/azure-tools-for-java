@@ -23,50 +23,30 @@ package com.microsoft.azure.hdinsight.serverexplore.ui;
 
 import com.intellij.CommonBundle;
 import com.intellij.ide.BrowserUtil;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
-import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
-import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
+import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterCtrlProvider;
+import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterModel;
 import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
-import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
-import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
-import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
+import com.microsoft.azure.hdinsight.spark.common.SettableControl;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
-import com.microsoft.tooling.msservices.helpers.azure.sdk.StorageClientSDKManager;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import com.microsoft.tooling.msservices.model.storage.BlobContainer;
-import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
-public class AddNewClusterFrom extends DialogWrapper {
-
+public class AddNewClusterFrom extends DialogWrapper implements SettableControl<AddNewClusterModel>{
+    @Nullable
     private Project project;
-    private String clusterName;
-    private String userName;
-    private String password;
-
-    private String storageName;
-    private String storageKey;
-    private String storageContainer;
-
-    private HDStorageAccount storageAccount;
-
-    private String errorMessage;
-    private boolean isCarryOnNextStep;
 
     private JPanel addNewClusterPanel;
     private JTextField clusterNameFiled;
@@ -83,17 +63,18 @@ public class AddNewClusterFrom extends DialogWrapper {
     private JComboBox<BlobContainer> containersComboBox;
     private JLabel storageContainerLabel;
 
+    @NotNull
     private HDInsightRootModule hdInsightModule;
 
-    private static final String URL_PREFIX = "https://";
     private static final String HELP_URL = "https://go.microsoft.com/fwlink/?linkid=866472";
 
-    public AddNewClusterFrom(final Project project, HDInsightRootModule hdInsightModule) {
+    public AddNewClusterFrom(@Nullable final Project project, @NotNull HDInsightRootModule hdInsightModule) {
         super(project, true);
+        this.project = project;
+
         myHelpAction = new HelpAction();
 
         init();
-        this.project = project;
         this.hdInsightModule = hdInsightModule;
 
         this.setTitle("Link A New HDInsight Cluster");
@@ -106,43 +87,71 @@ public class AddNewClusterFrom extends DialogWrapper {
         storageKeyTextField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent e) {
-                super.focusLost(e);
-
-                if (StringUtils.isNotBlank(storageNameField.getText()) && StringUtils.isNotBlank(storageKeyTextField.getText())) {
-                    ClientStorageAccount storageAccount = new ClientStorageAccount(storageNameField.getText());
-                    storageAccount.setPrimaryKey(storageKeyTextField.getText());
-
-                    refreshContainers(storageAccount);
-                }
+                refreshContainers();
             }
         });
 
         storageNameField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusLost(FocusEvent e) {
-                super.focusLost(e);
-
-                if (StringUtils.isNotBlank(storageNameField.getText()) && StringUtils.isNotBlank(storageKeyTextField.getText())) {
-                    ClientStorageAccount storageAccount = new ClientStorageAccount(storageNameField.getText());
-                    storageAccount.setPrimaryKey(storageKeyTextField.getText());
-
-                    refreshContainers(storageAccount);
-                }
+                refreshContainers();
             }
         });
     }
 
-    private void refreshContainers(@NotNull ClientStorageAccount storageAccount) {
-        try {
-            containersComboBox.removeAllItems();
+    private AddNewClusterCtrlProvider prepareCtrl() {
+        AddNewClusterModel current = new AddNewClusterModel();
 
-            StorageClientSDKManager.getManager().getBlobContainers(storageAccount.getConnectionString())
-                    .forEach(containersComboBox::addItem);
+        getData(current);
 
-            containersComboBox.setMaximumRowCount(6);
-        } catch (AzureCmdException e) {
-            containersComboBox.removeAllItems();
-        }
+        return new AddNewClusterCtrlProvider(current);
+    }
+
+    private void refreshContainers() {
+        prepareCtrl()
+                .refreshContainers()
+                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(this.project, "Getting storage account containers..."))
+                .subscribe(this::setData);
+    }
+
+    @Override
+    public void setData(@NotNull AddNewClusterModel data) {
+        // Data -> Components
+
+        // Text fields
+        clusterNameFiled.setText(data.getClusterName());
+        clusterNameLabel.setText(data.getClusterNameLabelTitle());
+        userNameField.setText(data.getUserName());
+        userNameLabel.setText(data.getUserNameLabelTitle());
+        passwordField.setText(data.getPassword());
+        passwordLabel.setText(data.getPasswordLabelTitle());
+        storageNameField.setText(data.getStorageName());
+        storageKeyTextField.setText(data.getStorageKey());
+        errorMessageField.setText(data.getErrorMessage());
+
+        // Combo box
+        containersComboBox.removeAllItems();
+        data.getContainers().forEach(containersComboBox::addItem);
+        containersComboBox.setSelectedItem(data.getSelectedContainer());
+    }
+
+    @Override
+    public void getData(@NotNull AddNewClusterModel data) {
+        // Components -> Data
+        data.setClusterName(clusterNameFiled.getText())
+            .setClusterNameLabelTitle(clusterNameLabel.getText())
+            .setUserName(userNameField.getText())
+            .setUserNameLabelTitle(userNameLabel.getText())
+            .setPassword(String.valueOf(passwordField.getPassword()))
+            .setPasswordLabelTitle(passwordLabel.getText())
+            .setStorageName(storageNameField.getText())
+            .setStorageKey(storageKeyTextField.getText())
+            .setErrorMessage(errorMessageField.getText())
+            .setSelectedContainer((BlobContainer) containersComboBox.getSelectedItem())
+            .setContainers(IntStream.range(0, containersComboBox.getItemCount())
+                                    .mapToObj(i -> containersComboBox.getItemAt(i))
+                                    .collect(Collectors.toList()));
+
     }
 
     private class HelpAction extends AbstractAction {
@@ -162,114 +171,19 @@ public class AddNewClusterFrom extends DialogWrapper {
 
     @Override
     protected void doOKAction() {
-        synchronized (AddNewClusterFrom.class) {
-            isCarryOnNextStep = true;
-            errorMessage = null;
-            errorMessageField.setVisible(false);
+        prepareCtrl()
+                .validateAndAdd()
+                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(this.project, "Validating the cluster settings..."))
+                .doOnNext(this::setData)
+                .map(AddNewClusterModel::getErrorMessage)
+                .filter(StringUtils::isEmpty)
+                .observeOn(IdeaSchedulers.dispatchThread())     // UI operation needs to be in dispatch thread
+                .subscribe(toUpdate -> {
+                    hdInsightModule.refreshWithoutAsync();
+                    AppInsightsClient.create(HDInsightBundle.message("HDInsightAddNewClusterAction"), null);
 
-            String clusterNameOrUrl = clusterNameFiled.getText().trim();
-            userName = userNameField.getText().trim();
-            storageName = storageNameField.getText().trim();
-
-            storageKey = storageKeyTextField.getText().trim();
-
-            password = String.valueOf(passwordField.getPassword());
-
-            AppInsightsClient.create(HDInsightBundle.message("HDInsightAddNewClusterAction"), null);
-
-            if (StringHelper.isNullOrWhiteSpace(clusterNameOrUrl) || StringHelper.isNullOrWhiteSpace(storageName) || StringHelper.isNullOrWhiteSpace(storageKey) || StringHelper.isNullOrWhiteSpace(userName) || StringHelper.isNullOrWhiteSpace(password)) {
-                Stream<JLabel> highLightLabels = Stream.of(
-                        clusterNameLabel,
-                        storageNameLabel,
-                        storageKeyLabel,
-                        storageContainerLabel,
-                        userNameLabel,
-                        passwordLabel);
-
-                String highlightPrefix = "* ";
-                highLightLabels.filter(label -> !label.getText().startsWith(highlightPrefix))
-                               .forEach(label -> label.setText(highlightPrefix + label.getText()));
-
-                errorMessage = "All (*) fields are required.";
-                isCarryOnNextStep = false;
-            } else {
-                clusterName = getClusterName(clusterNameOrUrl);
-
-                if (clusterName == null) {
-                    errorMessage = "Wrong cluster name or endpoint";
-                    isCarryOnNextStep = false;
-                } else {
-                    int status = ClusterManagerEx.getInstance().isHDInsightAdditionalStorageExist(clusterName, storageName);
-                    if(status == 1) {
-                        errorMessage = "Cluster already exists in linked list";
-                        isCarryOnNextStep = false;
-                    } else if(status == 2) {
-                        errorMessage = "Default storage account is required";
-                        isCarryOnNextStep = false;
-                    }
-                }
-
-                if (containersComboBox.getSelectedItem() == null) {
-                    errorMessage = "The storage container isn't selected";
-                    isCarryOnNextStep = false;
-                } else {
-                    storageContainer = ((BlobContainer) containersComboBox.getSelectedItem()).getName();
-                }
-            }
-
-            if (isCarryOnNextStep) {
-                getStorageAccount();
-
-                if (storageAccount == null) {
-                    isCarryOnNextStep = false;
-                } else {
-                    HDInsightAdditionalClusterDetail hdInsightAdditionalClusterDetail = new HDInsightAdditionalClusterDetail(clusterName, userName, password, storageAccount);
-                    try {
-                        JobUtils.authenticate(hdInsightAdditionalClusterDetail);
-
-                        ClusterManagerEx.getInstance().addHDInsightAdditionalCluster(hdInsightAdditionalClusterDetail);
-                        hdInsightModule.refreshWithoutAsync();
-                    } catch (AuthenticationException authErr) {
-                        isCarryOnNextStep = false;
-                        errorMessage = "Authentication Error: " + Optional.ofNullable(authErr.getMessage())
-                                                               .filter(msg -> !msg.isEmpty())
-                                                               .orElse("Wrong username/password") +
-                                " (" + authErr.getErrorCode() + ")";
-                    } catch (Exception ex) {
-                        isCarryOnNextStep = false;
-                        errorMessage = "Authentication Error: " + ex.getMessage();
-                    }
-                }
-            }
-
-            if (isCarryOnNextStep) {
-                super.doOKAction();
-            } else {
-                errorMessageField.setText(errorMessage);
-                errorMessageField.setVisible(true);
-            }
-        }
-    }
-
-    //format input string
-    private static String getClusterName(String userNameOrUrl) {
-        if (userNameOrUrl.startsWith(URL_PREFIX)) {
-            return StringHelper.getClusterNameFromEndPoint(userNameOrUrl);
-        } else {
-            return userNameOrUrl;
-        }
-    }
-
-    private void getStorageAccount() {
-        addNewClusterPanel.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-
-        ApplicationManager.getApplication().invokeAndWait(() -> {
-            storageAccount = new HDStorageAccount(
-                    null, ClusterManagerEx.getInstance().getBlobFullName(storageName), storageKey, false, storageContainer);
-            isCarryOnNextStep = true;
-        }, ModalityState.NON_MODAL);
-
-        addNewClusterPanel.setCursor(Cursor.getDefaultCursor());
+                    super.doOKAction();
+                });
     }
 
     @NotNull
