@@ -19,9 +19,9 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  */
 
-package com.microsoft.azure.hdinsight.spark.common;
+package com.microsoft.azure.hdinsight.common.mvc;
 
-import org.jetbrains.annotations.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 public interface SettableControl<T> {
     // Data -> Component

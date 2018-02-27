@@ -22,7 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.intellij.openapi.project.Project;
-import com.microsoft.azure.hdinsight.spark.common.SettableControl;
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
 import org.jetbrains.annotations.NotNull;
 

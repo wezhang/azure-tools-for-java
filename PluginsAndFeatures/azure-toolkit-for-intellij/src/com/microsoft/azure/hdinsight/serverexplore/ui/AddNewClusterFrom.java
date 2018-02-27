@@ -25,10 +25,10 @@ import com.intellij.CommonBundle;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterCtrlProvider;
 import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterModel;
 import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
-import com.microsoft.azure.hdinsight.spark.common.SettableControl;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
@@ -44,7 +44,7 @@ import java.awt.event.FocusEvent;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-public class AddNewClusterFrom extends DialogWrapper implements SettableControl<AddNewClusterModel>{
+public class AddNewClusterFrom extends DialogWrapper implements SettableControl<AddNewClusterModel> {
     @Nullable
     private Project project;
 
