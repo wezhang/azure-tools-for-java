@@ -28,16 +28,22 @@ import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.Project;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
 
 import javax.swing.*;
-import java.lang.reflect.InvocationTargetException;
 
-public class IdeaSchedulers {
-    public static Scheduler processBarVisibleAsync(@Nullable Project project, @NotNull String title) {
+public class IdeaSchedulers implements IdeSchedulers {
+    @Nullable final private Project project;
+
+    public IdeaSchedulers(@Nullable Project project) {
+        this.project = project;
+    }
+
+    public Scheduler processBarVisibleAsync(@NotNull String title) {
         return Schedulers.from(command -> ApplicationManager.getApplication().invokeLater(() -> {
             final Task.Backgroundable task = new Task.Backgroundable(project, title, false) {
                 @Override
@@ -52,7 +58,7 @@ public class IdeaSchedulers {
         }));
     }
 
-    public static Scheduler processBarVisibleSync(@Nullable Project project, @NotNull String title) {
+    public Scheduler processBarVisibleSync( @NotNull String title) {
         return Schedulers.from(command -> ApplicationManager.getApplication().invokeAndWait(() -> {
             final Task.Backgroundable task = new Task.Backgroundable(project, title, false) {
                 @Override
@@ -67,7 +73,7 @@ public class IdeaSchedulers {
         }));
     }
 
-    public static Scheduler dispatchThread() {
+    public Scheduler dispatchUIThread() {
         return Schedulers.from(SwingUtilities::invokeLater);
     }
 }

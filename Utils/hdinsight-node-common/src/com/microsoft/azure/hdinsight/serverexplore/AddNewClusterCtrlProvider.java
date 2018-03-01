@@ -23,6 +23,8 @@
 package com.microsoft.azure.hdinsight.serverexplore;
 
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
@@ -42,15 +44,15 @@ public class AddNewClusterCtrlProvider {
     private static final String URL_PREFIX = "https://";
 
     @NotNull
-    private AddNewClusterModel model;
-
-    public AddNewClusterCtrlProvider(@NotNull AddNewClusterModel model) {
-        this.model = model;
-    }
+    private SettableControl<AddNewClusterModel> controllableView;
 
     @NotNull
-    public AddNewClusterModel getModel() {
-        return model;
+    private IdeSchedulers ideSchedulers;
+
+    public AddNewClusterCtrlProvider(@NotNull SettableControl<AddNewClusterModel> controllableView,
+                                     @NotNull IdeSchedulers ideSchedulers) {
+        this.controllableView = controllableView;
+        this.ideSchedulers = ideSchedulers;
     }
 
     //format input string
@@ -63,123 +65,130 @@ public class AddNewClusterCtrlProvider {
     }
 
     public Observable<AddNewClusterModel> refreshContainers() {
-        return Observable.fromCallable(() -> {
-            AddNewClusterModel toUpdate = (AddNewClusterModel) getModel().clone();
+        return Observable.just(new AddNewClusterModel())
+                .doOnNext(controllableView::getData)
+                .observeOn(ideSchedulers.processBarVisibleAsync("Getting storage account containers..."))
+                .map(toUpdate -> {
+                    toUpdate.setContainers(null);
 
-            toUpdate.setContainers(null);
+                    if (StringUtils.isNotBlank(toUpdate.getStorageName()) && StringUtils.isNotBlank(toUpdate.getStorageKey())) {
+                        try {
+                            ClientStorageAccount storageAccount = new ClientStorageAccount(toUpdate.getStorageName());
+                            storageAccount.setPrimaryKey(toUpdate.getStorageKey());
 
-            if (StringUtils.isNotBlank(getModel().getStorageName()) && StringUtils.isNotBlank(getModel().getStorageKey())) {
-                try {
-                    ClientStorageAccount storageAccount = new ClientStorageAccount(getModel().getStorageName());
-                    storageAccount.setPrimaryKey(getModel().getStorageKey());
+                            toUpdate.setContainers(
+                                    StorageClientSDKManager
+                                            .getManager()
+                                            .getBlobContainers(storageAccount.getConnectionString())
+                                            .stream()
+                                            .map(BlobContainer::getName)
+                                            .collect(Collectors.toList()));
+                        } catch (Exception ex) {
+                            return toUpdate.setErrorMessage("Can't get storage containers, check if the key matches");
+                        }
+                    }
 
-                    toUpdate.setContainers(
-                            StorageClientSDKManager
-                                    .getManager()
-                                    .getBlobContainers(storageAccount.getConnectionString())
-                                    .stream()
-                                    .map(BlobContainer::getName)
-                                    .collect(Collectors.toList()));
-                } catch (Exception ex) {
-                    return toUpdate.setErrorMessage("Can't get storage containers, check if the key matches");
-                }
-            }
-
-            return toUpdate.setErrorMessage(null);
-        });
+                    return toUpdate.setErrorMessage(null);
+                })
+                .observeOn(ideSchedulers.dispatchUIThread())
+                .doOnNext(controllableView::setData);
     }
 
     public Observable<AddNewClusterModel> validateAndAdd() {
-        return Observable.fromCallable(() -> {
-            AddNewClusterModel toUpdate = (AddNewClusterModel) getModel().clone();
+        return Observable.just(new AddNewClusterModel())
+                .doOnNext(controllableView::getData)
+                .observeOn(ideSchedulers.processBarVisibleAsync("Validating the cluster settings..."))
+                .map(toUpdate -> {
+                    String clusterNameOrUrl = toUpdate.getClusterName();
+                    String userName = toUpdate.getUserName();
+                    String storageName = toUpdate.getStorageName();
+                    String storageKey = toUpdate.getStorageKey();
+                    String password = toUpdate.getPassword();
+                    int selectedContainerIndex = toUpdate.getSelectedContainerIndex();
 
-            String clusterNameOrUrl = getModel().getClusterName();
-            String userName = getModel().getUserName();
-            String storageName = getModel().getStorageName();
-            String storageKey = getModel().getStorageKey();
-            String password = getModel().getPassword();
-            int selectedContainerIndex = getModel().getSelectedContainerIndex();
+                    // Incomplete data check
+                    if (StringHelper.isNullOrWhiteSpace(clusterNameOrUrl) ||
+                            StringHelper.isNullOrWhiteSpace(userName) ||
+                            StringHelper.isNullOrWhiteSpace(password)) {
+                        String highlightPrefix = "* ";
 
-            // Incomplete data check
-            if (StringHelper.isNullOrWhiteSpace(clusterNameOrUrl) ||
-                    StringHelper.isNullOrWhiteSpace(userName) ||
-                    StringHelper.isNullOrWhiteSpace(password)) {
-                String highlightPrefix = "* ";
+                        if (!toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
+                            toUpdate.setClusterNameLabelTitle(highlightPrefix + toUpdate.getClusterNameLabelTitle());
+                        }
 
-                if (!toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
-                    toUpdate.setClusterNameLabelTitle(highlightPrefix + toUpdate.getClusterNameLabelTitle());
-                }
+                        if (!toUpdate.getUserNameLabelTitle().startsWith(highlightPrefix)) {
+                            toUpdate.setUserNameLabelTitle(highlightPrefix + toUpdate.getUserNameLabelTitle());
+                        }
 
-                if (!toUpdate.getUserNameLabelTitle().startsWith(highlightPrefix)) {
-                    toUpdate.setUserNameLabelTitle(highlightPrefix + toUpdate.getUserNameLabelTitle());
-                }
+                        if (!toUpdate.getPasswordLabelTitle().startsWith(highlightPrefix)) {
+                            toUpdate.setPasswordLabelTitle(highlightPrefix + toUpdate.getPasswordLabelTitle());
+                        }
 
-                if (!toUpdate.getPasswordLabelTitle().startsWith(highlightPrefix)) {
-                    toUpdate.setPasswordLabelTitle(highlightPrefix + toUpdate.getPasswordLabelTitle());
-                }
+                        return toUpdate.setErrorMessage("All (*) fields are required.");
+                    }
 
-                return toUpdate.setErrorMessage("All (*) fields are required.");
-            }
+                    String clusterName = getClusterName(clusterNameOrUrl);
 
-            String clusterName = getClusterName(clusterNameOrUrl);
+                    // Cluster name check
+                    if (clusterName == null) {
+                        return toUpdate.setErrorMessage("Wrong cluster name or endpoint");
+                    }
 
-            // Cluster name check
-            if (clusterName == null) {
-                return toUpdate.setErrorMessage("Wrong cluster name or endpoint");
-            }
+                    // Duplication check
+                    if (ClusterManagerEx.getInstance().getHdinsightAdditionalClusterDetails().stream().anyMatch(clusterDetail ->
+                            clusterDetail.getName().equals(clusterName))) {
+                        return toUpdate.setErrorMessage("Cluster already exists in linked list");
+                    }
 
-            // Duplication check
-            if (ClusterManagerEx.getInstance().getHdinsightAdditionalClusterDetails().stream().anyMatch(clusterDetail ->
-                    clusterDetail.getName().equals(clusterName))) {
-                return toUpdate.setErrorMessage("Cluster already exists in linked list");
-            }
+                    // Storage access check
+                    HDStorageAccount storageAccount = null;
+                    if (StringUtils.isNotEmpty(storageName)) {
+                        ClientStorageAccount storageAccountClient = new ClientStorageAccount(storageName);
+                        storageAccountClient.setPrimaryKey(storageKey);
 
-            // Storage access check
-            HDStorageAccount storageAccount = null;
-            if (StringUtils.isNotEmpty(storageName)) {
-                ClientStorageAccount storageAccountClient = new ClientStorageAccount(storageName);
-                storageAccountClient.setPrimaryKey(storageKey);
+                        // Storage Key check
+                        try {
+                            StorageClientSDKManager.getCloudStorageAccount(storageAccountClient.getConnectionString());
+                        } catch (Exception ex) {
+                            return toUpdate.setErrorMessage("Storage key doesn't match the account.");
+                        }
 
-                // Storage Key check
-                try {
-                    StorageClientSDKManager.getCloudStorageAccount(storageAccountClient.getConnectionString());
-                } catch (Exception ex) {
-                    return toUpdate.setErrorMessage("Storage key doesn't match the account.");
-                }
+                        // Containers selection check
+                        if (selectedContainerIndex < 0 ||
+                                selectedContainerIndex >= toUpdate.getContainers().size()) {
+                            return toUpdate.setErrorMessage("The storage container isn't selected");
+                        }
 
-                // Containers selection check
-                if (selectedContainerIndex < 0 ||
-                        selectedContainerIndex >= getModel().getContainers().size()) {
-                    return toUpdate.setErrorMessage("The storage container isn't selected");
-                }
+                        storageAccount = new HDStorageAccount(
+                                null,
+                                ClusterManagerEx.getInstance().getBlobFullName(storageName),
+                                storageKey,
+                                false,
+                                toUpdate.getContainers().get(selectedContainerIndex));
+                    }
 
-                storageAccount = new HDStorageAccount(
-                        null,
-                        ClusterManagerEx.getInstance().getBlobFullName(storageName),
-                        storageKey,
-                        false,
-                        getModel().getContainers().get(selectedContainerIndex));
-            }
+                    HDInsightAdditionalClusterDetail hdInsightAdditionalClusterDetail =
+                            new HDInsightAdditionalClusterDetail(clusterName, userName, password, storageAccount);
 
-            HDInsightAdditionalClusterDetail hdInsightAdditionalClusterDetail =
-                    new HDInsightAdditionalClusterDetail(clusterName, userName, password, storageAccount);
+                    // Account certificate check
+                    try {
+                        JobUtils.authenticate(hdInsightAdditionalClusterDetail);
+                    } catch (AuthenticationException authErr) {
+                        return toUpdate.setErrorMessage("Authentication Error: " + Optional.ofNullable(authErr.getMessage())
+                                .filter(msg -> !msg.isEmpty())
+                                .orElse("Wrong username/password") +
+                                " (" + authErr.getErrorCode() + ")");
+                    } catch (Exception ex) {
+                        return toUpdate.setErrorMessage("Authentication Error: " + ex.getMessage());
+                    }
 
-            // Account certificate check
-            try {
-                JobUtils.authenticate(hdInsightAdditionalClusterDetail);
-            } catch (AuthenticationException authErr) {
-                return toUpdate.setErrorMessage("Authentication Error: " + Optional.ofNullable(authErr.getMessage())
-                        .filter(msg -> !msg.isEmpty())
-                        .orElse("Wrong username/password") +
-                        " (" + authErr.getErrorCode() + ")");
-            } catch (Exception ex) {
-                return toUpdate.setErrorMessage("Authentication Error: " + ex.getMessage());
-            }
+                    // No issue
+                    ClusterManagerEx.getInstance().addHDInsightAdditionalCluster(hdInsightAdditionalClusterDetail);
 
-            // No issue
-            ClusterManagerEx.getInstance().addHDInsightAdditionalCluster(hdInsightAdditionalClusterDetail);
-
-            return toUpdate.setErrorMessage(null);
-        });
+                    return toUpdate.setErrorMessage(null);
+                })
+                .observeOn(ideSchedulers.dispatchUIThread())     // UI operation needs to be in dispatch thread
+                .doOnNext(controllableView::setData)
+                .filter(data -> StringUtils.isEmpty(data.getErrorMessage()));
     }
 }

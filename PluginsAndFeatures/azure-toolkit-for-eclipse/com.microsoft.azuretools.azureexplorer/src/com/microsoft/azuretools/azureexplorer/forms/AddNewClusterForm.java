@@ -25,12 +25,17 @@ import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterCtrlProvider;
 import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterModel;
 import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azureexplorer.Activator;
 import com.microsoft.azuretools.core.components.AzureTitleAreaDialogWrapper;
 import com.microsoft.azuretools.core.rxjava.EclipseSchedulers;
 import com.microsoft.azuretools.core.utils.Messages;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 
 public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements SettableControl<AddNewClusterModel> {
+    @NotNull
+    private AddNewClusterCtrlProvider ctrlProvider;
+
     private Text clusterNameField;
     private Text userNameField;
     private Text storageNameField;
@@ -47,6 +52,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
     public AddNewClusterForm(Shell parentShell, HDInsightRootModule module) {
         super(parentShell);
         this.hdInsightModule = module;
+        this.ctrlProvider = new AddNewClusterCtrlProvider(this, new EclipseSchedulers(Activator.PLUGIN_ID));
     }
 
     @Override
@@ -57,20 +63,9 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
 
     }
 
-    private AddNewClusterCtrlProvider prepareCtrl() {
-        AddNewClusterModel current = new AddNewClusterModel();
-
-        getData(current);
-
-        return new AddNewClusterCtrlProvider(current);
-    }
-
     private void refreshContainers() {
-        prepareCtrl()
-                .refreshContainers()
-                .subscribeOn(EclipseSchedulers.processBarVisibleAsync("Getting storage account containers..."))
-                .observeOn(EclipseSchedulers.dispatchThread())
-                .subscribe(this::setData);
+        ctrlProvider.refreshContainers()
+                .subscribe();
     }
     
     @Override
@@ -219,21 +214,13 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
 
     @Override
     protected void okPressed() {
-        prepareCtrl().validateAndAdd()
-                .subscribeOn(EclipseSchedulers.processBarVisibleAsync("Validating the cluster settings..."))
-                .observeOn(EclipseSchedulers.dispatchThread())
-                .doOnNext(this::setData)
-                .map(AddNewClusterModel::getErrorMessage)
-                .filter(StringUtils::isEmpty)
+        ctrlProvider.validateAndAdd()
                 .subscribe(toUpdate -> {
                     hdInsightModule.refreshWithoutAsync();
                     AppInsightsClient.create(Messages.HDInsightAddNewClusterAction, null);
 
                     super.okPressed();
-                },
-                           err -> {
-                               setErrorMessage(err.getMessage());
-                           });
+                });
     }
 
     @Override

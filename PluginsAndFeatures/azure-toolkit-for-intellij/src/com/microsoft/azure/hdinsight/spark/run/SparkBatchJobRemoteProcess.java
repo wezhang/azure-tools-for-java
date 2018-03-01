@@ -34,8 +34,8 @@ import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.io.output.NullOutputStream;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import rx.*;
-import rx.schedulers.Schedulers;
+import rx.Observable;
+import rx.Subscription;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
@@ -51,6 +51,8 @@ import static rx.exceptions.Exceptions.propagate;
 public class SparkBatchJobRemoteProcess extends RemoteProcess {
     @NotNull
     private Project project;
+    @NotNull
+    private IdeaSchedulers schedulers;
     @NotNull
     private SparkSubmitModel submitModel;
     @NotNull
@@ -72,6 +74,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                                       @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
             throws ExecutionException {
         this.project = project;
+        this.schedulers = new IdeaSchedulers(project);
         this.submitModel = sparkSubmitModel;
         this.ctrlSubject = ctrlSubject;
 
@@ -158,7 +161,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                                     .orElseThrow(() -> propagate(new SparkJobException("Can't find jar path to upload"))),
                             submitModel.getSubmissionParameter().getClusterName(),
                             ctrlSubject)
-                    .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Deploy the jar file into cluster")))
+                    .subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster")))
                 .toObservable()
                 .flatMap(this::submitJob)
                 .flatMap(job -> Observable.zip(
@@ -169,7 +172,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                             return job;
                         }))
                 .flatMap(runningJob -> runningJob.getJobDoneObservable()
-                        .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Spark batch job is running")))
+                        .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job is running")))
                 .subscribe(sdPair -> {
                     if (sdPair.getKey() == SparkBatchJobState.SUCCESS) {
                         logInfo("Job run successfully.");
@@ -188,7 +191,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     private Observable<SparkBatchJob> attachJobInputStream(SparkJobLogInputStream inputStream, SparkBatchJob job) {
         return Observable.just(inputStream)
                 .map(stream -> stream.attachJob(job))
-                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Attach Spark batch job outputs " + inputStream.getLogType()))
+                .subscribeOn(schedulers.processBarVisibleAsync("Attach Spark batch job outputs " + inputStream.getLogType()))
                 .retryWhen(attempts -> attempts.flatMap(err -> {
                     try {
                         final String state = job.getState();
@@ -238,7 +241,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         IClusterDetail cluster = clusterArtifactUriPair.getKey();
         submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
         return JobUtils.submit(cluster, submitModel.getSubmissionParameter())
-                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(project, "Submit the Spark batch job"))
+                .subscribeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
                 .toObservable()
                 .flatMap(this::startJobSubmissionLogReceiver);   // To receive the Livy submission log
     }

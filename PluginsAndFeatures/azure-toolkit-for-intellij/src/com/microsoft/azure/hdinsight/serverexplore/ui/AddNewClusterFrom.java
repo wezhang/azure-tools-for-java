@@ -46,8 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class AddNewClusterFrom extends DialogWrapper implements SettableControl<AddNewClusterModel> {
-    @Nullable
-    private Project project;
+    @NotNull
+    private AddNewClusterCtrlProvider ctrlProvider;
 
     private JPanel addNewClusterPanel;
     private JTextField clusterNameFiled;
@@ -71,7 +71,7 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
 
     public AddNewClusterFrom(@Nullable final Project project, @NotNull HDInsightRootModule hdInsightModule) {
         super(project, true);
-        this.project = project;
+        this.ctrlProvider = new AddNewClusterCtrlProvider(this, new IdeaSchedulers(project));
 
         myHelpAction = new HelpAction();
 
@@ -100,19 +100,9 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
         });
     }
 
-    private AddNewClusterCtrlProvider prepareCtrl() {
-        AddNewClusterModel current = new AddNewClusterModel();
-
-        getData(current);
-
-        return new AddNewClusterCtrlProvider(current);
-    }
-
     private void refreshContainers() {
-        prepareCtrl()
-                .refreshContainers()
-                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(this.project, "Getting storage account containers..."))
-                .subscribe(this::setData);
+        ctrlProvider.refreshContainers()
+                    .subscribe();
     }
 
     @Override
@@ -175,13 +165,8 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
 
     @Override
     protected void doOKAction() {
-        prepareCtrl()
+        ctrlProvider
                 .validateAndAdd()
-                .subscribeOn(IdeaSchedulers.processBarVisibleAsync(this.project, "Validating the cluster settings..."))
-                .doOnNext(this::setData)
-                .map(AddNewClusterModel::getErrorMessage)
-                .filter(StringUtils::isEmpty)
-                .observeOn(IdeaSchedulers.dispatchThread())     // UI operation needs to be in dispatch thread
                 .subscribe(toUpdate -> {
                     hdInsightModule.refreshWithoutAsync();
                     AppInsightsClient.create(HDInsightBundle.message("HDInsightAddNewClusterAction"), null);
