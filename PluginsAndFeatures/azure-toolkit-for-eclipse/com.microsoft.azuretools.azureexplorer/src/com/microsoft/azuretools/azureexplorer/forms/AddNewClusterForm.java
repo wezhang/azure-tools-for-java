@@ -3,7 +3,6 @@ package com.microsoft.azuretools.azureexplorer.forms;
 import java.net.URL;
 import java.util.Arrays;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
@@ -98,8 +97,47 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
         clusterNameField.setLayoutData(gridData);
         clusterNameField.setToolTipText("The HDInsight cluster name, such as 'mycluster' of cluster URL 'mycluster.azurehdinsight.net'.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
 
+        Group clusterAccountGroup = new Group(container, SWT.NONE);
+        clusterAccountGroup.setText("The Cluster Account");
+        gridLayout = new GridLayout();
+        gridLayout.numColumns = 2;
+        clusterAccountGroup.setLayout(gridLayout);
+        gridData = new GridData();
+        gridData.horizontalSpan = 2;
+        gridData.widthHint = 350;
+        gridData.horizontalAlignment = SWT.FILL;
+        gridData.grabExcessHorizontalSpace = true;
+        clusterAccountGroup.setLayoutData(gridData);
+
+        userNameLabel = new Label(clusterAccountGroup, SWT.LEFT);
+        userNameLabel.setText("User Name:");
+        gridData = new GridData();
+        gridData.horizontalIndent = 38;
+        gridData.horizontalAlignment = SWT.RIGHT;
+        userNameLabel.setLayoutData(gridData);
+        userNameField = new Text(clusterAccountGroup, SWT.BORDER);
+        gridData = new GridData();
+        gridData.horizontalAlignment = SWT.FILL;
+        gridData.grabExcessHorizontalSpace = true;
+        userNameField.setLayoutData(gridData);
+        userNameField.setToolTipText("The user name of the HDInsight cluster.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
+
+        passwordLabel = new Label(clusterAccountGroup, SWT.LEFT);
+        passwordLabel.setText("Password:");
+        gridData = new GridData();
+        gridData.horizontalIndent = 38;
+        gridData.horizontalAlignment = SWT.RIGHT;
+        passwordLabel.setLayoutData(gridData);
+        passwordField = new Text(clusterAccountGroup, SWT.PASSWORD | SWT.BORDER);
+        gridData = new GridData();
+        gridData.horizontalAlignment = SWT.FILL;
+        gridData.grabExcessHorizontalSpace = true;
+        passwordField.setLayoutData(gridData);
+        passwordField.setToolTipText("The password of the HDInsight cluster user provided.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
+
         Group clusterStorageGroup = new Group(container, SWT.NONE);
-        clusterStorageGroup.setText("The Cluster Storage Information");
+        clusterStorageGroup.setText("The Cluster Storage Information (Optional)");
+        clusterStorageGroup.setToolTipText("The Cluster Storage Information provided can enable the Storage Explorer support.");
         gridLayout = new GridLayout();
         gridLayout.numColumns = 2;
         clusterStorageGroup.setLayout(gridLayout);
@@ -160,44 +198,6 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
         gridData.grabExcessHorizontalSpace = true;
         containersComboBox.setLayoutData(gridData);
         
-        Group clusterAccountGroup = new Group(container, SWT.NONE);
-        clusterAccountGroup.setText("The Cluster Account");
-        gridLayout = new GridLayout();
-        gridLayout.numColumns = 2;
-        clusterAccountGroup.setLayout(gridLayout);
-        gridData = new GridData();
-        gridData.horizontalSpan = 2;
-        gridData.widthHint = 350;
-        gridData.horizontalAlignment = SWT.FILL;
-        gridData.grabExcessHorizontalSpace = true;
-        clusterAccountGroup.setLayoutData(gridData);
-
-        userNameLabel = new Label(clusterAccountGroup, SWT.LEFT);
-        userNameLabel.setText("User Name:");
-        gridData = new GridData();
-        gridData.horizontalIndent = 38;
-        gridData.horizontalAlignment = SWT.RIGHT;
-        userNameLabel.setLayoutData(gridData);
-        userNameField = new Text(clusterAccountGroup, SWT.BORDER);
-        gridData = new GridData();
-        gridData.horizontalAlignment = SWT.FILL;
-        gridData.grabExcessHorizontalSpace = true;
-        userNameField.setLayoutData(gridData);
-        userNameField.setToolTipText("The user name of the HDInsight cluster.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
-        
-        passwordLabel = new Label(clusterAccountGroup, SWT.LEFT);
-        passwordLabel.setText("Password:");
-        gridData = new GridData();
-        gridData.horizontalIndent = 38;
-        gridData.horizontalAlignment = SWT.RIGHT;
-        passwordLabel.setLayoutData(gridData);
-        passwordField = new Text(clusterAccountGroup, SWT.PASSWORD | SWT.BORDER);
-        gridData = new GridData();
-        gridData.horizontalAlignment = SWT.FILL;
-        gridData.grabExcessHorizontalSpace = true;
-        passwordField.setLayoutData(gridData);
-        passwordField.setToolTipText("The password of the HDInsight cluster user provided.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
-        
         container.addHelpListener(new HelpListener() {
             @Override public void helpRequested(HelpEvent e) {
                 try {
@@ -254,6 +254,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
         data.getContainers().forEach(containersComboBox::add);
         containersComboBox.select(data.getSelectedContainerIndex());
 
+        // Resize layout
         getShell().layout(true, true);
     }
 }
