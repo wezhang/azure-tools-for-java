@@ -90,7 +90,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
      * The setting of delay seconds between tries in RestAPI calling
      */
-    private int delaySeconds = 2;
+    private int delaySeconds = 10;
 
     /**
      * The global cache for fetched Yarn UI page by browser
