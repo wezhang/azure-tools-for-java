@@ -35,9 +35,8 @@ import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
 
-import java.net.URISyntaxException;
-import java.security.InvalidKeyException;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class AddNewClusterCtrlProvider {
     private static final String URL_PREFIX = "https://";
@@ -74,7 +73,13 @@ public class AddNewClusterCtrlProvider {
                     ClientStorageAccount storageAccount = new ClientStorageAccount(getModel().getStorageName());
                     storageAccount.setPrimaryKey(getModel().getStorageKey());
 
-                    toUpdate.setContainers(StorageClientSDKManager.getManager().getBlobContainers(storageAccount.getConnectionString()));
+                    toUpdate.setContainers(
+                            StorageClientSDKManager
+                                    .getManager()
+                                    .getBlobContainers(storageAccount.getConnectionString())
+                                    .stream()
+                                    .map(BlobContainer::getName)
+                                    .collect(Collectors.toList()));
                 } catch (Exception ex) {
                     return toUpdate.setErrorMessage("Can't get storage containers, check if the key matches");
                 }
@@ -93,7 +98,7 @@ public class AddNewClusterCtrlProvider {
             String storageName = getModel().getStorageName();
             String storageKey = getModel().getStorageKey();
             String password = getModel().getPassword();
-            BlobContainer selectedContainer = getModel().getSelectedContainer();
+            int selectedContainerIndex = getModel().getSelectedContainerIndex();
 
             // Incomplete data check
             if (StringHelper.isNullOrWhiteSpace(clusterNameOrUrl) ||
@@ -143,7 +148,8 @@ public class AddNewClusterCtrlProvider {
                 }
 
                 // Containers selection check
-                if (selectedContainer == null) {
+                if (selectedContainerIndex < 0 ||
+                        selectedContainerIndex >= getModel().getContainers().size()) {
                     return toUpdate.setErrorMessage("The storage container isn't selected");
                 }
 
@@ -152,7 +158,7 @@ public class AddNewClusterCtrlProvider {
                         ClusterManagerEx.getInstance().getBlobFullName(storageName),
                         storageKey,
                         false,
-                        selectedContainer.getName());
+                        getModel().getContainers().get(selectedContainerIndex));
             }
 
             HDInsightAdditionalClusterDetail hdInsightAdditionalClusterDetail =

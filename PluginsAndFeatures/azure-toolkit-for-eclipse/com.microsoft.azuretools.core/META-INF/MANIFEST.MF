@@ -25,7 +25,8 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.epp.mpc.ui,
  org.eclipse.m2e.core,
  org.eclipse.m2e.maven.runtime,
- org.eclipse.m2e.launching
+ org.eclipse.m2e.launching,
+ org.eclipse.equinox.registry
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-Vendor: Microsoft Corp.
@@ -40,6 +41,7 @@ Export-Package: com.microsoft.applicationinsights.preference,
  com.microsoft.azure.docker.ops,
  com.microsoft.azure.docker.ops.utils,
  com.microsoft.azure.hdinsight.common,
+ com.microsoft.azure.hdinsight.common.mvc,
  com.microsoft.azure.hdinsight.common.task,
  com.microsoft.azure.hdinsight.metadata,
  com.microsoft.azure.hdinsight.projects,
@@ -87,6 +89,7 @@ Export-Package: com.microsoft.applicationinsights.preference,
  com.microsoft.azuretools.core.mvp.ui.containerregistry,
  com.microsoft.azuretools.core.mvp.ui.rediscache,
  com.microsoft.azuretools.core.mvp.ui.webapp,
+ com.microsoft.azuretools.core.rxjava,
  com.microsoft.azuretools.core.storageregistry,
  com.microsoft.azuretools.core.telemetry,
  com.microsoft.azuretools.core.testers,

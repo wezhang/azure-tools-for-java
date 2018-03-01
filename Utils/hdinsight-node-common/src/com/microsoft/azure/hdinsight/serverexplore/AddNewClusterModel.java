@@ -24,7 +24,6 @@ package com.microsoft.azure.hdinsight.serverexplore;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import com.microsoft.tooling.msservices.model.storage.BlobContainer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +45,8 @@ public class AddNewClusterModel implements Cloneable {
     private String errorMessage;
 
     @Nullable
-    private List<BlobContainer> containers;
-    @Nullable
-    private BlobContainer selectedContainer;
+    private List<String> containers;
+    private int selectedContainerIndex;      // -1 for non-selection
 
     public String getClusterNameLabelTitle() {
         return clusterNameLabelTitle;
@@ -142,24 +140,23 @@ public class AddNewClusterModel implements Cloneable {
     }
 
     @NotNull
-    public List<BlobContainer> getContainers() {
+    public List<String> getContainers() {
         return Optional.ofNullable(containers)
                 .orElse(new ArrayList<>());
     }
 
-    public AddNewClusterModel setContainers(@Nullable List<BlobContainer> containers) {
+    public AddNewClusterModel setContainers(@Nullable List<String> containers) {
         this.containers = containers;
 
         return this;
     }
 
-    @Nullable
-    public BlobContainer getSelectedContainer() {
-        return selectedContainer;
+    public int getSelectedContainerIndex() {
+        return selectedContainerIndex;
     }
 
-    public AddNewClusterModel setSelectedContainer(@Nullable BlobContainer selectedContainer) {
-        this.selectedContainer = selectedContainer;
+    public AddNewClusterModel setSelectedContainerIndex(int selectedContainerIndex) {
+        this.selectedContainerIndex = selectedContainerIndex;
 
         return this;
     }

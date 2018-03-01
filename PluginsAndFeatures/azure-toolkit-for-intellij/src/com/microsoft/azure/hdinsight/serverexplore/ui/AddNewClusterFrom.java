@@ -41,6 +41,7 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -60,7 +61,7 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
     private JLabel storageKeyLabel;
     private JLabel userNameLabel;
     private JLabel passwordLabel;
-    private JComboBox<BlobContainer> containersComboBox;
+    private JComboBox<String> containersComboBox;
     private JLabel storageContainerLabel;
 
     @NotNull
@@ -132,7 +133,10 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
         // Combo box
         containersComboBox.removeAllItems();
         data.getContainers().forEach(containersComboBox::addItem);
-        containersComboBox.setSelectedItem(data.getSelectedContainer());
+        containersComboBox.setSelectedIndex(
+                Optional.of(data.getSelectedContainerIndex())
+                        .filter(index -> index > 0 && index <= data.getContainers().size())
+                        .orElse(-1));
     }
 
     @Override
@@ -147,7 +151,7 @@ public class AddNewClusterFrom extends DialogWrapper implements SettableControl<
             .setStorageName(storageNameField.getText())
             .setStorageKey(storageKeyTextField.getText())
             .setErrorMessage(errorMessageField.getText())
-            .setSelectedContainer((BlobContainer) containersComboBox.getSelectedItem())
+            .setSelectedContainerIndex(containersComboBox.getSelectedIndex())
             .setContainers(IntStream.range(0, containersComboBox.getItemCount())
                                     .mapToObj(i -> containersComboBox.getItemAt(i))
                                     .collect(Collectors.toList()));

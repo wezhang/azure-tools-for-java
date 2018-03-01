@@ -1,5 +1,8 @@
 package com.microsoft.azuretools.azureexplorer.forms;
 
+import java.net.URL;
+import java.util.Arrays;
+
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.FocusAdapter;
@@ -11,7 +14,6 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
@@ -19,39 +21,16 @@ import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.browser.IWebBrowser;
 
-import java.net.URL;
-import java.util.Optional;
-
-import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
-import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
+import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterCtrlProvider;
+import com.microsoft.azure.hdinsight.serverexplore.AddNewClusterModel;
 import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
-import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
-import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
-import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.core.components.AzureTitleAreaDialogWrapper;
-import com.microsoft.azuretools.core.utils.PluginUtil;
+import com.microsoft.azuretools.core.rxjava.EclipseSchedulers;
 import com.microsoft.azuretools.core.utils.Messages;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
-import com.microsoft.tooling.msservices.helpers.azure.sdk.StorageClientSDKManager;
-import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount;
 
-public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
-
-    private String clusterName;
-    private String userName;
-    private String password;
-
-    private String storageName;
-    private String storageKey;
-    private String storageContainer;
-    
-    private HDStorageAccount storageAccount;
-
-    private boolean isCarryOnNextStep;
-
+public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements SettableControl<AddNewClusterModel> {
     private Text clusterNameField;
     private Text userNameField;
     private Text storageNameField;
@@ -61,7 +40,9 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
 
     private HDInsightRootModule hdInsightModule;
 
-    private static final String URL_PREFIX = "https://";
+    private Label clusterNameLabel;
+    private Label userNameLabel;
+    private Label passwordLabel;
 
     public AddNewClusterForm(Shell parentShell, HDInsightRootModule module) {
         super(parentShell);
@@ -76,17 +57,20 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
 
     }
 
-    private void refreshContainers(@NotNull ClientStorageAccount storageAccount) {
-    	try {
-        	containersComboBox.removeAll();
+    private AddNewClusterCtrlProvider prepareCtrl() {
+        AddNewClusterModel current = new AddNewClusterModel();
 
-			StorageClientSDKManager.getManager().getBlobContainers(storageAccount.getConnectionString())
-					.forEach(blob -> containersComboBox.add(blob.getName()));
-			
-			// not find setMaximumRowCount(*) method in SWT
-		} catch (AzureCmdException e) {
-			setErrorMessage(e.getMessage());
-		}
+        getData(current);
+
+        return new AddNewClusterCtrlProvider(current);
+    }
+
+    private void refreshContainers() {
+        prepareCtrl()
+                .refreshContainers()
+                .subscribeOn(EclipseSchedulers.processBarVisibleAsync("Getting storage account containers..."))
+                .observeOn(EclipseSchedulers.dispatchThread())
+                .subscribe(this::setData);
     }
     
     @Override
@@ -106,7 +90,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
         gridData.grabExcessHorizontalSpace = true;
         container.setLayoutData(gridData);
 
-        Label clusterNameLabel = new Label(container, SWT.LEFT);
+        clusterNameLabel = new Label(container, SWT.LEFT);
         clusterNameLabel.setText("Cluster Name:");
         gridData = new GridData();
         gridData.horizontalIndent = 30;
@@ -159,28 +143,14 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
         storageNameField.addFocusListener(new FocusAdapter() {
         	@Override
         	public void focusLost(FocusEvent e) {
-        		super.focusLost(e);
-        		
-        		if (StringUtils.isNotBlank(storageNameField.getText()) && StringUtils.isNotBlank(storageKeyField.getText())) {
-        			ClientStorageAccount storageAccount = new ClientStorageAccount(storageNameField.getText());
-        			storageAccount.setPrimaryKey(storageKeyField.getText());
-        			
-        			refreshContainers(storageAccount);
-        		}
+                refreshContainers();
         	}
         });
 
         storageKeyField.addFocusListener(new FocusAdapter() {
         	@Override
         	public void focusLost(FocusEvent e) {
-        		super.focusLost(e);
-        		
-        		if (StringUtils.isNotBlank(storageNameField.getText()) && StringUtils.isNotBlank(storageKeyField.getText())) {
-        			ClientStorageAccount storageAccount = new ClientStorageAccount(storageNameField.getText());
-        			storageAccount.setPrimaryKey(storageKeyField.getText());
-        			
-        			refreshContainers(storageAccount);
-        		}
+                refreshContainers();
         	}
         });
         
@@ -207,7 +177,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
         gridData.grabExcessHorizontalSpace = true;
         clusterAccountGroup.setLayoutData(gridData);
 
-        Label userNameLabel = new Label(clusterAccountGroup, SWT.LEFT);
+        userNameLabel = new Label(clusterAccountGroup, SWT.LEFT);
         userNameLabel.setText("User Name:");
         gridData = new GridData();
         gridData.horizontalIndent = 38;
@@ -220,7 +190,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
         userNameField.setLayoutData(gridData);
         userNameField.setToolTipText("The user name of the HDInsight cluster.\n\n Press the F1 key or click the '?'(Help) button to get more details.");
         
-        Label passwordLabel = new Label(clusterAccountGroup, SWT.LEFT);
+        passwordLabel = new Label(clusterAccountGroup, SWT.LEFT);
         passwordLabel.setText("Password:");
         gridData = new GridData();
         gridData.horizontalIndent = 38;
@@ -249,106 +219,54 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper {
 
     @Override
     protected void okPressed() {
-        synchronized (AddNewClusterForm.class) {
-            isCarryOnNextStep = true;
-            setErrorMessage(null);
+        prepareCtrl().validateAndAdd()
+                .subscribeOn(EclipseSchedulers.processBarVisibleAsync("Validating the cluster settings..."))
+                .observeOn(EclipseSchedulers.dispatchThread())
+                .doOnNext(this::setData)
+                .map(AddNewClusterModel::getErrorMessage)
+                .filter(StringUtils::isEmpty)
+                .subscribe(toUpdate -> {
+                    hdInsightModule.refreshWithoutAsync();
+                    AppInsightsClient.create(Messages.HDInsightAddNewClusterAction, null);
 
-            AppInsightsClient.create(Messages.HDInsightAddNewClusterAction, null);
-
-            String clusterNameOrUrl = clusterNameField.getText().trim();
-            userName = userNameField.getText().trim();
-            storageName = storageNameField.getText().trim();
-
-            storageKey = storageKeyField.getText().trim();
-
-            password = passwordField.getText();
-
-            if (StringHelper.isNullOrWhiteSpace(clusterNameOrUrl) || StringHelper.isNullOrWhiteSpace(storageName)
-                    || StringHelper.isNullOrWhiteSpace(storageKey) || StringHelper.isNullOrWhiteSpace(userName)
-                    || StringHelper.isNullOrWhiteSpace(password)) {
-                setErrorMessage("Cluster Name, Storage Name, Storage Key, User Name, or Password shouldn't be empty");
-                isCarryOnNextStep = false;
-            } else {
-                clusterName = getClusterName(clusterNameOrUrl);
-
-                if (clusterName == null) {
-                    setErrorMessage("Wrong cluster name or endpoint");
-                    isCarryOnNextStep = false;
-                } else {
-                    int status = ClusterManagerEx.getInstance().isHDInsightAdditionalStorageExist(clusterName,
-                            storageName);
-                    if (status == 1) {
-                        setErrorMessage("Cluster already exist in current list");
-                        isCarryOnNextStep = false;
-                    } else if (status == 2) {
-                        setErrorMessage("Default storage account is required");
-                        isCarryOnNextStep = false;
-                    }
-                }
-                
-                if (containersComboBox.getSelectionIndex() == -1) {
-                	setErrorMessage("The storage container isn't selected");
-                	isCarryOnNextStep = false;
-                } else {
-                	storageContainer = containersComboBox.getItem(containersComboBox.getSelectionIndex());
-                }
-            }
-
-            if (isCarryOnNextStep) {
-                getStorageAccount();
-            }
-
-            if (isCarryOnNextStep) {
-                if (storageAccount == null) {
-                	isCarryOnNextStep = false;
-                } else {
-                    HDInsightAdditionalClusterDetail hdInsightAdditionalClusterDetail = new HDInsightAdditionalClusterDetail(
-                            clusterName, userName, password, storageAccount);
-                    try {
-                    	JobUtils.authenticate(hdInsightAdditionalClusterDetail);
-                        
-                        ClusterManagerEx.getInstance().addHDInsightAdditionalCluster(hdInsightAdditionalClusterDetail);
-                        hdInsightModule.refreshWithoutAsync();
-                    } catch (AuthenticationException authErr) {
-                        isCarryOnNextStep = false;
-                        String errorMessage = "Authentication Error: " + Optional.ofNullable(authErr.getMessage())
-                                                                        .filter(msg -> !msg.isEmpty())
-                                                                        .orElse("Wrong username/password")
-                                                                + " (" + authErr.getErrorCode() + ")";
-                        setErrorMessage(errorMessage);
-                    } catch (Exception ex) {
-                        isCarryOnNextStep = false;
-                        setErrorMessage("Authentication Error: " + ex.getMessage());
-                    }
-                }
-            }
-            
-            if (isCarryOnNextStep) {
-                super.okPressed();
-            }
-        }
+                    super.okPressed();
+                },
+                           err -> {
+                               setErrorMessage(err.getMessage());
+                           });
     }
 
-    // format input string
-    private static String getClusterName(String userNameOrUrl) {
-        if (userNameOrUrl.startsWith(URL_PREFIX)) {
-            return StringHelper.getClusterNameFromEndPoint(userNameOrUrl);
-        } else {
-            return userNameOrUrl;
-        }
+    @Override
+    public void getData(AddNewClusterModel data) {
+        // Components -> Data
+        data.setClusterName(clusterNameField.getText()).setClusterNameLabelTitle(clusterNameLabel.getText())
+                .setUserName(userNameField.getText()).setUserNameLabelTitle(userNameLabel.getText())
+                .setPassword(passwordField.getText()).setPasswordLabelTitle(passwordLabel.getText())
+                .setStorageName(storageNameField.getText()).setStorageKey(storageKeyField.getText())
+                .setErrorMessage(getErrorMessage()).setSelectedContainerIndex(containersComboBox.getSelectionIndex())
+                .setContainers(Arrays.asList(containersComboBox.getItems()));
     }
 
-    private void getStorageAccount() {
-        PluginUtil.showBusy(true, getShell());
-        Display.getDefault().syncExec(new Runnable() {
-            @Override
-            public void run() {
-            	storageAccount = new HDStorageAccount(
-            			null, ClusterManagerEx.getInstance().getBlobFullName(storageName), storageKey, false, storageContainer);
-            	isCarryOnNextStep = true;
-            }
-        });
-        PluginUtil.showBusy(false, getShell());
+    @Override
+    public void setData(AddNewClusterModel data) {
+        // Data -> Components
+		
+        // Text fields
+        clusterNameField.setText(data.getClusterName());
+        clusterNameLabel.setText(data.getClusterNameLabelTitle());
+        userNameField.setText(data.getUserName());
+        userNameLabel.setText(data.getUserNameLabelTitle());
+        passwordField.setText(data.getPassword());
+        passwordLabel.setText(data.getPasswordLabelTitle());
+        storageNameField.setText(data.getStorageName());
+        storageKeyField.setText(data.getStorageKey());
+        setErrorMessage(data.getErrorMessage());
+
+        // Combo box
+        containersComboBox.removeAll();
+        data.getContainers().forEach(containersComboBox::add);
+        containersComboBox.select(data.getSelectedContainerIndex());
+
+        getShell().layout(true, true);
     }
-    
 }
