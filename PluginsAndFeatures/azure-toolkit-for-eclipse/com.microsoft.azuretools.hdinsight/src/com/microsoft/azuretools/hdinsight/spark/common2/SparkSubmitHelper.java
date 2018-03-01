@@ -53,6 +53,7 @@ import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
 import com.microsoft.azure.hdinsight.spark.common.SparkJobLog;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitResponse;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.tooling.msservices.helpers.CallableSingleArg;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
@@ -220,7 +221,8 @@ public class SparkSubmitHelper {
 		}
 	}
 
-	public String uploadFileToHDFS(/* Project project, */ String localFile, IHDIStorageAccount storageAccount,
+    public String uploadFileToADL(/* Project project, */ String localFile,
+                                  IHDIStorageAccount storageAccount,
 			String defaultContainerName, String uploadFolderPath) throws Exception {
 		final File file = new File(localFile);
 		if (storageAccount.getAccountType() == StorageAccountTypeEnum.BLOB) {
@@ -383,15 +385,12 @@ public class SparkSubmitHelper {
 		}
 	}
 
-	public static String uploadFileToHDFS(/* @NotNull Project project, */ @NotNull IClusterDetail selectedClusterDetail,
-			@NotNull String buildJarPath) throws Exception {
+    public static String uploadFileToHDFS(@NotNull IClusterDetail selectedClusterDetail,
+                                          @NotNull String buildJarPath)
+            throws Exception {
 
-		HDInsightUtil.showInfoOnSubmissionMessageWindow(String.format("Info : Get target jar from %s.", buildJarPath));
-		final String uploadShortPath = getFormatPathByDate();
-
-		return SparkSubmitHelper.getInstance().uploadFileToHDFS(/* project, */ buildJarPath,
-				selectedClusterDetail.getStorageAccount(),
-				selectedClusterDetail.getStorageAccount().getDefaultContainerOrRootPath(), uploadShortPath);
+        return JobUtils.uploadFileToHDFS(selectedClusterDetail, buildJarPath,
+                                         HDInsightUtil.getToolWindowMessageSubject());
 	}
 
 	public static String getLivyConnectionURL(IClusterDetail clusterDetail) {

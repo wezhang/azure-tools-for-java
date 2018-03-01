@@ -24,14 +24,36 @@ import org.eclipse.ui.PartInitException;
 import org.eclipse.ui.PlatformUI;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.hdinsight.Activator;
 import com.microsoft.azuretools.hdinsight.SparkSubmissionToolWindowView;
+
+import rx.subjects.ReplaySubject;
+
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.*;
 
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Optional;
+
 public class HDInsightUtil {
 	private static SparkSubmissionToolWindowView sparkSubmissionToolWindowView;
-	
+
+    // The replay subject for the message showed in HDInsight tool window
+    // The replay subject will replay all notifications before the initialization is
+    // done
+    // The replay buffer size is 1MB.
+    @NotNull
+    @SuppressWarnings("null")
+    private static ReplaySubject<SimpleImmutableEntry<MessageInfoType, String>> toolWindowMessageSubject =
+            ReplaySubject.create(1024 * 1024);
+
+    @NotNull
+    public static ReplaySubject<SimpleImmutableEntry<MessageInfoType, String>> getToolWindowMessageSubject() {
+        return toolWindowMessageSubject;
+    }
+
+    @Nullable
 	public static SparkSubmissionToolWindowView getSparkSubmissionToolWindowView() {
 		if (sparkSubmissionToolWindowView == null) {
 			Display.getDefault().syncExec(new Runnable() {
@@ -41,6 +63,9 @@ public class HDInsightUtil {
 						sparkSubmissionToolWindowView = (SparkSubmissionToolWindowView) PlatformUI.getWorkbench()
 								.getActiveWorkbenchWindow().getActivePage()
 								.showView(SparkSubmissionToolWindowView.class.getName());
+						
+                        Optional.ofNullable(sparkSubmissionToolWindowView)
+                                .ifPresent(view -> resetToolWindowMessageSubject(view));
 					} catch (PartInitException e) {
 						Activator.getDefault().log(e.getMessage(), e);
 					}
@@ -54,15 +79,15 @@ public class HDInsightUtil {
 		Display.getDefault().syncExec(new Runnable() {
 			@Override
 			public void run() {
-				getSparkSubmissionToolWindowView().setHyperLinkWithText(text, hyperlinkUrl, anchorText);
+                SparkSubmissionToolWindowView view = getSparkSubmissionToolWindowView();
+
+                if (view != null) {
+                    view.setHyperLinkWithText(text, hyperlinkUrl, anchorText);
+                }
 			}
 		});
 	}
 	
-    public static void showInfoOnSubmissionMessageWindow(/*@NotNull */final String message, boolean isNeedClear) {
-        showInfoOnSubmissionMessageWindow(Info, message, isNeedClear);
-    }
-
     public static void showInfoOnSubmissionMessageWindow(@NotNull final String message) {
         showInfoOnSubmissionMessageWindow(Info, message, false);
     }
@@ -75,30 +100,52 @@ public class HDInsightUtil {
         showInfoOnSubmissionMessageWindow(Warning, message, false);
     }
 
-    private static void showInfoOnSubmissionMessageWindow(@NotNull final MessageInfoType type, @NotNull final String message, @NotNull final boolean isNeedClear) {
+    private static void showInfoOnSubmissionMessageWindow(@NotNull final MessageInfoType type,
+                                                          @NotNull final String message,
+                                                          final boolean isNeedClear) {
 		Display.getDefault().syncExec(new Runnable() {
 			@Override
 			public void run() {
-				showSubmissionMessage(getSparkSubmissionToolWindowView(), message, type, isNeedClear);
+                showSubmissionMessage(getSparkSubmissionToolWindowView(), message, type, isNeedClear);
 			}
 		});
 	}
 
-    private static void showSubmissionMessage(@NotNull SparkSubmissionToolWindowView sparkSubmissionView, @NotNull String message, @NotNull MessageInfoType type, @NotNull final boolean isNeedClear) {
-        if (isNeedClear) {
-            sparkSubmissionView.clearAll();
+    private static void resetToolWindowMessageSubject(@Nullable SparkSubmissionToolWindowView sparkSubmissionToolWindowView) {
+        if (sparkSubmissionToolWindowView == null) {
+            return;
         }
 
-        switch (type) {
+        toolWindowMessageSubject = ReplaySubject.create(1024 * 1024);
+
+        getToolWindowMessageSubject().subscribe(entry -> {
+            String message = entry.getValue();
+
+            switch (entry.getKey()) {
             case Error:
-                sparkSubmissionView.setError(message);
+                sparkSubmissionToolWindowView.setError(message);
                 break;
             case Info:
-                sparkSubmissionView.setInfo(message);
+                sparkSubmissionToolWindowView.setInfo(message);
                 break;
             case Warning:
-                sparkSubmissionView.setWarning(message);
+                sparkSubmissionToolWindowView.setWarning(message);
                 break;
+            default:
+                break;
+            }
+        });
+    }
+
+    private static void showSubmissionMessage(@Nullable SparkSubmissionToolWindowView sparkSubmissionView,
+                                              @NotNull String message,
+                                              @NotNull MessageInfoType type,
+                                              final boolean isNeedClear) {
+        if (isNeedClear && sparkSubmissionView != null) {
+            sparkSubmissionView.clearAll();
+            resetToolWindowMessageSubject(sparkSubmissionView);
         }
+
+        getToolWindowMessageSubject().onNext(new SimpleImmutableEntry<>(type, message));
     }
 }

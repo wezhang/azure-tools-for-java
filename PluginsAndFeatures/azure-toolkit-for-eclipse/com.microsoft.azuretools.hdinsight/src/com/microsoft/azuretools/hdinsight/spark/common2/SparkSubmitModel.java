@@ -262,7 +262,8 @@ public class SparkSubmitModel {
         }
     }
 
-    private IClusterDetail getClusterConfiguration(@NotNull final IClusterDetail selectedClusterDetail, @NotNull final boolean isFirstSubmit) {
+    private IClusterDetail getClusterConfiguration(@NotNull final IClusterDetail selectedClusterDetail,
+                                                   final boolean isFirstSubmit) {
         try {
             if (!selectedClusterDetail.isConfigInfoAvailable()) {
                 selectedClusterDetail.getConfigurationInfo();
