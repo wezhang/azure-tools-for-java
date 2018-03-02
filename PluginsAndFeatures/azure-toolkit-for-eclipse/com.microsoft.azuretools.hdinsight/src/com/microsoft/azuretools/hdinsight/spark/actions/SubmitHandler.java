@@ -58,7 +58,7 @@ public class SubmitHandler extends AzureAbstractHandler {
                     }
                     
                     AppInsightsClient.create(Messages.SparkSubmissionRightClickProject, Activator.getDefault().getBundle().getVersion().toString());
-                    HDInsightUtil.showInfoOnSubmissionMessageWindow("List spark clusters ...", true);
+                    HDInsightUtil.showInfoOnSubmissionMessageWindow("List spark clusters ...");
                     
                     cachedClusterDetails = ClusterManagerEx.getInstance().getClusterDetailsWithoutAsync(true);
                     if(!ClusterManagerEx.getInstance().isSelectedSubscriptionExist()) {
