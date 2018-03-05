@@ -638,6 +638,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 boolean isSubmitting = true;
 
                 while (isSubmitting) {
+                    Boolean isAppIdAllocated = !this.getSparkJobApplicationIdObservable().isEmpty().toBlocking().last();
                     String logUrl = String.format("%s/%d/log?from=%d&size=%d",
                             this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
 
@@ -656,8 +657,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
                     // Retry interval
                     if (linesGot == 0) {
+                        isSubmitting = this.getState().equals("starting") && !isAppIdAllocated;
+
                         sleep(TimeUnit.SECONDS.toMillis(this.getDelaySeconds()));
-                        isSubmitting = this.getState().equals("starting");
                     }
                 }
             } catch (IOException ex) {

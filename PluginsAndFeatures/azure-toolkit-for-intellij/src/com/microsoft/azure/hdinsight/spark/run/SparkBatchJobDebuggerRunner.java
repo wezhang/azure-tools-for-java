@@ -62,6 +62,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownServiceException;
+import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Optional;
@@ -138,7 +139,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         debugProcessPhaser = new Phaser(1);
 
         Observable.create((Observable.OnSubscribe<String>) ob ->
-                createDebugJobSession(submitModel).subscribe(debugJobClusterPair -> {
+                createDebugJobSession(submitModel, ob).subscribe(debugJobClusterPair -> {
                     final SparkBatchRemoteDebugJob remoteDebugJob = debugJobClusterPair.getKey();
                     final IClusterDetail clusterDetail = debugJobClusterPair.getValue();
                     final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -176,16 +177,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
                     ob.onNext("Info: Spark Job Driver debugging started.");
 
-                    Subscription livyLogSubscription = submitModel
-                            .jobLogObservable(remoteDebugJob.getBatchId(), clusterDetail)
-                            .subscribeOn(Schedulers.io())
-                            .subscribe();
-
                     // Await for all debug processes finish
                     debugProcessPhaser.arriveAndAwaitAdvance();
                     ob.onCompleted();
-
-                    livyLogSubscription.unsubscribe();
                 }, ob::onError))
                 .subscribe(
                         info -> HDInsightUtil.showInfoOnSubmissionMessageWindow(project, info),
@@ -252,7 +246,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
      * Create a Debug Spark Job session with building, deploying and submitting
      */
     private Single<SimpleEntry<SparkBatchRemoteDebugJob, IClusterDetail>> createDebugJobSession(
-                                                                            @NotNull SparkSubmitModel submitModel) {
+            @NotNull SparkSubmitModel submitModel, Subscriber<? super String> debugSessionSub) {
         SparkSubmissionParameter submissionParameter = submitModel.getSubmissionParameter();
         String selectedClusterName = submissionParameter.getClusterName();
 
@@ -285,11 +279,23 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 submitModel.tryToCreateBatchSparkDebugJob(selectedClusterDetail);
                         setDebugJob(remoteDebugJob);
 
-                        SparkBatchDebugSession session = createSparkBatchDebugSession(
-                                selectedClusterDetail.getConnectionUrl(), submitModel.getAdvancedConfigModel()).open();
-                        setDebugSession(session);
-
                         return new SimpleEntry<>(remoteDebugJob, selectedClusterDetail);
+                    } catch (Exception e) {
+                        HDInsightUtil.setJobRunningStatus(submitModel.getProject(), false);
+                        throw propagate(e);
+                    }})
+                .flatMap(jobClusterPair -> jobClusterPair.getKey().getSubmissionLog()
+                                                         .map(AbstractMap.SimpleImmutableEntry::getValue)
+                                                         .doOnNext(debugSessionSub::onNext)
+                                                         .doOnError(debugSessionSub::onError)
+                                                         .last()
+                                                         .toSingle()
+                                                         .map(message -> jobClusterPair))
+                .doOnSuccess(jobClusterPair -> {
+                    try {
+                        SparkBatchDebugSession session = createSparkBatchDebugSession(
+                                jobClusterPair.getValue().getConnectionUrl(), submitModel.getAdvancedConfigModel()).open();
+                        setDebugSession(session);
                     } catch (Exception e) {
                         HDInsightUtil.setJobRunningStatus(submitModel.getProject(), false);
                         throw propagate(e);
