@@ -40,11 +40,13 @@ import com.jcraft.jsch.JSchException;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.JobStatusManager;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -125,6 +127,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
         SparkSubmitModel submitModel = submissionState.getSubmitModel();
         Project project = submitModel.getProject();
+        IdeSchedulers schedulers = new IdeaSchedulers(project);
 
         submissionState.checkSubmissionParameter();
 
@@ -138,8 +141,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         // Reset the debug process Phaser
         debugProcessPhaser = new Phaser(1);
 
-        Observable.create((Observable.OnSubscribe<String>) ob ->
-                createDebugJobSession(submitModel, ob).subscribe(debugJobClusterPair -> {
+        Observable.create((Observable.OnSubscribe<String>) ob -> createDebugJobSession(submitModel, ob, schedulers)
+                .observeOn(schedulers.processBarVisibleAsync("Spark batch job is debugging"))
+                .subscribe(debugJobClusterPair -> {
                     final SparkBatchRemoteDebugJob remoteDebugJob = debugJobClusterPair.getKey();
                     final IClusterDetail clusterDetail = debugJobClusterPair.getValue();
                     final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -164,6 +168,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 submissionState,
                                 true,
                                 ob,
+                                schedulers,
                                 debugProcessPhaser,
                                 driverHost,
                                 driverDebugPort,
@@ -246,7 +251,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
      * Create a Debug Spark Job session with building, deploying and submitting
      */
     private Single<SimpleEntry<SparkBatchRemoteDebugJob, IClusterDetail>> createDebugJobSession(
-            @NotNull SparkSubmitModel submitModel, Subscriber<? super String> debugSessionSub) {
+            @NotNull SparkSubmitModel submitModel, Subscriber<? super String> debugSessionSub, IdeSchedulers schedulers) {
         SparkSubmissionParameter submissionParameter = submitModel.getSubmissionParameter();
         String selectedClusterName = submissionParameter.getClusterName();
 
@@ -271,7 +276,8 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                     } catch (Exception e) {
                         ob.onError(e);
                     }
-                }).subscribeOn(Schedulers.io()))
+                }).subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster")))
+                .observeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
                 .map((selectedClusterDetail) -> {
                     // Create Batch Spark Debug Job
                     try {
@@ -395,6 +401,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     @NotNull SparkBatchJobSubmissionState submissionState,
                                     boolean isDriver,
                                     @NotNull Subscriber<? super String> debugSessionSubscriber,
+                                    IdeSchedulers schedulers,
                                     @NotNull Phaser debugPhaser,
                                     String remoteHost,
                                     int remotePort,
@@ -460,6 +467,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                                         newExecutorState,
                                                         false,
                                                         debugSessionSubscriber,
+                                                        schedulers,
                                                         debugPhaser,
                                                         host,
                                                         executorJdbPort,
@@ -518,7 +526,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 ob.onError(e);
             }
         })
-        .subscribeOn(Schedulers.io())
         .subscribe(debugProcessConsole::onNext, debugSessionSubscriber::onError, debugPhaser::arriveAndDeregister);
     }
 
