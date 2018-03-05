@@ -137,7 +137,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
 
         Group clusterStorageGroup = new Group(container, SWT.NONE);
         clusterStorageGroup.setText("The Cluster Storage Information (Optional)");
-        clusterStorageGroup.setToolTipText("The Cluster Storage Information provided can enable the Storage Explorer support.");
+        clusterStorageGroup.setToolTipText("The Cluster Storage Information provided can enable the Storage Explorer support in the left tree view.");
         gridLayout = new GridLayout();
         gridLayout.numColumns = 2;
         clusterStorageGroup.setLayout(gridLayout);
