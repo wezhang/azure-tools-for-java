@@ -121,14 +121,14 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 //                ExecutionResult result = new DefaultExecutionResult(consoleView, process);
 //                programRunner.onProcessStarted(null, result);
 
-                SparkBatchJobDebuggerRunner debuggerRunner = (SparkBatchJobDebuggerRunner) programRunner;
+//                SparkBatchJobDebuggerRunner debuggerRunner = (SparkBatchJobDebuggerRunner) programRunner;
 //
 //                SparkBatchJobRemoteDebugProcess remoteProcess = debuggerRunner.getRemoteDebugProcess()
 //                        .orElseThrow(() -> debuggerRunner.getRemoteDebugProcessError()
 //                                .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 //                SparkBatchJobRemoteDebugProcess remoteProcess = new SparkBatchJobRemoteDebugProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
-                SparkBatchJobDebugProcessHandler processHandler = debuggerRunner.getProcessHandler();
-//                SparkBatchJobDebugProcessHandler processHandler = new SparkBatchJobDebugProcessHandler(myProject, getSubmitModel());
+//                SparkBatchJobDebugProcessHandler processHandler = debuggerRunner.getProcessHandler();
+                SparkBatchJobDebugProcessHandler processHandler = new SparkBatchJobDebugProcessHandler(myProject, getSubmitModel());
 
                 SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
                 jobOutputView.attachToProcess(processHandler);
@@ -141,7 +141,8 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 //                        .orElseThrow(() -> debuggerRunner.getExecutionError()
 //                        .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 
-                debuggerRunner.getCtrlSubject().subscribe(
+//                debuggerRunner.getCtrlSubject().subscribe(
+                processHandler.getCtrlSubject().subscribe(
                         messageWithType -> {
                             switch (messageWithType.getKey()) {
                                 case Info:
@@ -183,12 +184,12 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 SparkBatchJobDisconnectAction disconnectAction = new SparkBatchJobDisconnectAction(remoteProcess);
                 ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), disconnectAction);
 
-                remoteProcess.getEventSubject()
-                        .subscribe(event -> {
-                            if (event instanceof SparkBatchJobSubmittedEvent) {
-                                disconnectAction.setEnabled(true);
-                            }
-                        });
+//                remoteProcess.getEventSubject()
+//                        .subscribe(event -> {
+//                            if (event instanceof SparkBatchJobSubmittedEvent) {
+//                                disconnectAction.setEnabled(true);
+//                            }
+//                        });
 
                 ctrlSubject.subscribe(
                         messageWithType -> {

@@ -204,23 +204,28 @@ public class SparkSubmitHelper {
 
     public Single<Artifact> buildArtifact(Project project, boolean isPrebuiltArtifact, Artifact artifact) {
         return Single.create(ob -> {
-            if (isPrebuiltArtifact) {
-                ob.onError(new NotSupportExecption());
-                return;
-            }
-
-            final Set<Artifact> artifacts = Collections.singleton(artifact);
-            ArtifactsWorkspaceSettings.getInstance(project).setArtifactsToBuild(artifacts);
-
-            final CompileScope scope = ArtifactCompileScope.createArtifactsScope(project, artifacts, true);
-            // Make is an async work
-            CompilerManager.getInstance(project).make(scope, (aborted, errors, warnings, compileContext) -> {
-                if (aborted || errors != 0) {
-                    ob.onError(new CompilationException(Arrays.toString(compileContext.getMessages(CompilerMessageCategory.ERROR))));
-                } else {
-                    ob.onSuccess(artifact);
+            try {
+                if (isPrebuiltArtifact) {
+                    ob.onError(new NotSupportExecption());
+                    return;
                 }
-            });
+
+                final Set<Artifact> artifacts = Collections.singleton(artifact);
+                ArtifactsWorkspaceSettings.getInstance(project).setArtifactsToBuild(artifacts);
+
+                final CompileScope scope = ArtifactCompileScope.createArtifactsScope(project, artifacts, true);
+
+                // Make is an async work
+                CompilerManager.getInstance(project).make(scope, (aborted, errors, warnings, compileContext) -> {
+                    if (aborted || errors != 0) {
+                        ob.onError(new CompilationException(Arrays.toString(compileContext.getMessages(CompilerMessageCategory.ERROR))));
+                    } else {
+                        ob.onSuccess(artifact);
+                    }
+                });
+            } catch (Exception e) {
+                ob.onError(e);
+            }
         });
     }
 

@@ -31,22 +31,25 @@ import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
+import rx.Observable;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
 import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
-    @NotNull
-    private SparkJobDebugLogInputStream jobDebugStdoutLogInputSteam = new SparkJobDebugLogInputStream(super.getInputStream());
-    @NotNull
-    private SparkJobDebugLogInputStream jobDebugStderrLogInputSteam = new SparkJobDebugLogInputStream(super.getErrorStream());
+//    @NotNull
+//    private SparkJobDebugLogInputStream jobDebugStdoutLogInputSteam = new SparkJobDebugLogInputStream(super.getInputStream());
+//    @NotNull
+//    private SparkJobDebugLogInputStream jobDebugStderrLogInputSteam = new SparkJobDebugLogInputStream(super.getErrorStream());
 
+    // Control subjects
     @NotNull
     private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
 
@@ -61,64 +64,23 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                     new SparkSubmitAdvancedConfigModel.NotAdvancedConfig("SSH authentication not set"));
         }
 
-        super.getEventSubject()
-                .subscribe(event -> {
-                        debugEventSubject.onNext(event);
 
-                        if (event instanceof SparkBatchJobSubmittedEvent) {
-                            SparkBatchRemoteDebugJob job = (SparkBatchRemoteDebugJob) ((SparkBatchJobSubmittedEvent) event).getJob();
-
-                            try {
-                                SparkBatchDebugSession session = createSparkBatchDebugSession(
-                                        job.getConnectUri().toString(),
-                                        sparkSubmitModel.getAdvancedConfigModel())
-                                        .open();
-                                String remoteHost = job.getSparkDriverHost();
-                                int remotePort = job.getSparkDriverDebuggingPort();
-
-                                int localPort = session
-                                        .forwardToRemotePort(remoteHost, remotePort)
-                                        .getForwardedLocalPort(remoteHost, remotePort);
-
-                                SparkBatchDebugJobJdbPortForwardedEvent jdbReadyEvent = new SparkBatchDebugJobJdbPortForwardedEvent(
-                                        job, session, remoteHost, remotePort, localPort);
-
-                                // Debug session created and SSH port forwarded
-                                debugEventSubject.onNext(jdbReadyEvent);
-                            } catch (JSchException e) {
-                                throw propagate(new ExecutionException(
-                                        "Can't create Spark Job remote debug session, " +
-                                                "please check your SSH connect with manually login.",
-                                        e));
-                            } catch (SparkJobException | IOException e) {
-                                throw propagate(e);
-                            }
-                        }
-                    },
-                    debugEventSubject::onError,
-                    debugEventSubject::onCompleted);
-
-        this.jobDebugStderrLogInputSteam.getExecutorSubject()
-                .subscribe(executor -> getSparkJob()
-                        .ifPresent(job -> debugEventSubject.onNext(
-                                new SparkBatchJobExecutorCreatedEvent(job, executor.host, executor.containerId)
-                        )));
+//        this.jobDebugStderrLogInputSteam.getExecutorSubject()
+//                .subscribe(executor -> getSparkJob()
+//                        .ifPresent(job -> debugEventSubject.onNext(
+//                                new SparkBatchJobExecutorCreatedEvent(job, executor.host, executor.containerId)
+//                        )));
     }
 
-    @Override
-    public InputStream getInputStream() {
-        return jobDebugStdoutLogInputSteam;
-    }
-
-    @Override
-    public InputStream getErrorStream() {
-        return jobDebugStderrLogInputSteam;
-    }
-
-    @Override
-    public void start() {
-        super.start();
-    }
+//    @Override
+//    public InputStream getInputStream() {
+//        return jobDebugStdoutLogInputSteam;
+//    }
+//
+//    @Override
+//    public InputStream getErrorStream() {
+//        return jobDebugStderrLogInputSteam;
+//    }
 
     @NotNull
     @Override
@@ -127,11 +89,55 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
     }
 
     @Override
-    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) throws SparkJobException {
-        return SparkBatchRemoteDebugJob.factory(
-                URI.create(JobUtils.getLivyConnectionURL(cluster)).toString(),
-                getSubmitModel().getSubmissionParameter(),
-                SparkBatchSubmission.getInstance());
+    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
+        try {
+            return SparkBatchRemoteDebugJob.factory(
+                    URI.create(JobUtils.getLivyConnectionURL(cluster)).toString(),
+                    getSubmitModel().getSubmissionParameter(),
+                    SparkBatchSubmission.getInstance());
+        } catch (DebugParameterDefinedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Override
+    protected Observable<SimpleImmutableEntry<SparkBatchJobState, String>> awaitForJobDone(SparkBatchJob runningJob) {
+        return createDebugSession((SparkBatchRemoteDebugJob) runningJob)
+                .subscribeOn(getSchedulers().processBarVisibleAsync("Create Spark batch job debug session"))
+                .flatMap(super::awaitForJobDone);
+    }
+
+    private Observable<SparkBatchRemoteDebugJob> createDebugSession(SparkBatchRemoteDebugJob job) {
+        return Observable.fromCallable(() -> {
+            try {
+                SparkBatchDebugSession session = createSparkBatchDebugSession(
+                        job.getConnectUri().toString(),
+                        getSubmitModel().getAdvancedConfigModel())
+                        .open();
+                String remoteHost = job.getSparkDriverHost();
+                int remotePort = job.getSparkDriverDebuggingPort();
+
+                int localPort = session
+                        .forwardToRemotePort(remoteHost, remotePort)
+                        .getForwardedLocalPort(remoteHost, remotePort);
+
+                SparkBatchDebugJobJdbPortForwardedEvent jdbReadyEvent = new SparkBatchDebugJobJdbPortForwardedEvent(
+                        job, session, remoteHost, remotePort, localPort);
+
+                // Debug session created and SSH port forwarded
+                debugEventSubject.onNext(jdbReadyEvent);
+
+                return job;
+            } catch (JSchException e) {
+                throw new ExecutionException(
+                        "Can't create Spark Job remote debug session, " +
+                                "please check your SSH connect with manually login.",
+                        e);
+            } catch (SparkJobException | IOException e) {
+                throw new ExecutionException(e);
+            }
+        });
     }
 
     /*
@@ -166,10 +172,23 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
      * @return SSH host
      * @throws URISyntaxException connection URL is invalid
      */
-    static protected String getSshHost(String connectionUrl) {
+    private static String getSshHost(String connectionUrl) {
         URI connectUri = URI.create(connectionUrl);
         String segs[] = connectUri.getHost().split("\\.");
         segs[0] = segs[0].concat("-ssh");
         return StringUtils.join(segs, ".");
     }
+
+    /**
+     * To get Executor from Yarn UI App Attempt page
+     */
+    private Observable<SimpleEntry<String, String>> getExecutorsObservable(@NotNull SparkBatchRemoteDebugJob sparkDebugJob) {
+        return sparkDebugJob
+                .getSparkJobYarnCurrentAppAttempt()
+                .flatMap(appAttempt -> sparkDebugJob.getSparkJobYarnContainersObservable(appAttempt)
+                        .filter(hostContainerPair -> !StringUtils.equals(
+                                hostContainerPair.getValue(), appAttempt.getContainerId())))
+                .map(kv -> new SimpleEntry<>(kv.getKey(), kv.getValue()));
+    }
+
 }

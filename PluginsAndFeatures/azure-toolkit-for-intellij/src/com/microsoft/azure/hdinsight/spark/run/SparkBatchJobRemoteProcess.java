@@ -154,7 +154,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         return Optional.ofNullable(jobSubscription);
     }
 
-    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) throws SparkJobException {
+    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
         return new SparkBatchJob(
                 URI.create(JobUtils.getLivyConnectionURL(cluster)),
                 submitModel.getSubmissionParameter(),
@@ -163,24 +163,10 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     public void start() {
         // Build, deploy and wait for the job done.
-        jobSubscription = SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
-                .flatMap(artifact -> JobUtils.deployArtifact(
-                            submitModel.getArtifactPath(artifact.getName())
-                                    .orElseThrow(() -> propagate(new SparkJobException("Can't find jar path to upload"))),
-                            submitModel.getSubmissionParameter().getClusterName(),
-                            ctrlSubject)
-                    .subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster")))
-                .toObservable()
+        jobSubscription = prepareArtifact()
                 .flatMap(this::submitJob)
-                .flatMap(job -> Observable.zip(
-                        attachJobInputStream(jobStderrLogInputSteam, job),
-                        attachJobInputStream(jobStdoutLogInputSteam, job),
-                        (job1, job2) -> {
-                            sparkJob = job;
-                            return job;
-                        }))
-                .flatMap(runningJob -> runningJob.getJobDoneObservable()
-                        .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job is running")))
+                .flatMap(this::attachInputStreams)
+                .flatMap(this::awaitForJobDone)
                 .subscribe(sdPair -> {
                     if (sdPair.getKey() == SparkBatchJobState.SUCCESS) {
                         logInfo("Job run successfully.");
@@ -234,8 +220,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         return eventSubject;
     }
 
-    private Observable<SparkBatchJob> startJobSubmissionLogReceiver(SparkBatchJob job) {
-        getEventSubject().onNext(new SparkBatchJobSubmissionEvent(SparkBatchJobSubmissionEvent.Type.SUBMITTED, job));
+    protected Observable<SparkBatchJob> startJobSubmissionLogReceiver(SparkBatchJob job) {
+//        getEventSubject().onNext(new SparkBatchJobSubmittedEvent(job));
 
         return job.getSubmissionLog()
                 .doOnNext(ctrlSubject::onNext)
@@ -245,17 +231,50 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     }
 
-    private Observable<SparkBatchJob> submitJob(SimpleImmutableEntry<IClusterDetail, String> clusterArtifactUriPair) {
+    // Build and deploy artifact
+    protected Observable<SimpleImmutableEntry<IClusterDetail, String>> prepareArtifact() {
+        return SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
+                .flatMap(artifact -> JobUtils.deployArtifact(
+                                            submitModel.getArtifactPath(artifact.getName())
+                                                       .orElseThrow(() -> propagate(
+                                                               new SparkJobException("Can't find jar path to upload"))),
+                                            submitModel.getSubmissionParameter().getClusterName(),
+                                            ctrlSubject)
+                                    .subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster")))
+                .toObservable();
+    }
+
+    protected Observable<? extends SparkBatchJob> submitJob(SimpleImmutableEntry<IClusterDetail, String> clusterArtifactUriPair) {
         IClusterDetail cluster = clusterArtifactUriPair.getKey();
         submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
-        return JobUtils.submit(cluster, submitModel.getSubmissionParameter())
+        return JobUtils.submit(this.createJobToSubmit(cluster))
                 .subscribeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
                 .toObservable()
                 .flatMap(this::startJobSubmissionLogReceiver);   // To receive the Livy submission log
     }
+
     @NotNull
     public SparkSubmitModel getSubmitModel() {
         return submitModel;
     }
 
+    @NotNull
+    public IdeaSchedulers getSchedulers() {
+        return schedulers;
+    }
+
+    protected Observable<? extends SparkBatchJob> attachInputStreams(SparkBatchJob job) {
+        return Observable.zip(
+                attachJobInputStream(jobStderrLogInputSteam, job),
+                attachJobInputStream(jobStdoutLogInputSteam, job),
+                (job1, job2) -> {
+                    sparkJob = job;
+                    return job;
+                });
+    }
+
+    protected Observable<SimpleImmutableEntry<SparkBatchJobState, String>> awaitForJobDone(SparkBatchJob runningJob) {
+        return runningJob.getJobDoneObservable()
+                .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job is running"));
+    }
 }

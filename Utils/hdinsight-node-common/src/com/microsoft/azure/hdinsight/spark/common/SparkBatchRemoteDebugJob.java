@@ -81,7 +81,7 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      */
     @Override
     public int getSparkDriverDebuggingPort() throws IOException {
-        String driverLogUrl = this.getSparkJobDriverLogUrl(this.getConnectUri(), this.getBatchId());
+        String driverLogUrl = this.getSparkJobDriverLogUrlObservable().toBlocking().first();
 
         return getYarnContainerJDBListenPort(driverLogUrl);
     }

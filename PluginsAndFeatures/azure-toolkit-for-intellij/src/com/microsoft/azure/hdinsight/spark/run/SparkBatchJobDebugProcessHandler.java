@@ -34,8 +34,7 @@ import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.io.BaseOutputReader;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import rx.Observer;
 import rx.subjects.PublishSubject;
 
@@ -47,7 +46,8 @@ import java.util.concurrent.Future;
 
 public class SparkBatchJobDebugProcessHandler extends RemoteDebugProcessHandler {
     private final SparkBatchJobRemoteDebugProcess remoteDebugProcess;
-    @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+    @NotNull
+    private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
 
     public SparkBatchJobDebugProcessHandler(Project project, SparkSubmitModel submitModel)
             throws ExecutionException {
@@ -61,6 +61,7 @@ public class SparkBatchJobDebugProcessHandler extends RemoteDebugProcessHandler 
         remoteDebugProcess.start();
     }
 
+    @NotNull
     public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
         return ctrlSubject;
     }
