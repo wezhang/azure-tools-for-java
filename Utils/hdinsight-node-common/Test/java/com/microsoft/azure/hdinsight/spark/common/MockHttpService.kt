@@ -24,6 +24,8 @@ package com.microsoft.azure.hdinsight.spark.common
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import com.github.tomakehurst.wiremock.http.HttpHeader
+import com.github.tomakehurst.wiremock.http.HttpHeaders
 import groovy.text.SimpleTemplateEngine
 
 class MockHttpService {
@@ -41,6 +43,16 @@ class MockHttpService {
                                 action, WireMock.urlEqualTo(uri))
                         .willReturn(WireMock.aResponse()
                                 .withStatus(statusCode).withBody(normalizeResponse(response))))
+    }
+
+    public fun stubWithHeader(action: String, uri: String, statusCode: Int, response: String, header: Map<String, String>) {
+        WireMock.configureFor(port)
+        WireMock.stubFor(WireMock.request(
+                action, WireMock.urlEqualTo(uri))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(statusCode)
+                        .withHeaders(HttpHeaders(header.map { HttpHeader(it.key, it.value) }))
+                        .withBody(normalizeResponse(response))))
     }
 
     public fun normalizeResponse(rawResponse: String): String {

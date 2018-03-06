@@ -645,6 +645,6 @@ public class JobUtils {
             return new AbstractMap.SimpleImmutableEntry<>(statusCode, response.getHeaders());
         }
 
-        throw new AuthenticationException("Authentication failed", statusCode);
+        throw new AuthenticationException(response.getContent(), statusCode);
     }
 }
