@@ -149,8 +149,8 @@ public class SparkSubmissionExDialog extends Dialog {
 		clustersListComboBox.setToolTipText(
 				"The HDInsight Spark cluster you want to submit your application to. Only Linux cluster is supported.");
 		for (IClusterDetail clusterDetail : cachedClusterDetails) {
-			clustersListComboBox.add(clusterDetail.getName());
-			clustersListComboBox.setData(clusterDetail.getName(), clusterDetail);
+            clustersListComboBox.add(clusterDetail.getTitle());
+            clustersListComboBox.setData(clusterDetail.getTitle(), clusterDetail);
 		}
 		if (cachedClusterDetails.size() > 0) {
 			clustersListComboBox.select(0);
