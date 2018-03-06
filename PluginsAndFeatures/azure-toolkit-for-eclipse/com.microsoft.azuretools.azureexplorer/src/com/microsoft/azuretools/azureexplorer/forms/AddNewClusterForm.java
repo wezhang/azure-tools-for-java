@@ -50,16 +50,11 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
 
     public AddNewClusterForm(Shell parentShell, HDInsightRootModule module) {
         super(parentShell);
+        // enable help button
+        setHelpAvailable(true);
+
         this.hdInsightModule = module;
         this.ctrlProvider = new AddNewClusterCtrlProvider(this, new EclipseSchedulers(Activator.PLUGIN_ID));
-    }
-
-    @Override
-    protected void configureShell(Shell newShell) {
-        super.configureShell(newShell);
-        newShell.setSize(439, 415);
-        newShell.setText("Link New HDInsight Cluster");
-
     }
 
     private void refreshContainers() {
@@ -71,9 +66,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
     protected Control createDialogArea(Composite parent) {
         setTitle("Link New HDInsight Cluster");
         setMessage("Please enter HDInsight Cluster details");
-        // enable help button
-        setHelpAvailable(true);
-        
+
         Composite container = new Composite(parent, SWT.NONE);
         GridLayout gridLayout = new GridLayout();
         gridLayout.numColumns = 2;
@@ -209,7 +202,7 @@ public class AddNewClusterForm extends AzureTitleAreaDialogWrapper implements Se
             }
         });
         
-        return super.createDialogArea(parent);
+        return container;
     }
 
     @Override
