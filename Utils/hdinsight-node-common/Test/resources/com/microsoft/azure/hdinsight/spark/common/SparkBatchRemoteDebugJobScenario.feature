@@ -71,3 +71,15 @@ Feature: Spark Batch Remote Debug Job Testing
     Given setup a mock livy service for GET request '/yarnui/ws/v1/cluster/apps/application_1513565654634_0011/appattempts' to return '{"appAttempts":{"appAttempt":[{"id":1,"startTime":1513673984219,"finishedTime":0,"containerId":"container_1513565654634_0011_01_000001","nodeHttpAddress":"10.0.0.6:30060","nodeId":"10.0.0.6:30050","logsLink":"http://10.0.0.6:30060/node/containerlogs/container_1513565654634_0011_01_000001/livy","blacklistedNodes":"","appAttemptId":"appattempt_1513565654634_0011_000001"},{"id":2,"startTime":1513673985219,"finishedTime":0,"containerId":"container_1513565654634_0011_01_000002","nodeHttpAddress":"10.0.0.7:30060","nodeId":"10.0.0.7:30050","logsLink":"http://10.0.0.7:30060/node/containerlogs/container_1513565654634_0011_01_000002/livy","blacklistedNodes":"","appAttemptId":"appattempt_1513565654634_0011_000002"}]}}' with status code 200
    And mock method getSparkJobApplicationIdObservable to return 'application_1513565654634_0011' Observable
    Then getting current Yarn App attempt should be 'appattempt_1513565654634_0011_000002'
+
+  Scenario: getSparkJobDriverLogUrlObservable unit test
+    Given mock getSparkJobYarnCurrentAppAttempt with the following response:
+      | logsLink | http://10.0.0.4:8042/node/containerlogs/container_1326821518301_0005_01_000001/user1 |
+    And mock Spark job connect URI to be 'https://cluster/'
+    Then getting Spark Job driver log URL Observable should be 'https://cluster/yarnui/10.0.0.4/node/containerlogs/container_1326821518301_0005_01_000001/user1'
+
+  Scenario: getSparkJobDriverLogUrlObservable unit test for failure
+    Given mock getSparkJobYarnCurrentAppAttempt with the following response:
+      | logsLink | |
+    And mock Spark job connect URI to be 'https://cluster/'
+    Then getting Spark Job driver log URL Observable should be empty

@@ -41,6 +41,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -770,6 +771,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         return getSparkJobYarnCurrentAppAttempt()
                 .map(AppAttempt::getLogsLink)
                 .map(URI::create)
+                .filter(uri -> StringUtils.isNotEmpty(uri.getHost()))
                 .map(logUriWithIP -> getConnectUri().resolve(
                         String.format("/yarnui/%s%s", logUriWithIP.getHost(), logUriWithIP.getPath())).toString());
     }

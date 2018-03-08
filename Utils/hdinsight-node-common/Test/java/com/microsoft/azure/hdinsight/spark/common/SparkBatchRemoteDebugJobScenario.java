@@ -35,6 +35,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -246,5 +247,31 @@ public class SparkBatchRemoteDebugJobScenario {
                 .first();
 
         assertEquals(appAttemptIdExpect, appAttempt.getAppAttemptId());
+    }
+
+    @Given("^mock getSparkJobYarnCurrentAppAttempt with the following response:$")
+    public void mockGetSparkJobYarnCurrentAppAttemptWithTheFollowingResponse(Map<String, String> respMock) throws Throwable {
+        doReturn(Observable.just(new AppAttempt())
+                           .doOnNext(appAttempt -> {
+                               Optional.ofNullable(respMock.get("logsLink")).ifPresent(appAttempt::setLogsLink);
+                           }))
+                .when(debugJobMock).getSparkJobYarnCurrentAppAttempt();
+    }
+
+    @Then("^getting Spark Job driver log URL Observable should be '(.+)'$")
+    public void checkSparkJobDriverLogURLObservable(String expect) throws Throwable {
+        String url = debugJobMock.getSparkJobDriverLogUrlObservable().toBlocking().last();
+
+        assertEquals(expect, url);
+    }
+
+    @And("^mock Spark job connect URI to be '(.+)'$")
+    public void mockSparkJobConnectURI(String mock) throws Throwable {
+        doReturn(URI.create(mock)).when(debugJobMock).getConnectUri();
+    }
+
+    @Then("^getting Spark Job driver log URL Observable should be empty$")
+    public void gettingSparkJobDriverLogURLObservableShouldBeEmpty() throws Throwable {
+        assertTrue(debugJobMock.getSparkJobDriverLogUrlObservable().isEmpty().toBlocking().last());
     }
 }
