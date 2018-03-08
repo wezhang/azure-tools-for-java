@@ -772,7 +772,30 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 .map(AppAttempt::getLogsLink)
                 .map(URI::create)
                 .filter(uri -> StringUtils.isNotEmpty(uri.getHost()))
-                .map(logUriWithIP -> getConnectUri().resolve(
-                        String.format("/yarnui/%s%s", logUriWithIP.getHost(), logUriWithIP.getPath())).toString());
+                .flatMap(logUriWithIP -> {
+                    // New version, without port info in log URL
+                    String uriProbe = getConnectUri().resolve(
+                            String.format("/yarnui/%s%s", logUriWithIP.getHost(), logUriWithIP.getPath())).toString();
+
+                    try {
+                        if (isUriValid(uriProbe)) {
+                            return Observable.just(uriProbe);
+                        }
+
+                        // Old version, with port info in log URL
+                        uriProbe = getConnectUri().resolve(
+                                String.format("/yarnui/%s/port/%s%s", logUriWithIP.getHost(), logUriWithIP.getPort(), logUriWithIP.getPath())).toString();
+
+                        if (isUriValid(uriProbe)) {
+                            return Observable.just(uriProbe);
+                        }
+                    } catch (IOException ignored) { }
+
+                    return Observable.empty();
+                });
+    }
+
+    public boolean isUriValid(String uriProbe) throws IOException {
+        return getSubmission().getHttpResponseViaGet(uriProbe).getCode() < 300;
     }
 }

@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppAttempt;
+import cucumber.api.PendingException;
 import cucumber.api.java.Before;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
@@ -273,5 +274,10 @@ public class SparkBatchRemoteDebugJobScenario {
     @Then("^getting Spark Job driver log URL Observable should be empty$")
     public void gettingSparkJobDriverLogURLObservableShouldBeEmpty() throws Throwable {
         assertTrue(debugJobMock.getSparkJobDriverLogUrlObservable().isEmpty().toBlocking().last());
+    }
+
+    @And("^mock Spark job uri '(.*)' is (valid|invalid)$")
+    public void mockSparkJobUriIsValidOrNot(String uriToCheck, String validOrNot) throws Throwable {
+        doReturn(validOrNot.equals("valid")).when(debugJobMock).isUriValid(uriToCheck);
     }
 }

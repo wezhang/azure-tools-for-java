@@ -75,8 +75,12 @@ Feature: Spark Batch Remote Debug Job Testing
   Scenario: getSparkJobDriverLogUrlObservable unit test
     Given mock getSparkJobYarnCurrentAppAttempt with the following response:
       | logsLink | http://10.0.0.4:8042/node/containerlogs/container_1326821518301_0005_01_000001/user1 |
+    And mock Spark job uri 'https://cluster/yarnui/10.0.0.4/node/containerlogs/container_1326821518301_0005_01_000001/user1' is valid
     And mock Spark job connect URI to be 'https://cluster/'
     Then getting Spark Job driver log URL Observable should be 'https://cluster/yarnui/10.0.0.4/node/containerlogs/container_1326821518301_0005_01_000001/user1'
+    Given mock Spark job uri 'https://cluster/yarnui/10.0.0.4/node/containerlogs/container_1326821518301_0005_01_000001/user1' is invalid
+    Given mock Spark job uri 'https://cluster/yarnui/10.0.0.4/port/8042/node/containerlogs/container_1326821518301_0005_01_000001/user1' is valid
+    Then getting Spark Job driver log URL Observable should be 'https://cluster/yarnui/10.0.0.4/port/8042/node/containerlogs/container_1326821518301_0005_01_000001/user1'
 
   Scenario: getSparkJobDriverLogUrlObservable unit test for failure
     Given mock getSparkJobYarnCurrentAppAttempt with the following response:
