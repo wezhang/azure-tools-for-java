@@ -46,16 +46,13 @@ import rx.Observable;
 import rx.Subscriber;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.UnknownServiceException;
+import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Comparator;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
@@ -63,6 +60,28 @@ import static java.lang.Thread.sleep;
 import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
+    public enum DriverLogConversionMode {
+        WITHOUT_PORT,
+        WITH_PORT;
+
+        @Nullable
+        public static DriverLogConversionMode next(@Nullable DriverLogConversionMode current) {
+            List<DriverLogConversionMode> modes = Arrays.asList(DriverLogConversionMode.values());
+
+            if (current == null) {
+                return modes.get(0);
+            }
+
+            int found = modes.indexOf(current);
+
+            if (found + 1 >= modes.size()) {
+                return null;
+            }
+
+            return modes.get(found + 1);
+        }
+    }
+
     /**
      * The base connection URI for HDInsight Spark Job service, such as: http://livy:8998/batches
      */
@@ -97,6 +116,12 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * The global cache for fetched Yarn UI page by browser
      */
     private Cache globalCache = JobUtils.getGlobalCache();
+
+    /**
+     * The driver log conversion mode
+     */
+    @Nullable
+    private DriverLogConversionMode driverLogConversionMode = null;
 
     public SparkBatchJob(
             URI connectUri,
@@ -774,28 +799,66 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 .filter(uri -> StringUtils.isNotEmpty(uri.getHost()))
                 .flatMap(logUriWithIP -> {
                     // New version, without port info in log URL
-                    String uriProbe = getConnectUri().resolve(
-                            String.format("/yarnui/%s%s", logUriWithIP.getHost(), logUriWithIP.getPath())).toString();
+                    return convertToDriverLogUrl(getDriverLogConversionMode(), logUriWithIP)
+                            .map(Observable::just)
+                            .orElseGet(() -> {
+                                // Probe usable driver log URI
+                                DriverLogConversionMode probeMode = getDriverLogConversionMode();
 
-                    try {
-                        if (isUriValid(uriProbe)) {
-                            return Observable.just(uriProbe);
-                        }
+                                while ((probeMode = DriverLogConversionMode.next(probeMode)) != null) {
+                                    Optional<String> uri = convertToDriverLogUrl(probeMode, logUriWithIP)
+                                            .filter(uriProbe -> {
+                                                try {
+                                                    return isUriValid(uriProbe);
+                                                } catch (IOException e) {
+                                                    return false;
+                                                }
+                                            });
 
-                        // Old version, with port info in log URL
-                        uriProbe = getConnectUri().resolve(
-                                String.format("/yarnui/%s/port/%s%s", logUriWithIP.getHost(), logUriWithIP.getPort(), logUriWithIP.getPath())).toString();
+                                    if (uri.isPresent()) {
+                                        // Find usable one
+                                        setDriverLogConversionMode(probeMode);
 
-                        if (isUriValid(uriProbe)) {
-                            return Observable.just(uriProbe);
-                        }
-                    } catch (IOException ignored) { }
+                                        return Observable.just(uri.get());
+                                    }
+                                }
 
-                    return Observable.empty();
+                                // All modes were probed and all failed
+                                return Observable.empty();
+                            });
                 });
     }
 
-    public boolean isUriValid(String uriProbe) throws IOException {
+    public boolean isUriValid(@NotNull String uriProbe) throws IOException {
         return getSubmission().getHttpResponseViaGet(uriProbe).getCode() < 300;
+    }
+
+    private Optional<String> convertToDriverLogUrl(@Nullable DriverLogConversionMode mode, @NotNull URI internalLogUrl) {
+        if (mode != null) {
+            switch (mode) {
+                case WITHOUT_PORT:
+                    return Optional.of(getConnectUri().resolve(
+                            String.format("/yarnui/%s%s",
+                                    internalLogUrl.getHost(),
+                                    internalLogUrl.getPath())).toString());
+                case WITH_PORT:
+                    return Optional.of(getConnectUri().resolve(
+                            String.format("/yarnui/%s/port/%s%s",
+                                    internalLogUrl.getHost(),
+                                    internalLogUrl.getPort(),
+                                    internalLogUrl.getPath())).toString());
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    @Nullable
+    private DriverLogConversionMode getDriverLogConversionMode() {
+        return this.driverLogConversionMode;
+    }
+
+    private void setDriverLogConversionMode(@Nullable DriverLogConversionMode driverLogConversionMode) {
+        this.driverLogConversionMode = driverLogConversionMode;
     }
 }
