@@ -171,8 +171,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
                     if (sdPair.getKey() == SparkBatchJobState.SUCCESS) {
                         logInfo("Job run successfully.");
                     } else {
-                        ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Job state is " + sdPair.getKey().toString()));
-                        ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, "Diagnostics: " + sdPair.getValue()));
+                        logError("Job state is " + sdPair.getKey().toString());
+                        logError("Diagnostics: " + sdPair.getValue());
                     }
                 }, err -> {
                     ctrlSubject.onError(err);
@@ -211,8 +211,12 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         this.getJobSubscription().ifPresent(Subscription::unsubscribe);
     }
 
-    private void logInfo(String message) {
+    protected void logInfo(String message) {
         ctrlSubject.onNext(new SimpleImmutableEntry<>(Info, message));
+    }
+
+    protected void logError(String message) {
+        ctrlSubject.onNext(new SimpleImmutableEntry<>(MessageInfoType.Error, message));
     }
 
     @NotNull
