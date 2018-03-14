@@ -29,64 +29,44 @@ import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
-import static rx.exceptions.Exceptions.propagate;
-
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
-//    @NotNull
-//    private SparkJobDebugLogInputStream jobDebugStdoutLogInputSteam = new SparkJobDebugLogInputStream(super.getInputStream());
-//    @NotNull
-//    private SparkJobDebugLogInputStream jobDebugStderrLogInputSteam = new SparkJobDebugLogInputStream(super.getErrorStream());
-
     // Control subjects
-    @NotNull
-    private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
+//    @NotNull
+//    private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject; // = PublishSubject.create();
+    @Nullable
+    private SparkBatchDebugSession sshDebugSession;
 
     public SparkBatchJobRemoteDebugProcess(@NotNull Project project,
                                            @NotNull SparkSubmitModel sparkSubmitModel,
                                            @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
+//                                           @NotNull PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject)
             throws ExecutionException {
         super(project, sparkSubmitModel, ctrlSubject);
+//        this.debugEventSubject = debugEventSubject;
 
         if (!sparkSubmitModel.getAdvancedConfigModel().enableRemoteDebug) {
             throw new ExecutionException(
                     new SparkSubmitAdvancedConfigModel.NotAdvancedConfig("SSH authentication not set"));
         }
-
-
-//        this.jobDebugStderrLogInputSteam.getExecutorSubject()
-//                .subscribe(executor -> getSparkJob()
-//                        .ifPresent(job -> debugEventSubject.onNext(
-//                                new SparkBatchJobExecutorCreatedEvent(job, executor.host, executor.containerId)
-//                        )));
     }
 
+//    @NotNull
 //    @Override
-//    public InputStream getInputStream() {
-//        return jobDebugStdoutLogInputSteam;
+//    public PublishSubject<SparkBatchJobSubmissionEvent> getEventSubject() {
+//        return debugEventSubject;
 //    }
-//
-//    @Override
-//    public InputStream getErrorStream() {
-//        return jobDebugStderrLogInputSteam;
-//    }
-
-    @NotNull
-    @Override
-    public PublishSubject<SparkBatchJobSubmissionEvent> getEventSubject() {
-        return debugEventSubject;
-    }
 
     @Override
     public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
@@ -115,6 +95,9 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                         job.getConnectUri().toString(),
                         getSubmitModel().getAdvancedConfigModel())
                         .open();
+
+                setSshDebugSession(session);
+
                 String remoteHost = job.getSparkDriverHost();
                 int remotePort = job.getSparkDriverDebuggingPort();
 
@@ -123,10 +106,16 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                         .getForwardedLocalPort(remoteHost, remotePort);
 
                 SparkBatchDebugJobJdbPortForwardedEvent jdbReadyEvent = new SparkBatchDebugJobJdbPortForwardedEvent(
-                        job, session, remoteHost, remotePort, localPort);
+                        job, session, remoteHost, remotePort, localPort, true);
 
                 // Debug session created and SSH port forwarded
-                debugEventSubject.onNext(jdbReadyEvent);
+                getEventSubject().onNext(jdbReadyEvent);
+
+                // Start to find executors
+                getExecutorsObservable(job)
+                        .map(hostContainerPair -> new SparkBatchJobExecutorCreatedEvent(
+                                    job, session, hostContainerPair.getKey(), hostContainerPair.getValue()))
+                        .subscribe(getEventSubject()::onNext);
 
                 return job;
             } catch (JSchException e) {
@@ -191,4 +180,12 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                 .map(kv -> new SimpleEntry<>(kv.getKey(), kv.getValue()));
     }
 
+    @Nullable
+    public SparkBatchDebugSession getSshDebugSession() {
+        return sshDebugSession;
+    }
+
+    public void setSshDebugSession(@Nullable SparkBatchDebugSession sshDebugSession) {
+        this.sshDebugSession = sshDebugSession;
+    }
 }

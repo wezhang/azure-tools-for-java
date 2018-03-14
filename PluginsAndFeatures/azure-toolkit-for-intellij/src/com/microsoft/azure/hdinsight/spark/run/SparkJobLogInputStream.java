@@ -52,7 +52,7 @@ public class SparkJobLogInputStream extends InputStream {
 
     public SparkBatchJob attachJob(@NotNull SparkBatchJob sparkJob) {
         refreshLogUrl(sparkJob);
-        this.sparkBatchJob = sparkJob;
+        setSparkBatchJob(sparkJob);
 
         return sparkJob;
     }
@@ -71,6 +71,10 @@ public class SparkJobLogInputStream extends InputStream {
                             fetchSize);
                 })
                 .filter(slice -> !slice.isEmpty());
+    }
+
+    void setSparkBatchJob(@Nullable SparkBatchJob sparkBatchJob) {
+        this.sparkBatchJob = sparkBatchJob;
     }
 
     public Optional<SparkBatchJob> getAttachedJob() {
@@ -106,14 +110,18 @@ public class SparkJobLogInputStream extends InputStream {
         }
     }
 
-    private void refreshLogUrl(SparkBatchJob sparkJob) {
+    protected void refreshLogUrl(SparkBatchJob sparkJob) {
         String currentLogUrl = sparkJob.getSparkJobDriverLogUrlObservable().toBlocking().single();
 
         if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
             // The driver log url's changed due to the job was rerun, read it from beginning
-            this.logUrl = currentLogUrl;
+            setLogUrl(currentLogUrl);
             offset = 0;
         }
+    }
+
+    void setLogUrl(@Nullable String logUrl) {
+        this.logUrl = logUrl;
     }
 
     public Optional<String> getLogUrl() {

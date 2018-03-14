@@ -22,64 +22,115 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.intellij.debugger.engine.RemoteDebugProcessHandler;
-import com.intellij.execution.ExecutionException;
 import com.intellij.execution.process.ProcessAdapter;
 import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessOutputTypes;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
-import com.intellij.remote.BaseRemoteProcessHandler;
-import com.intellij.remote.ColoredRemoteProcessHandler;
 import com.intellij.util.concurrency.AppExecutorUtil;
 import com.intellij.util.io.BaseOutputReader;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import rx.Observer;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
+import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.concurrent.Future;
 
 public class SparkBatchJobDebugProcessHandler extends RemoteDebugProcessHandler {
-    private final SparkBatchJobRemoteDebugProcess remoteDebugProcess;
     @NotNull
-    private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+    private SparkBatchJobRemoteProcess remoteDebugProcess;
+//    private final List<SparkBatchJobRemoteDebugExecutorProcess> remoteDebugExecutorProcess = new ArrayList<>();
 
-    public SparkBatchJobDebugProcessHandler(Project project, SparkSubmitModel submitModel)
-            throws ExecutionException {
+//    @NotNull
+//    private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+
+//    public SparkBatchJobDebugProcessHandler(Project project) {
+//        super(project);
+//    }
+
+    @NotNull
+    private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject;
+
+    public SparkBatchJobDebugProcessHandler(Project project,
+                                            @NotNull SparkBatchJobRemoteProcess remoteDebugProcess,
+                                            @NotNull PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject) {
         super(project);
 
-        remoteDebugProcess = new SparkBatchJobRemoteDebugProcess(project, submitModel, ctrlSubject);
+        this.remoteDebugProcess = remoteDebugProcess;
+        this.debugEventSubject = debugEventSubject;
+//        this.remoteDebugProcess.start();
 
-//        ColoredRemoteProcessHandler<SparkBatchJobRemoteProcess> jobProcessHandler =
-//                new ColoredRemoteProcessHandler<>(remoteDebugProcess, "Starting Spark Job Debug process", null);
-
-        remoteDebugProcess.start();
+        this.remoteDebugProcess.getEventSubject()
+//                .observeOn(new IdeaSchedulers(project).processBarVisibleAsync("Listening for remote debug process events"))
+                .subscribe(processEvent -> {
+                    if (processEvent instanceof SparkBatchDebugJobJdbPortForwardedEvent) {
+                        debugEventSubject.onNext(new SparkBatchRemoteDebugHandlerReadyEvent(
+                                this, (SparkBatchDebugJobJdbPortForwardedEvent) processEvent));
+                    } else {
+                        debugEventSubject.onNext(processEvent);
+                    }
+                });
     }
+
+//    public SparkBatchJobDebugProcessHandler(Project project, SparkSubmitModel submitModel)
+//            throws ExecutionException {
+//        this(project);
+//
+//        remoteDebugProcess = new SparkBatchJobRemoteDebugProcess(project, submitModel, ctrlSubject, debugEventSubject);
+//
+//        ctrlSubject.subscribe(typedMessage -> {
+//                    switch (typedMessage.getKey()) {
+//                    case Error:
+//                        HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, typedMessage.getValue());
+//                        break;
+//                    case Info:
+//                        HDInsightUtil.showInfoOnSubmissionMessageWindow(project, typedMessage.getValue());
+//                        break;
+//                    case Log:
+//                        HDInsightUtil.showInfoOnSubmissionMessageWindow(project, typedMessage.getValue());
+//                        break;
+//                    case Warning:
+//                        HDInsightUtil.showWarningMessageOnSubmissionMessageWindow(project, typedMessage.getValue());
+//                        break;
+//                    }
+//                },
+//                err -> HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, err.getMessage()));
+//
+////        ColoredRemoteProcessHandler<SparkBatchJobRemoteProcess> jobProcessHandler =
+////                new ColoredRemoteProcessHandler<>(remoteDebugProcess, "Starting Spark Job Debug process", null);
+//
+//        remoteDebugProcess.start();
+//
+//    }
 
     @NotNull
     public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
-        return ctrlSubject;
+        return getRemoteDebugProcess().getCtrlSubject();
     }
 
-    public SparkBatchJobRemoteProcess getDebugProcess() {
+    @NotNull
+    public SparkBatchJobRemoteProcess getRemoteDebugProcess() {
         return remoteDebugProcess;
     }
 
-    class SparkBatchJobLogReader extends BaseOutputReader {
+    // A simple log reader to connect the input stream and process handler
+    public class SparkBatchJobLogReader extends BaseOutputReader {
         private final Key logType;
 
         SparkBatchJobLogReader(@NotNull InputStream inputStream, Key logType) {
             super(inputStream, Charset.forName("UTF-8"));
             this.logType = logType;
+
+            start("Reading Spark job log " + logType.toString());
         }
 
         @Override
         protected void onTextAvailable(@NotNull String s) {
+            // Call process handler's text notify
             notifyTextAvailable(s, logType);
         }
 
@@ -94,28 +145,33 @@ public class SparkBatchJobDebugProcessHandler extends RemoteDebugProcessHandler 
     public void startNotify() {
         addProcessListener(new ProcessAdapter() {
             @Override
-            public void startNotified(final ProcessEvent event) {
-                try {
-                    final SparkBatchJobLogReader stdoutReader =
-                            new SparkBatchJobLogReader(remoteDebugProcess.getInputStream(), ProcessOutputTypes.STDOUT);
-                    final SparkBatchJobLogReader stderrReader =
-                            new SparkBatchJobLogReader(remoteDebugProcess.getErrorStream(), ProcessOutputTypes.STDERR);
+            public void startNotified(@NotNull final ProcessEvent event) {
+//                if (getRemoteDebugProcess() == null) {
+//                    return;
+//                }
 
-                    ctrlSubject.subscribe(
-                            log -> {},
-                            err -> {},
-                            () -> {
-                                try {
-                                    stderrReader.waitFor();
-                                    stdoutReader.waitFor();
-                                }
-                                catch (InterruptedException ignore) { }
+                final SparkBatchJobLogReader stdoutReader =
+                        new SparkBatchJobLogReader(getRemoteDebugProcess().getInputStream(), ProcessOutputTypes.STDOUT);
+                final SparkBatchJobLogReader stderrReader =
+                        new SparkBatchJobLogReader(getRemoteDebugProcess().getErrorStream(), ProcessOutputTypes.STDERR);
+
+                getRemoteDebugProcess().getCtrlSubject().subscribe(
+                        log -> {},
+                        err -> {},
+                        () -> {
+                            stderrReader.stop();
+                            stdoutReader.stop();
+
+                            try {
+                                stderrReader.waitFor();
+                                stdoutReader.waitFor();
                             }
-                    );
-                }
-                finally {
-                    removeProcessListener(this);
-                }
+                            catch (InterruptedException ignore) { }
+                            finally {
+                                removeProcessListener(this);
+                            }
+                        }
+                );
             }
         });
 

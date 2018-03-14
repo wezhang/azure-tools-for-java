@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -72,8 +73,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     private boolean isDisconnected;
 
     public SparkBatchJobRemoteProcess(@NotNull Project project, @NotNull SparkSubmitModel sparkSubmitModel,
-                                      @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
-            throws ExecutionException {
+                                      @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
         this.project = project;
         this.schedulers = new IdeaSchedulers(project);
         this.submitModel = sparkSubmitModel;
@@ -269,8 +269,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     protected Observable<? extends SparkBatchJob> attachInputStreams(SparkBatchJob job) {
         return Observable.zip(
-                attachJobInputStream(jobStderrLogInputSteam, job),
-                attachJobInputStream(jobStdoutLogInputSteam, job),
+                attachJobInputStream((SparkJobLogInputStream) getErrorStream(), job),
+                attachJobInputStream((SparkJobLogInputStream) getInputStream(), job),
                 (job1, job2) -> {
                     sparkJob = job;
                     return job;
@@ -280,5 +280,10 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     protected Observable<SimpleImmutableEntry<SparkBatchJobState, String>> awaitForJobDone(SparkBatchJob runningJob) {
         return runningJob.getJobDoneObservable()
                 .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job is running"));
+    }
+
+    @NotNull
+    public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
+        return ctrlSubject;
     }
 }

@@ -1,4 +1,6 @@
 buildscript {
+    ext.kotlin_version = '1.1.51'
+
     repositories {
         mavenCentral()
         maven {
@@ -9,11 +11,16 @@ buildscript {
         }
 
     }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
 }
 
 plugins {
-    id "org.jetbrains.intellij" version "0.2.13"
+    id "org.jetbrains.intellij" version "0.2.18"
 }
+apply plugin: "kotlin"
 
 import org.apache.tools.ant.filters.*
 processResources {
@@ -55,6 +62,7 @@ intellij {
 sourceSets {
     main {
         java.srcDirs 'src'
+        kotlin.srcDirs 'src'
         resources.srcDirs 'resources'
     }
     test {

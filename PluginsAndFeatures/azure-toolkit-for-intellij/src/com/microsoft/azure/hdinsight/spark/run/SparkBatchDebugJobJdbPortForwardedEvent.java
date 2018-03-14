@@ -23,7 +23,6 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
 import org.jetbrains.annotations.NotNull;
 
@@ -36,17 +35,20 @@ public class SparkBatchDebugJobJdbPortForwardedEvent extends SparkBatchJobSubmit
     private final String remoteHost;
     private final int remoteJdbListenPort;
     private final int localJdbForwardedPort;
+    private final boolean isDriver;
 
     public SparkBatchDebugJobJdbPortForwardedEvent(@NotNull SparkBatchRemoteDebugJob job,
                                                    @NotNull SparkBatchDebugSession debugSession,
                                                    String remoteHost,
                                                    int remoteJdbListenPort,
-                                                   int localJdbForwardedPort) {
+                                                   int localJdbForwardedPort,
+                                                   boolean isDriver) {
         super(job);
         this.debugSession = debugSession;
         this.remoteHost = remoteHost;
         this.remoteJdbListenPort = remoteJdbListenPort;
         this.localJdbForwardedPort = localJdbForwardedPort;
+        this.isDriver = isDriver;
     }
 
     @NotNull
@@ -67,6 +69,10 @@ public class SparkBatchDebugJobJdbPortForwardedEvent extends SparkBatchJobSubmit
     public Optional<Integer> getLocalJdbForwardedPort() {
         return Optional.of(localJdbForwardedPort)
                 .filter(port -> port > 0);
+    }
+
+    public boolean isDriver() {
+        return isDriver;
     }
 
     @Override

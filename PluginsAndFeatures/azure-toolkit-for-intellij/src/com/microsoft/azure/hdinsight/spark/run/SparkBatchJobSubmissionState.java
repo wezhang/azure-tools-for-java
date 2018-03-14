@@ -23,6 +23,7 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.intellij.execution.DefaultExecutionResult;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
@@ -60,18 +61,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import rx.exceptions.Exceptions;
 import rx.subjects.PublishSubject;
 
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Paths;
+import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Spark Batch Job Submission Run profile state
@@ -84,6 +81,12 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
     private RemoteConnection remoteConnection;
     @NotNull
     private SparkBatchJobConfigurableModel jobModel;
+
+//    @NotNull
+//    private final List<SparkBatchJobDebugProcessHandler> debugProcessHandlers = new ArrayList<>();
+
+    @Nullable
+    private SparkBatchJobDebugProcessHandler remoteDebugProcessHandler = null;
 
     public SparkBatchJobSubmissionState(@NotNull Project project, @NotNull SparkBatchJobConfigurableModel jobModel) {
         this.myProject = project;
@@ -127,22 +130,25 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 //                        .orElseThrow(() -> debuggerRunner.getRemoteDebugProcessError()
 //                                .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 //                SparkBatchJobRemoteDebugProcess remoteProcess = new SparkBatchJobRemoteDebugProcess(myProject, jobModel.getSubmitModel(), ctrlSubject);
-//                SparkBatchJobDebugProcessHandler processHandler = debuggerRunner.getProcessHandler();
-                SparkBatchJobDebugProcessHandler processHandler = new SparkBatchJobDebugProcessHandler(myProject, getSubmitModel());
+//                currentDebugProcessHandler = debugProcessHandlers.remove(0);
+//                SparkBatchJobDebugProcessHandler processHandler = new SparkBatchJobDebugProcessHandler(myProject, getSubmitModel());
+                if (getRemoteDebugProcessHandler() == null) {
+                    return null;
+                }
 
                 SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(myProject);
-                jobOutputView.attachToProcess(processHandler);
+                jobOutputView.attachToProcess(getRemoteDebugProcessHandler());
 
                 ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
 
 //                remoteProcess.start();
-                ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler);
+                ExecutionResult result = new DefaultExecutionResult(jobOutputView, getRemoteDebugProcessHandler());
 //                ExecutionResult result = debuggerRunner.getExecutionResult()
 //                        .orElseThrow(() -> debuggerRunner.getExecutionError()
 //                        .orElse(new ExecutionException("Spark Job remote debug process is not ready.")));
 
 //                debuggerRunner.getCtrlSubject().subscribe(
-                processHandler.getCtrlSubject().subscribe(
+                getRemoteDebugProcessHandler().getCtrlSubject().subscribe(
                         messageWithType -> {
                             switch (messageWithType.getKey()) {
                                 case Info:
@@ -361,4 +367,16 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
         }
     }
 
+//    public void addRemoteDebugProcessHandler(SparkBatchJobDebugProcessHandler processHandler) {
+//        debugProcessHandlers.add(processHandler);
+//    }
+
+    @Nullable
+    public SparkBatchJobDebugProcessHandler getRemoteDebugProcessHandler() {
+        return remoteDebugProcessHandler;
+    }
+
+    public void setRemoteDebugProcessHandler(@Nullable SparkBatchJobDebugProcessHandler remoteDebugProcessHandler) {
+        this.remoteDebugProcessHandler = remoteDebugProcessHandler;
+    }
 }
