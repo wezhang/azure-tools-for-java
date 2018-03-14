@@ -42,16 +42,9 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
-    // Control subjects
-//    @NotNull
-//    private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject; // = PublishSubject.create();
-    @Nullable
-    private SparkBatchDebugSession sshDebugSession;
-
     public SparkBatchJobRemoteDebugProcess(@NotNull Project project,
                                            @NotNull SparkSubmitModel sparkSubmitModel,
                                            @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
-//                                           @NotNull PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject)
             throws ExecutionException {
         super(project, sparkSubmitModel, ctrlSubject);
 //        this.debugEventSubject = debugEventSubject;
@@ -61,12 +54,6 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                     new SparkSubmitAdvancedConfigModel.NotAdvancedConfig("SSH authentication not set"));
         }
     }
-
-//    @NotNull
-//    @Override
-//    public PublishSubject<SparkBatchJobSubmissionEvent> getEventSubject() {
-//        return debugEventSubject;
-//    }
 
     @Override
     public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
@@ -95,8 +82,6 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                         job.getConnectUri().toString(),
                         getSubmitModel().getAdvancedConfigModel())
                         .open();
-
-                setSshDebugSession(session);
 
                 String remoteHost = job.getSparkDriverHost();
                 int remotePort = job.getSparkDriverDebuggingPort();
@@ -178,14 +163,5 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                         .filter(hostContainerPair -> !StringUtils.equals(
                                 hostContainerPair.getValue(), appAttempt.getContainerId())))
                 .map(kv -> new SimpleEntry<>(kv.getKey(), kv.getValue()));
-    }
-
-    @Nullable
-    public SparkBatchDebugSession getSshDebugSession() {
-        return sshDebugSession;
-    }
-
-    public void setSshDebugSession(@Nullable SparkBatchDebugSession sshDebugSession) {
-        this.sshDebugSession = sshDebugSession;
     }
 }

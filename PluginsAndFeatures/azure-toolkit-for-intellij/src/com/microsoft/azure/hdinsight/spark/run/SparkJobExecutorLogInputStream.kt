@@ -23,7 +23,6 @@
 package com.microsoft.azure.hdinsight.spark.run
 
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob
-import java.lang.Thread.sleep
 
 class SparkJobExecutorLogInputStream(logType: String, logUrl: String) : SparkJobLogInputStream(logType) {
     init {
@@ -38,6 +37,5 @@ class SparkJobExecutorLogInputStream(logType: String, logUrl: String) : SparkJob
 
     override fun refreshLogUrl(sparkJob: SparkBatchJob) {
         // Needn't to refresh log url for executor
-        sleep(3 * 1000)
     }
 }

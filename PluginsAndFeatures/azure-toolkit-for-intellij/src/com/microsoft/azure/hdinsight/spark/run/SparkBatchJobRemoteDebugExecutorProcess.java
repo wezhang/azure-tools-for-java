@@ -51,22 +51,14 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
     @NotNull
     private SparkJobExecutorLogInputStream stdErrInputStream;
 
-    // Control subjects
-//    @NotNull
-//    private final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject;
-//    = PublishSubject.create();
-
     public SparkBatchJobRemoteDebugExecutorProcess(@NotNull Project project,
                                                    @NotNull SparkSubmitModel sparkSubmitModel,
-                                                   @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject,
-//                                                   @NotNull PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject,
                                                    @NotNull SparkBatchRemoteDebugJob parentJob,
                                                    @NotNull String host,
                                                    @NotNull SparkBatchDebugSession debugSshSession,
                                                    @NotNull String logBaseUrl) {
 
-        super(project, sparkSubmitModel, ctrlSubject);
-//        this.debugEventSubject = debugEventSubject;
+        super(project, sparkSubmitModel, PublishSubject.create());
         this.parentJob = parentJob;
         this.host = host;
         this.debugSshSession = debugSshSession;
@@ -74,13 +66,6 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
         this.stdOutInputStream = new SparkJobExecutorLogInputStream("stdout", logBaseUrl);
         this.stdErrInputStream = new SparkJobExecutorLogInputStream("stderr", logBaseUrl);
     }
-
-//    @NotNull
-//    @Override
-//    public PublishSubject<SparkBatchJobSubmissionEvent> getEventSubject() {
-//        return debugEventSubject;
-//    }
-
 
     @Override
     protected Observable<SimpleImmutableEntry<IClusterDetail, String>> prepareArtifact() {

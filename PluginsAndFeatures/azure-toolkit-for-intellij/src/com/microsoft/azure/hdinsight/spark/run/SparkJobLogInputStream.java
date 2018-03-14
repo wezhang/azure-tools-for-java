@@ -33,6 +33,8 @@ import java.io.InputStream;
 import java.util.AbstractMap;
 import java.util.Optional;
 
+import static java.lang.Thread.sleep;
+
 public class SparkJobLogInputStream extends InputStream {
     @NotNull
     private String logType;
@@ -102,6 +104,10 @@ public class SparkJobLogInputStream extends InputStream {
                         return buffer.length;
                     }).orElseGet(() -> {
                         getAttachedJob().ifPresent(this::refreshLogUrl);
+
+                        try {
+                            sleep(1000);
+                        } catch (InterruptedException ignore) { }
 
                         return 0;
                     });

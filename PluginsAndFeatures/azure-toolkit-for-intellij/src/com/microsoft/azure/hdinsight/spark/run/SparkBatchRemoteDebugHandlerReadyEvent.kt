@@ -23,5 +23,5 @@
 package com.microsoft.azure.hdinsight.spark.run
 
 class SparkBatchRemoteDebugHandlerReadyEvent(val debugProcessHandler: SparkBatchJobDebugProcessHandler,
-                                             val jdbPortForwardedEvent: SparkBatchDebugJobJdbPortForwardedEvent) : SparkBatchJobSubmissionEvent {
-}
+                                             val jdbPortForwardedEvent: SparkBatchDebugJobJdbPortForwardedEvent)
+    : SparkBatchJobSubmissionEvent

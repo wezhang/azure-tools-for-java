@@ -22,11 +22,5 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.Optional;
-
-interface SparkBatchJobSubmissionEvent {
+public interface SparkBatchJobSubmissionEvent {
 }
