@@ -23,7 +23,6 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.intellij.execution.DefaultExecutionResult;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
@@ -40,6 +39,7 @@ import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.execution.ui.ConsoleView;
 import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.execution.util.JavaParametersUtil;
+import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
@@ -121,8 +121,7 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                 jobOutputView.attachToProcess(getRemoteDebugProcessHandler());
 
                 ConsoleView ctrlMessageView = jobOutputView.getSecondaryConsoleView();
-
-                ExecutionResult result = new DefaultExecutionResult(jobOutputView, getRemoteDebugProcessHandler());
+                DefaultExecutionResult result = new DefaultExecutionResult(jobOutputView, getRemoteDebugProcessHandler());
 
                 getRemoteDebugProcessHandler().getCtrlSubject().subscribe(
                         messageWithType -> {
@@ -335,10 +334,6 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
             throw new ExecutionException("The artifact to submit is not selected, please config it at 'Run/Debug configuration -> Remotely Run in Cluster'.");
         }
     }
-
-//    public void addRemoteDebugProcessHandler(SparkBatchJobDebugProcessHandler processHandler) {
-//        debugProcessHandlers.add(processHandler);
-//    }
 
     @Nullable
     public SparkBatchJobDebugProcessHandler getRemoteDebugProcessHandler() {

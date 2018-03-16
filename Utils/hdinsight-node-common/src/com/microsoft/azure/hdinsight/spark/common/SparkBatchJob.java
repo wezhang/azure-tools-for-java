@@ -764,13 +764,13 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         switch (yarnApp.getLogAggregationStatus().toUpperCase()) {
                             case "SUCCEEDED":
                             case "FAILED":
+                            case "TIME_OUT":
                                 isLogAggregateDone = true;
                                 break;
                             case "DISABLED":
                             case "NOT_START":
                             case "RUNNING":
                             case "RUNNING_WITH_FAILURE":
-                            case "TIME_OUT":
                             default:
                                 isLogAggregateDone = false;
                         }

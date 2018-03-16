@@ -30,8 +30,6 @@ import com.intellij.openapi.util.Key
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.io.BaseOutputReader
 import com.microsoft.azure.hdinsight.common.MessageInfoType
-import com.microsoft.intellij.rxjava.IdeaSchedulers
-import rx.schedulers.Schedulers
 import rx.subjects.PublishSubject
 
 import java.io.InputStream
@@ -53,13 +51,20 @@ class SparkBatchJobDebugProcessHandler(project: Project,
 
         this.remoteDebugProcess.eventSubject
                 //                .observeOn(new IdeaSchedulers(project).processBarVisibleAsync("Listening for remote debug process events"))
-                .subscribe { processEvent ->
-                    if (processEvent is SparkBatchDebugJobJdbPortForwardedEvent) {
-                        debugEventSubject.onNext(SparkBatchRemoteDebugHandlerReadyEvent(this, processEvent))
+                .subscribe {
+                    if (it is SparkBatchDebugJobJdbPortForwardedEvent) {
+                        debugEventSubject.onNext(SparkBatchRemoteDebugHandlerReadyEvent(this, it))
                     } else {
-                        debugEventSubject.onNext(processEvent)
+                        debugEventSubject.onNext(it)
                     }
                 }
+
+        addProcessListener(object: ProcessAdapter() {
+            override fun processTerminated(event: ProcessEvent) {
+                // JDB Debugger is stopped, tell the debug process
+                (event.processHandler as SparkBatchJobDebugProcessHandler).remoteDebugProcess.disconnect()
+            }
+        })
     }
 
     // A simple log reader to connect the input stream and process handler

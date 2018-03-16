@@ -22,6 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.intellij.execution.Executor;
+import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.icons.AllIcons;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.intellij.common.CommonConst;
@@ -90,5 +91,10 @@ public class SparkBatchJobDebugExecutor extends Executor {
     @Override
     public String getHelpId() {
         return null;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj.equals(DefaultDebugExecutor.getDebugExecutorInstance()) || super.equals(obj);
     }
 }

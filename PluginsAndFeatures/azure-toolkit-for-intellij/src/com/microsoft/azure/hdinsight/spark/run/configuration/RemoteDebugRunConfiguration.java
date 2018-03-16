@@ -33,7 +33,9 @@ import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobSubmissionState;
+import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -96,12 +98,17 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     @Nullable
     @Override
     public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException {
+        String debugTarget = executionEnvironment.getUserData(SparkBatchJobDebuggerRunner.DebugTargetKey);
+        Boolean isExecutor = StringUtils.equals(debugTarget, SparkBatchJobDebuggerRunner.DebugExecutor);
+
         SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel);
 
-        state.createAppInsightEvent(executor, actionProperties.entrySet().stream().collect(Collectors.toMap(
-                (Map.Entry<Object, Object> entry) -> (String) entry.getKey(),
-                (Map.Entry<Object, Object> entry) -> (String) entry.getValue()
-        )));
+        if (!isExecutor) {
+            state.createAppInsightEvent(executor, actionProperties.entrySet().stream().collect(Collectors.toMap(
+                    (Map.Entry<Object, Object> entry) -> (String) entry.getKey(),
+                    (Map.Entry<Object, Object> entry) -> (String) entry.getValue()
+            )));
+        }
 
         // Clear the action properties
         actionProperties.clear();

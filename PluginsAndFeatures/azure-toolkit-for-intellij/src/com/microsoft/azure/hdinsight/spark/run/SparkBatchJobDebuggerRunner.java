@@ -52,17 +52,15 @@ import java.util.List;
 import java.util.Optional;
 
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
-    private static final Key<String> DebugTargetKey = new Key<>("debug-target");
+    public static final Key<String> DebugTargetKey = new Key<>("debug-target");
     private static final Key<String> ProfileNameKey = new Key<>("profile-name");
-    private static final String DebugDriver = "driver";
-    private static final String DebugExecutor = "executor";
+    public static final String DebugDriver = "driver";
+    public static final String DebugExecutor = "executor";
 
     private boolean isAppInsightEnabled = true;
 
     @NotNull
     private final List<SparkBatchJobDebugProcessHandler> debugProcessHandlers = new ArrayList<>();
-
-    private int jdbLocalPort;
 
     @Override
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
@@ -164,46 +162,15 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 return;
                             }
 
-                                // Set the debug connection to localhost and local forwarded port to the state
+                            // Set the debug connection to localhost and local forwarded port to the state
                             childState.setRemoteConnection(
                                     new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
 
                             childState.setRemoteDebugProcessHandler(handlerReadyEvent.getDebugProcessHandler());
 
-                            super.execute(
-                                    childEnv,
-                                    callback,
-//                                    (runContentDescriptor) -> {
-//                                        SparkBatchJobDebugProcessHandler ihandler = (SparkBatchJobDebugProcessHandler)
-//                                                runContentDescriptor.getProcessHandler();
-////
-//                                        if (ihandler != null) {
-//                                            // Debugger is setup rightly
-////                                                    //                                    debugProcessConsole.subscribe(lineKeyPair ->
-////                                                    //                                            handler.notifyTextAvailable(lineKeyPair.getKey() + "\n", lineKeyPair.getValue()));
-////                                                    //                                    debugProcessConsole.unsubscribeOn(Schedulers.immediate());
-////
-//                                            ihandler.addProcessListener(new ProcessAdapter() {
-//                                                @Override
-//                                                public void processTerminated(ProcessEvent processEvent) {
-//                                                    // JDB Debugger is stopped, tell the debug process
-////                                                            stopConsoleLogSubject.onNext("stop");
-////                                                                debugPhaser.arriveAndDeregister();
-//                                                }
-//                                            });
-////                                                } else {
-////                                                    ob.onCompleted();
-//                                        }
-//
-//                                        if (callback != null) {
-//                                            callback.processStarted(runContentDescriptor);
-//                                        }
-//
-////                                                debugPhaser.arriveAndDeregister();
-//
-////                                                    ob.onCompleted();
-//                                    },
-                                    childState);
+                            super.execute(childEnv,
+                                          jdbReadyEvent.isDriver() ? callback : d -> {},
+                                          childState);
                         } else if (debugEvent instanceof SparkBatchJobExecutorCreatedEvent) {
                             SparkBatchJobExecutorCreatedEvent executorCreatedEvent =
                                     (SparkBatchJobExecutorCreatedEvent) debugEvent;
@@ -218,6 +185,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     host,
                                     containerId));
 
+                            // Create an Executor Debug Process
                             SparkBatchJobRemoteDebugExecutorProcess executorDebugProcess =
                                     new SparkBatchJobRemoteDebugExecutorProcess(
                                             project,

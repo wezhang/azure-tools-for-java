@@ -23,17 +23,16 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.google.common.net.HostAndPort;
-import com.intellij.execution.ExecutionException;
 import com.intellij.openapi.project.Project;
 import com.intellij.remote.RemoteProcess;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.io.output.NullOutputStream;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import rx.Observable;
 import rx.Subscription;
 import rx.subjects.PublishSubject;
@@ -42,7 +41,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.AbstractMap;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +70,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     private boolean isDisconnected;
 
-    public SparkBatchJobRemoteProcess(@NotNull Project project, @NotNull SparkSubmitModel sparkSubmitModel,
+    public SparkBatchJobRemoteProcess(@NotNull Project project,
+                                      @NotNull SparkSubmitModel sparkSubmitModel,
                                       @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
         this.project = project;
         this.schedulers = new IdeaSchedulers(project);
@@ -125,7 +124,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     }
 
     @Override
-    public int waitFor() throws InterruptedException {
+    public int waitFor() {
         return 0;
     }
 
@@ -267,6 +266,11 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         return schedulers;
     }
 
+    @NotNull
+    public String getTitle() {
+        return getSubmitModel().getSubmissionParameter().getMainClassName();
+    }
+
     protected Observable<? extends SparkBatchJob> attachInputStreams(SparkBatchJob job) {
         return Observable.zip(
                 attachJobInputStream((SparkJobLogInputStream) getErrorStream(), job),
@@ -279,7 +283,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     protected Observable<SimpleImmutableEntry<SparkBatchJobState, String>> awaitForJobDone(SparkBatchJob runningJob) {
         return runningJob.getJobDoneObservable()
-                .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job is running"));
+                .subscribeOn(schedulers.processBarVisibleAsync("Spark batch job " + getTitle() + " is running"));
     }
 
     @NotNull
