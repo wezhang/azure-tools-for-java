@@ -224,7 +224,6 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     }
 
     protected Observable<SparkBatchJob> startJobSubmissionLogReceiver(SparkBatchJob job) {
-//        getEventSubject().onNext(new SparkBatchJobSubmittedEvent(job));
 
         return job.getSubmissionLog()
                 .doOnNext(ctrlSubject::onNext)
@@ -236,7 +235,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     // Build and deploy artifact
     protected Observable<SimpleImmutableEntry<IClusterDetail, String>> prepareArtifact() {
-        return SparkSubmitHelper.getInstance().buildArtifact(project, submitModel.isLocalArtifact(), submitModel.getArtifact())
+        return Observable.just(submitModel.getArtifact())
+                .toSingle()
                 .flatMap(artifact -> JobUtils.deployArtifact(
                                             submitModel.getArtifactPath(artifact.getName())
                                                        .orElseThrow(() -> propagate(

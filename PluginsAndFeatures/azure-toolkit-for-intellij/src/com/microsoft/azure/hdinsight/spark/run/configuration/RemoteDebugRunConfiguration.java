@@ -21,6 +21,8 @@
  */
 package com.microsoft.azure.hdinsight.spark.run.configuration;
 
+import com.intellij.compiler.options.CompileStepBeforeRun;
+import com.intellij.execution.BeforeRunTask;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.JavaExecutionUtil;
@@ -31,9 +33,13 @@ import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
+import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTask;
+import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebugExecutor;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobSubmissionState;
 import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
@@ -42,9 +48,19 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunConfigurationModule>
 {
+    enum RunMode {
+        LOCAL,
+        REMOTE,
+        REMOTE_DEBUG_EXECUTOR
+    }
+
+    @NotNull
+    private RunMode mode = RunMode.LOCAL;
+
     // The prop to store the action trigger source if it can be got, such as Run Context
     final public static String ACTION_TRIGGER_PROP = "ActionTrigger";
 
@@ -95,6 +111,36 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
 
     }
 
+    public void setRunMode(@NotNull RunMode mode) {
+        this.mode = mode;
+    }
+
+    @NotNull
+    @Override
+    public List<BeforeRunTask> getBeforeRunTasks() {
+        Stream<BeforeRunTask> compileTask = super.getBeforeRunTasks().stream()
+                .filter(task -> task instanceof CompileStepBeforeRun.MakeBeforeRunTask);
+        Stream<BeforeRunTask> buildArtifactTask = super.getBeforeRunTasks().stream()
+                .filter(task -> task instanceof BuildArtifactsBeforeRunTask);
+
+        switch (mode) {
+        case LOCAL:
+            compileTask.forEach(task -> task.setEnabled(true));
+            buildArtifactTask.forEach(task -> task.setEnabled(false));
+            break;
+        case REMOTE:
+            compileTask.forEach(task -> task.setEnabled(false));
+            buildArtifactTask.forEach(task -> task.setEnabled(true));
+            break;
+        case REMOTE_DEBUG_EXECUTOR:
+            compileTask.forEach(task -> task.setEnabled(false));
+            buildArtifactTask.forEach(task -> task.setEnabled(false));
+            break;
+        }
+
+        return super.getBeforeRunTasks();
+    }
+
     @Nullable
     @Override
     public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException {
@@ -104,10 +150,21 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
         SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel);
 
         if (!isExecutor) {
+            if (executor instanceof SparkBatchJobDebugExecutor ||
+                    executor instanceof SparkBatchJobRunExecutor) {
+                BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun(getProject(), this, Objects.requireNonNull(getSubmitModel().getArtifact()));
+
+                setRunMode(RunMode.REMOTE);
+            } else {
+                setRunMode(RunMode.LOCAL);
+            }
+
             state.createAppInsightEvent(executor, actionProperties.entrySet().stream().collect(Collectors.toMap(
                     (Map.Entry<Object, Object> entry) -> (String) entry.getKey(),
                     (Map.Entry<Object, Object> entry) -> (String) entry.getValue()
             )));
+        } else {
+            setRunMode(RunMode.REMOTE_DEBUG_EXECUTOR);
         }
 
         // Clear the action properties

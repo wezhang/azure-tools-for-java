@@ -44,6 +44,7 @@ import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.common.NotSupportExecption;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
@@ -198,8 +199,13 @@ public class SparkSubmitModel {
         return submissionParameter.isLocalArtifact();
     }
 
+    @Nullable
     public Artifact getArtifact() {
-        return  artifactHashMap.get(getSubmissionParameter().getArtifactName());
+        return Optional.of(getSubmissionParameter())
+                .map(SparkSubmissionParameter::getArtifactName)
+                .filter(name -> artifactHashMap.containsKey(name))
+                .map(artifactHashMap::get)
+                .orElse(null);
     }
 
     @NotNull

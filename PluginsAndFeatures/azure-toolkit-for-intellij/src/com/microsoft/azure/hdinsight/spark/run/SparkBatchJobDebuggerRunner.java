@@ -156,7 +156,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     jdbReadyEvent.getRemoteHost().orElse("unknown"),
                                     jdbReadyEvent.isDriver());
 
-                            SparkBatchJobSubmissionState childState = (SparkBatchJobSubmissionState) childEnv.getState();
+                            SparkBatchJobSubmissionState childState = jdbReadyEvent.isDriver() ?
+                                    submissionState :
+                                    (SparkBatchJobSubmissionState) childEnv.getState();
 
                             if (childState == null) {
                                 return;
