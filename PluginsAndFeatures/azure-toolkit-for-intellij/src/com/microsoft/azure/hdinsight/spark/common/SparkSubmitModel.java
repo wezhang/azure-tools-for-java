@@ -266,67 +266,6 @@ public class SparkSubmitModel {
         }
     }
 
-    public Single<Artifact> buildArtifactObservable(@NotNull String artifactName) {
-        Optional<JobStatusManager> jsmOpt = HDInsightUtil.getJobStatusManager(project);
-
-        return Single.fromEmitter(em -> {
-            jsmOpt.ifPresent((jsm) -> jsm.setJobRunningState(true));
-            postEventAction();
-
-            if (isLocalArtifact()) {
-                em.onError(new NotSupportExecption());
-                return;
-            }
-
-            final Artifact artifact = artifactHashMap.get(artifactName);
-            final List<Artifact> artifacts = Collections.singletonList(artifact);
-
-            ArtifactsWorkspaceSettings.getInstance(project).setArtifactsToBuild(artifacts);
-            ApplicationManager.getApplication().invokeAndWait(() -> {
-                final CompileScope scope = ArtifactCompileScope.createArtifactsScope(
-                        project,
-                        artifacts,
-                        true);
-
-                CompilerManager.getInstance(project).make(
-                        scope,
-                        (aborted, errors, warnings, compileContext) -> {
-                            if (aborted || errors != 0) {
-                                showCompilerErrorMessage(compileContext);
-                                jsmOpt.ifPresent((jsm) -> jsm.setJobRunningState(false));
-                                String errorMessage = StringUtils.join(
-                                        compileContext.getMessages(CompilerMessageCategory.ERROR),
-                                        "\\n");
-
-                                postEventProperty.put("IsSubmitSucceed", "false");
-                                postEventProperty.put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(errorMessage));
-
-                                AppInsightsClient.create(
-                                        HDInsightBundle.message("SparkProjectDebugCompileFailed"),
-                                        null,
-                                        postEventProperty);
-
-                                em.onError(new CompilationException(errorMessage));
-                            } else {
-                                postEventProperty.put("IsSubmitSucceed", "true");
-                                postEventProperty.put("SubmitFailedReason", "CompileSuccess");
-
-                                AppInsightsClient.create(
-                                        HDInsightBundle.message("SparkProjectDebugCompileSuccess"),
-                                        null,
-                                        postEventProperty);
-
-                                HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                                        project,
-                                        String.format("Info : Build %s successfully.", artifact.getOutputFile()));
-
-                                em.onSuccess(artifact);
-                            }
-                });
-            }, ModalityState.defaultModalityState());
-        });
-    }
-
     private void showCompilerErrorMessage(@NotNull CompileContext compileContext) {
         CompilerMessage[] errorMessages= compileContext.getMessages(CompilerMessageCategory.ERROR);
         for(CompilerMessage message : errorMessages) {
@@ -367,44 +306,6 @@ public class SparkSubmitModel {
             postEventProperty.put("IsSubmitSucceed", "false");
             postEventProperty.put("SubmitFailedReason", response.getContent());
             AppInsightsClient.create(HDInsightBundle.message("SparkSubmissionButtonClickEvent"), null, postEventProperty);
-        }
-    }
-
-    public Single<String> jobLogObservable(int batchId, @NotNull final IClusterDetail selectedClusterDetail) {
-        return Single.create(em -> {
-                HDInsightUtil.showInfoOnSubmissionMessageWindow(
-                        project, "Info : Submit to spark cluster for debugging successfully.");
-
-                try {
-                    // Blocking function, exit when the Spark job stops running
-                    SparkSubmitHelper.getInstance().printRunningLogStreamingly(
-                            project, batchId, selectedClusterDetail, postEventProperty);
-
-                    em.onSuccess("done");
-                } catch (IOException ex) {
-                    em.onSuccess(ex.getMessage());
-                }
-        });
-    }
-
-    public SparkBatchRemoteDebugJob tryToCreateBatchSparkDebugJob(@NotNull final IClusterDetail selectedClusterDetail) throws HDIException,IOException {
-        SparkBatchSubmission.getInstance().setCredentialsProvider(selectedClusterDetail.getHttpUserName(), selectedClusterDetail.getHttpPassword());
-
-        try {
-            SparkBatchRemoteDebugJob debugJob = SparkBatchRemoteDebugJob.factory(
-                    JobUtils.getLivyConnectionURL(selectedClusterDetail),
-                    submissionParameter,
-                    SparkBatchSubmission.getInstance());
-
-            debugJob.createBatchJob();
-
-            return debugJob;
-        } catch (IOException ex) {
-            HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(
-                    project,
-                    String.format("Error : Failed to submit to spark cluster. error message : %s.",
-                            ex.getMessage()));
-            throw ex;
         }
     }
 
