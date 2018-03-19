@@ -159,11 +159,11 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
         }
 
         DebugParameterDefinedException checkingErr = Stream.of(sparkJobDriverNetworkTimeoutKey,
-                sparkJobExecutorMaxFailuresKey,
-                sparkJobDriverRetriesConfKey)
+                                                               sparkJobExecutorMaxFailuresKey,
+                                                               sparkJobDriverRetriesConfKey)
                 .filter(sparkConf::containsKey)
                 .map(key -> new DebugParameterDefinedException(
-                        "The " + key + " is defined in Spark job configuration: " + sparkConf.get(key)))
+                                "The " + key + " is defined in Spark job configuration: " + sparkConf.get(key)))
                 .findFirst()
                 .orElse(null);
 
