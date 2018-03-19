@@ -253,7 +253,8 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
         return JobUtils.submit(this.createJobToSubmit(cluster))
                 .subscribeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
                 .toObservable()
-                .flatMap(this::startJobSubmissionLogReceiver);   // To receive the Livy submission log
+                .flatMap(this::startJobSubmissionLogReceiver)   // To receive the Livy submission log
+                .doOnNext(job -> eventSubject.onNext(new SparkBatchJobSubmittedEvent(job)));
     }
 
     @NotNull

@@ -30,6 +30,7 @@ import com.intellij.openapi.project.DumbAware;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRemoteProcess;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunProcessHandler;
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobSubmittedEvent;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
@@ -52,6 +53,11 @@ public class SparkBatchJobDisconnectAction extends AnAction {
                       .orElse(AllIcons.Actions.Exit));
 
         this.remoteProcess = remoteProcess;
+
+        // Listen Spark Job submitted event to enable the disconnect button
+        remoteProcess.getEventSubject()
+                .filter(SparkBatchJobSubmittedEvent.class::isInstance)
+                .subscribe(job -> setEnabled(true));
     }
 
     @Override

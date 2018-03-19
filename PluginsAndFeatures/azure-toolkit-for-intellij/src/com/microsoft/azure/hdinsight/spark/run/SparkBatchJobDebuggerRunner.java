@@ -26,11 +26,14 @@ package com.microsoft.azure.hdinsight.spark.run;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.intellij.debugger.impl.GenericDebuggerRunner;
 import com.intellij.debugger.impl.GenericDebuggerRunnerSettings;
+import com.intellij.execution.DefaultExecutionResult;
 import com.intellij.execution.ExecutionException;
+import com.intellij.execution.ExecutionResult;
 import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
+import com.intellij.openapi.actionSystem.Separator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
@@ -39,8 +42,10 @@ import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel.SSHAuthType;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
+import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import org.apache.commons.lang3.StringUtils;
+import rx.Subscription;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
@@ -117,7 +122,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 new SparkBatchJobDebugProcessHandler(project, driverDebugProcess, debugEventSubject);
         driverDebugHandler.getRemoteDebugProcess().start();
 
-        ctrlSubject.subscribe(typedMessage -> {
+        Subscription jobSubscription = ctrlSubject.subscribe(typedMessage -> {
                     switch (typedMessage.getKey()) {
                         case Error:
                             HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, typedMessage.getValue());
@@ -164,15 +169,26 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                 return;
                             }
 
+                            if (jdbReadyEvent.isDriver()) {
+                                // Let the debug console view to handle the log
+                                jobSubscription.unsubscribe();
+                            }
+
                             // Set the debug connection to localhost and local forwarded port to the state
                             childState.setRemoteConnection(
                                     new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
 
-                            childState.setRemoteDebugProcessHandler(handlerReadyEvent.getDebugProcessHandler());
+                            SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(project);
+                            jobOutputView.attachToProcess(handlerReadyEvent.getDebugProcessHandler());
 
-                            super.execute(childEnv,
-                                          jdbReadyEvent.isDriver() ? callback : d -> {},
-                                          childState);
+                            ExecutionResult result = new DefaultExecutionResult(
+                                    jobOutputView, handlerReadyEvent.getDebugProcessHandler());
+                            childState.setExecutionResult(result);
+                            childState.setConsoleView(jobOutputView.getSecondaryConsoleView());
+                            childState.setRemoteProcessCtrlLogHandler(handlerReadyEvent.getDebugProcessHandler());
+
+                            // Call supper class method to attach Java virtual machine
+                            super.execute(childEnv, jdbReadyEvent.isDriver() ? callback : d -> {}, childState);
                         } else if (debugEvent instanceof SparkBatchJobExecutorCreatedEvent) {
                             SparkBatchJobExecutorCreatedEvent executorCreatedEvent =
                                     (SparkBatchJobExecutorCreatedEvent) debugEvent;

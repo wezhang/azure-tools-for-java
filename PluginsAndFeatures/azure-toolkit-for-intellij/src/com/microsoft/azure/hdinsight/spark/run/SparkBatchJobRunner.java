@@ -23,13 +23,26 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
+import com.intellij.execution.DefaultExecutionResult;
+import com.intellij.execution.ExecutionException;
+import com.intellij.execution.ExecutionResult;
 import com.intellij.execution.configurations.RunProfile;
+import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.runners.DefaultProgramRunner;
+import com.intellij.execution.runners.ExecutionEnvironment;
+import com.intellij.execution.ui.RunContentDescriptor;
+import com.intellij.openapi.actionSystem.Separator;
+import com.intellij.openapi.project.Project;
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
-import com.microsoft.azuretools.telemetry.AppInsightsClient;
-import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
+import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import rx.subjects.PublishSubject;
+
+import java.util.AbstractMap;
 
 public class SparkBatchJobRunner extends DefaultProgramRunner {
     @NotNull
@@ -41,5 +54,35 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
     @Override
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
         return SparkBatchJobRunExecutor.EXECUTOR_ID.equals(executorId) && profile instanceof RemoteDebugRunConfiguration;
+    }
+
+    @Nullable
+    @Override
+    protected RunContentDescriptor doExecute(RunProfileState state, ExecutionEnvironment environment) throws ExecutionException {
+        SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
+        SparkSubmitModel submitModel = submissionState.getSubmitModel();
+        Project project = submitModel.getProject();
+
+        SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(project);
+        PublishSubject<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+        SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(project, submitModel, ctrlSubject);
+        SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
+
+        jobOutputView.attachToProcess(processHandler);
+
+        remoteProcess.start();
+        SparkBatchJobDisconnectAction disconnectAction = new SparkBatchJobDisconnectAction(remoteProcess);
+
+        ExecutionResult result = new DefaultExecutionResult(jobOutputView, processHandler, Separator.getInstance(), disconnectAction);
+        submissionState.setExecutionResult(result);
+        submissionState.setConsoleView(jobOutputView.getSecondaryConsoleView());
+        submissionState.setRemoteProcessCtrlLogHandler(processHandler);
+
+        ctrlSubject.subscribe(
+                messageWithType -> {},
+                err -> disconnectAction.setEnabled(false),
+                () -> disconnectAction.setEnabled(false));
+
+        return super.doExecute(state, environment);
     }
 }

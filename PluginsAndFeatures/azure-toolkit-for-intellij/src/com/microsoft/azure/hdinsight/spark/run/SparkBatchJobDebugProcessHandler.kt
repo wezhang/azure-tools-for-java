@@ -40,11 +40,12 @@ import java.util.concurrent.Future
 class SparkBatchJobDebugProcessHandler(project: Project,
                                        val remoteDebugProcess: SparkBatchJobRemoteProcess,
                                        debugEventSubject: PublishSubject<SparkBatchJobSubmissionEvent>)
-    : RemoteDebugProcessHandler(project) {
+    : RemoteDebugProcessHandler(project), SparkBatchJobProcessCtrlLogOut {
 
 
-    val ctrlSubject: PublishSubject<SimpleImmutableEntry<MessageInfoType, String>>
-        get() = remoteDebugProcess.ctrlSubject
+    override fun getCtrlSubject(): PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> {
+        return remoteDebugProcess.ctrlSubject
+    }
 
     init {
         //        this.remoteDebugProcess.start();

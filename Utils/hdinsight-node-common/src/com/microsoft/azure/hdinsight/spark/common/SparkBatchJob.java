@@ -660,12 +660,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             try {
                 int start = 0;
                 final int maxLinesPerGet = 128;
-                int linesGot = 0;
-                int peaceSecs = 20;
-                int waitingSecs = 0;
+                int linesGot;
                 boolean isSubmitting = true;
 
-//                while (waitingSecs < peaceSecs) {
                 while (isSubmitting) {
                     Boolean isAppIdAllocated = !this.getSparkJobApplicationIdObservable().isEmpty().toBlocking().last();
                     String logUrl = String.format("%s/%d/log?from=%d&size=%d",
