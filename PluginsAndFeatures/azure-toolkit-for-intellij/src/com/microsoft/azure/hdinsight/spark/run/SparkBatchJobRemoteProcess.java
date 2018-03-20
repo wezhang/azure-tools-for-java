@@ -250,9 +250,9 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     protected Observable<? extends SparkBatchJob> submitJob(SimpleImmutableEntry<IClusterDetail, String> clusterArtifactUriPair) {
         IClusterDetail cluster = clusterArtifactUriPair.getKey();
         submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
-        return JobUtils.submit(this.createJobToSubmit(cluster))
+        return this.createJobToSubmit(cluster)
+                .submit()
                 .subscribeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
-                .toObservable()
                 .flatMap(this::startJobSubmissionLogReceiver)   // To receive the Livy submission log
                 .doOnNext(job -> eventSubject.onNext(new SparkBatchJobSubmittedEvent(job)));
     }

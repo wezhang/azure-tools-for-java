@@ -27,9 +27,12 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import org.apache.commons.lang3.StringUtils;
 import rx.Subscription;
 
 import java.io.File;
+import java.net.URI;
 import java.net.UnknownServiceException;
 import java.util.Arrays;
 
@@ -190,5 +193,43 @@ public class SparkBatchDebugSession implements ILogger{
         session.setConfig(config);
 
         return new SparkBatchDebugSession(jsch, session);
+    }
+
+    /*
+     * Create a Spark Batch Job Debug Session with SSH certification
+     */
+    static public SparkBatchDebugSession factoryByAuth(String connectionUrl,
+                                                       @NotNull SparkBatchRemoteDebugJobSshAuth auth)
+            throws SparkJobException, JSchException {
+        String sshServer = getSshHost(connectionUrl);
+
+        SparkBatchDebugSession session = SparkBatchDebugSession.factory(sshServer, auth.sshUserName);
+
+        switch (auth.sshAuthType) {
+            case UseKeyFile:
+                session.setPrivateKeyFile(auth.sshKeyFile);
+                break;
+            case UsePassword:
+                session.setPassword(auth.sshPassword);
+                break;
+            default:
+                throw new SparkBatchRemoteDebugJobSshAuth.UnknownSSHAuthTypeException(
+                        "Unknown SSH authentication type: " + auth.sshAuthType.name());
+        }
+
+        return session;
+    }
+
+    /**
+     * Get SSH Host from the HDInsight connection URL
+     *
+     * @param connectionUrl the HDInsight connection URL, such as: https://spkdbg.azurehdinsight.net/batch
+     * @return SSH host
+     */
+    private static String getSshHost(String connectionUrl) {
+        URI connectUri = URI.create(connectionUrl);
+        String segs[] = connectUri.getHost().split("\\.");
+        segs[0] = segs[0].concat("-ssh");
+        return StringUtils.join(segs, ".");
     }
 }

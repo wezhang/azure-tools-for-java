@@ -30,8 +30,11 @@ import com.gargoylesoftware.htmlunit.html.DomElement;
 import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
 import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
@@ -43,6 +46,8 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
+import rx.Single;
+import rx.SingleSubscriber;
 import rx.Subscriber;
 
 import java.io.IOException;
@@ -860,5 +865,26 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
     private void setDriverLogConversionMode(@Nullable DriverLogConversionMode driverLogConversionMode) {
         this.driverLogConversionMode = driverLogConversionMode;
+    }
+
+    /**
+     * New RxAPI: Submit the job
+     *
+     * @return Spark Job observable
+     */
+    public Observable<SparkBatchJob> submit() {
+        return Observable.fromCallable(() -> {
+                Optional<IClusterDetail> cluster = ClusterManagerEx.getInstance()
+                        .getClusterDetailByName(getSubmissionParameter().getClusterName());
+
+                if (cluster.isPresent()) {
+                    SparkBatchSubmission.getInstance()
+                            .setCredentialsProvider(cluster.get().getHttpUserName(), cluster.get().getHttpPassword());
+
+                    return (SparkBatchJob) createBatchJob();
+                }
+
+                throw new SparkJobException("Can't get cluster " + getSubmissionParameter().getClusterName() + " to submit.");
+        });
     }
 }

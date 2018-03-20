@@ -22,38 +22,19 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.intellij.openapi.util.InvalidDataException;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.Optional;
 
-public class SparkSubmitAdvancedConfigModel {
+public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshAuth {
     public static final String SUBMISSION_CONTENT_SSH_CERT= "ssh_cert";
     private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_AUTHTYPE_NAME= "auth_type";
     private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_USER_NAME= "user";
     private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_PRIVATE_KEYPATH_NAME= "private_key_path";
 
     public boolean enableRemoteDebug = false;
-
-    public String sshUserName = "sshuser";
-
-    public SSHAuthType sshAuthType = SSHAuthType.UsePassword;
-    public File sshKeyFile;
-    public String sshPassword = "";
-
-    public enum SSHAuthType {
-        UsePassword,
-        UseKeyFile
-    }
-
-    public void apply(SparkSubmitAdvancedConfigModel source) {
-        this.enableRemoteDebug = source.enableRemoteDebug;
-        this.sshUserName = source.sshUserName;
-        this.sshAuthType = source.sshAuthType;
-        this.sshKeyFile = source.sshKeyFile;
-        this.sshPassword = source.sshPassword;
-    }
 
     public Element exportToElement() {
         Element sshCertElement = new Element(SUBMISSION_CONTENT_SSH_CERT);
@@ -83,31 +64,5 @@ public class SparkSubmitAdvancedConfigModel {
                 .ifPresent(attribute -> advConfigModel.sshKeyFile = new File(attribute.getValue()));
 
         return advConfigModel;
-    }
-
-    public static class UnknownSSHAuthTypeException extends SparkJobException {
-
-        public UnknownSSHAuthTypeException(String message) {
-            super(message);
-        }
-
-        public UnknownSSHAuthTypeException(String message, int errorCode) {
-            super(message, errorCode);
-        }
-
-        public UnknownSSHAuthTypeException(String message, String errorLog) {
-            super(message, errorLog);
-        }
-
-        public UnknownSSHAuthTypeException(String message, Throwable throwable) {
-            super(message, throwable);
-        }
-    }
-
-    public static class NotAdvancedConfig extends SparkJobException {
-
-        public NotAdvancedConfig(String message) {
-            super(message);
-        }
     }
 }

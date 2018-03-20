@@ -23,25 +23,20 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
-import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
-import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
-import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
-import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.AppResponse;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import org.apache.commons.lang3.StringUtils;
+import rx.Observable;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownServiceException;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static java.lang.Thread.sleep;
 
 public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBatchDebugJob, ILogger {
     SparkBatchRemoteDebugJob(
@@ -123,6 +118,17 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
         SparkSubmissionParameter debugSubmissionParameter = convertToDebugParameter(submissionParameter);
 
         return new SparkBatchRemoteDebugJob(URI.create(connectUrl), debugSubmissionParameter, submission);
+    }
+
+    /**
+     * To get Executor from Yarn UI App Attempt page
+     */
+    public Observable<SimpleEntry<String, String>> getExecutorsObservable() {
+        return getSparkJobYarnCurrentAppAttempt()
+                .flatMap(appAttempt -> getSparkJobYarnContainersObservable(appAttempt)
+                        .filter(hostContainerPair -> !StringUtils.equals(
+                                hostContainerPair.getValue(), appAttempt.getContainerId())))
+                .map(kv -> new SimpleEntry<>(kv.getKey(), kv.getValue()));
     }
 
     static public SparkSubmissionParameter convertToDebugParameter(SparkSubmissionParameter submissionParameter)

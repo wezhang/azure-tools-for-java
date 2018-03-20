@@ -41,8 +41,6 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRemoteDebugProcess;
 import com.microsoft.azuretools.utils.Pair;
 import org.jetbrains.annotations.NotNull;
@@ -58,8 +56,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import static com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel.SSHAuthType.UseKeyFile;
-import static com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel.SSHAuthType.UsePassword;
+import static com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UseKeyFile;
+import static com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword;
 import static java.awt.event.ItemEvent.DESELECTED;
 import static java.awt.event.ItemEvent.SELECTED;
 import static java.awt.event.KeyEvent.VK_ESCAPE;
@@ -390,9 +388,9 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                             .orElseThrow(() -> new HDIException(
                                     "No cluster name matched selection: " + selectedClusterName));
 
-                    SparkBatchDebugSession debugSession = SparkBatchJobRemoteDebugProcess
-                            .createSparkBatchDebugSession(clusterDetail.getConnectionUrl(), advConfModelToProbe)
-                            .open();
+                    SparkBatchDebugSession debugSession = SparkBatchDebugSession.factoryByAuth(clusterDetail.getConnectionUrl(),
+                                                                                               advConfModelToProbe)
+                                                                                .open();
 
                     debugSession.close();
 
