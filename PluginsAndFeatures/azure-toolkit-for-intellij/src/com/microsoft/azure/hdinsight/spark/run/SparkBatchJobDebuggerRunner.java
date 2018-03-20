@@ -38,11 +38,13 @@ import com.intellij.openapi.util.Key;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang3.StringUtils;
 import rx.Subscription;
 import rx.schedulers.Schedulers;
@@ -109,14 +111,24 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
      */
     @Override
     protected void execute(ExecutionEnvironment environment, Callback callback, RunProfileState state) throws ExecutionException {
-        SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
-        SparkSubmitModel submitModel = submissionState.getSubmitModel();
-        Project project = submitModel.getProject();
+        final SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
+        final SparkSubmitModel submitModel = submissionState.getSubmitModel();
+        final Project project = submitModel.getProject();
+        final IdeaSchedulers schedulers = new IdeaSchedulers(project);
+
+        if (!submitModel.getAdvancedConfigModel().enableRemoteDebug) {
+            throw new ExecutionException(
+                    new SparkBatchRemoteDebugJobSshAuth.NotAdvancedConfig("SSH authentication not set"));
+        }
 
         final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
         final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
         final SparkBatchJobRemoteDebugProcess driverDebugProcess = new SparkBatchJobRemoteDebugProcess(
-                project, submitModel, ctrlSubject);
+                schedulers,
+                submitModel.getSubmissionParameter(),
+                submitModel.getArtifactPath().orElseThrow(() -> new ExecutionException("No artifact selected")),
+                submitModel.getAdvancedConfigModel(),
+                ctrlSubject);
         final SparkBatchJobDebugProcessHandler driverDebugHandler =
                 new SparkBatchJobDebugProcessHandler(project, driverDebugProcess, debugEventSubject);
         driverDebugHandler.getRemoteDebugProcess().start();
@@ -205,8 +217,8 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             // Create an Executor Debug Process
                             SparkBatchJobRemoteDebugExecutorProcess executorDebugProcess =
                                     new SparkBatchJobRemoteDebugExecutorProcess(
-                                            project,
-                                            submitModel,
+                                            schedulers,
+                                            submitModel.getSubmissionParameter(),
                                             debugJob,
                                             host,
                                             executorCreatedEvent.getDebugSshSession(),

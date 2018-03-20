@@ -1,18 +1,18 @@
 /*
  * Copyright (c) Microsoft Corporation
- * <p/>
+ *
  * All rights reserved.
- * <p/>
+ *
  * MIT License
- * <p/>
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * <p/>
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
  * the Software.
- * <p/>
+ *
  * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
@@ -20,27 +20,48 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run;
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.remote.ColoredRemoteProcessHandler;
-import com.microsoft.azure.hdinsight.common.MessageInfoType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import rx.subjects.PublishSubject;
+import com.google.common.net.HostAndPort
+import com.intellij.remote.RemoteProcess
+import java.io.InputStream
+import java.io.OutputStream
 
-import java.nio.charset.Charset;
-import java.util.AbstractMap;
-
-public class SparkBatchJobRunProcessHandler extends ColoredRemoteProcessHandler<SparkBatchJobProcessAdapter>
-                                            implements SparkBatchJobProcessCtrlLogOut {
-    public SparkBatchJobRunProcessHandler(@NotNull SparkBatchJobRemoteProcess process, String commandLine, @Nullable Charset charset) {
-        super(new SparkBatchJobProcessAdapter(process), commandLine, charset);
+class SparkBatchJobProcessAdapter(val sparkJobProcess: SparkBatchJobRemoteProcess)
+    : RemoteProcess() {
+    override fun destroy() {
+        sparkJobProcess.destroy()
     }
 
-    @NotNull
-    @Override
-    public PublishSubject<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
-        return getProcess().getSparkJobProcess().getCtrlSubject();
+    override fun exitValue(): Int {
+        return sparkJobProcess.exitValue()
+    }
+
+    override fun isDisconnected(): Boolean {
+        return sparkJobProcess.isDisconnected
+    }
+
+    override fun waitFor(): Int {
+        return sparkJobProcess.waitFor()
+    }
+
+    override fun getLocalTunnel(i: Int): HostAndPort? {
+        return sparkJobProcess.getLocalTunnel(i)
+    }
+
+    override fun getOutputStream(): OutputStream {
+        return sparkJobProcess.outputStream
+    }
+
+    override fun getErrorStream(): InputStream {
+        return sparkJobProcess.errorStream
+    }
+
+    override fun getInputStream(): InputStream {
+        return sparkJobProcess.inputStream
+    }
+
+    override fun killProcessTree(): Boolean {
+        return sparkJobProcess.killProcessTree()
     }
 }
-

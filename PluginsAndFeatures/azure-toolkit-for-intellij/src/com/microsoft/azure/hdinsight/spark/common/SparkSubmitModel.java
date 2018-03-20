@@ -273,9 +273,10 @@ public class SparkSubmitModel {
         }
     }
 
-    public Optional<String> getArtifactPath(@NotNull String selectedArtifactName) {
+    public Optional<String> getArtifactPath() {
         String buildJarPath = submissionParameter.isLocalArtifact() ?
-                submissionParameter.getLocalArtifactPath() : ((artifactHashMap.get(selectedArtifactName).getOutputFilePath()));
+                submissionParameter.getLocalArtifactPath() :
+                ((artifactHashMap.get(submissionParameter.getArtifactName()).getOutputFilePath()));
 
         return Optional.ofNullable(buildJarPath);
     }
@@ -364,7 +365,6 @@ public class SparkSubmitModel {
             @Override
             public void run() {
                 IClusterDetail selectedClusterDetail = mapClusterNameToClusterDetail.get(clusterComboBoxModel.getSelectedItem());
-                String selectedArtifactName = submissionParameter.getArtifactName();
 
                 //may get a new clusterDetail reference if cluster credentials expired
                 selectedClusterDetail = getClusterConfiguration(selectedClusterDetail, true);
@@ -376,7 +376,7 @@ public class SparkSubmitModel {
 
                 try {
                     String jobArtifactUri = JobUtils.uploadFileToCluster(selectedClusterDetail,
-                                                 getArtifactPath(selectedArtifactName)
+                                                 getArtifactPath()
                                                          .orElseThrow(() -> new SparkJobException("Can't find jar path to upload")),
                                                  HDInsightUtil.getToolWindowMessageSubject());
 

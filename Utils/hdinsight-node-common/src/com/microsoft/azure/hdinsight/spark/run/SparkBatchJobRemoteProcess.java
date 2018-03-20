@@ -1,18 +1,18 @@
 /*
  * Copyright (c) Microsoft Corporation
- * <p/>
+ *
  * All rights reserved.
- * <p/>
+ *
  * MIT License
- * <p/>
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * <p/>
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
  * the Software.
- * <p/>
+ *
  * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
@@ -23,15 +23,13 @@
 package com.microsoft.azure.hdinsight.spark.run;
 
 import com.google.common.net.HostAndPort;
-import com.intellij.openapi.project.Project;
-import com.intellij.remote.RemoteProcess;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.io.output.NullOutputStream;
 import rx.Observable;
 import rx.Subscription;
@@ -46,15 +44,14 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
-import static rx.exceptions.Exceptions.propagate;
 
-public class SparkBatchJobRemoteProcess extends RemoteProcess {
+public class SparkBatchJobRemoteProcess extends Process {
     @NotNull
-    private Project project;
+    private IdeSchedulers schedulers;
     @NotNull
-    private IdeaSchedulers schedulers;
+    private SparkSubmissionParameter submissionParameter;
     @NotNull
-    private SparkSubmitModel submitModel;
+    private String artifactPath;
     @NotNull
     private final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject;
     @NotNull
@@ -70,12 +67,13 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     private boolean isDisconnected;
 
-    public SparkBatchJobRemoteProcess(@NotNull Project project,
-                                      @NotNull SparkSubmitModel sparkSubmitModel,
+    public SparkBatchJobRemoteProcess(@NotNull IdeSchedulers schedulers,
+                                      @NotNull SparkSubmissionParameter submissionParameter,
+                                      @NotNull String artifactPath,
                                       @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
-        this.project = project;
-        this.schedulers = new IdeaSchedulers(project);
-        this.submitModel = sparkSubmitModel;
+        this.schedulers = schedulers;
+        this.submissionParameter = submissionParameter;
+        this.artifactPath = artifactPath;
         this.ctrlSubject = ctrlSubject;
 
         this.jobStdoutLogInputSteam = new SparkJobLogInputStream("stdout");
@@ -87,7 +85,6 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
      *
      * @return is the remote Spark Job killed
      */
-    @Override
     public boolean killProcessTree() {
         return false;
     }
@@ -97,13 +94,11 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
      *
      * @return is the Spark Job log getting session still connected
      */
-    @Override
     public boolean isDisconnected() {
         return isDisconnected;
     }
 
     @Nullable
-    @Override
     public HostAndPort getLocalTunnel(int i) {
         return null;
     }
@@ -156,7 +151,7 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
         return new SparkBatchJob(
                 URI.create(JobUtils.getLivyConnectionURL(cluster)),
-                submitModel.getSubmissionParameter(),
+                getSubmissionParameter(),
                 SparkBatchSubmission.getInstance());
     }
 
@@ -235,21 +230,14 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
 
     // Build and deploy artifact
     protected Observable<SimpleImmutableEntry<IClusterDetail, String>> prepareArtifact() {
-        return Observable.just(submitModel.getArtifact())
-                .toSingle()
-                .flatMap(artifact -> JobUtils.deployArtifact(
-                                            submitModel.getArtifactPath(artifact.getName())
-                                                       .orElseThrow(() -> propagate(
-                                                               new SparkJobException("Can't find jar path to upload"))),
-                                            submitModel.getSubmissionParameter().getClusterName(),
-                                            ctrlSubject)
-                                    .subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster")))
-                .toObservable();
+        return JobUtils.deployArtifact(artifactPath, getSubmissionParameter().getClusterName(), ctrlSubject)
+                       .subscribeOn(schedulers.processBarVisibleAsync("Deploy the jar file into cluster"))
+                       .toObservable();
     }
 
     protected Observable<? extends SparkBatchJob> submitJob(SimpleImmutableEntry<IClusterDetail, String> clusterArtifactUriPair) {
         IClusterDetail cluster = clusterArtifactUriPair.getKey();
-        submitModel.getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
+        getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
         return this.createJobToSubmit(cluster)
                 .submit()
                 .subscribeOn(schedulers.processBarVisibleAsync("Submit the Spark batch job"))
@@ -258,18 +246,13 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     }
 
     @NotNull
-    public SparkSubmitModel getSubmitModel() {
-        return submitModel;
-    }
-
-    @NotNull
-    public IdeaSchedulers getSchedulers() {
+    public IdeSchedulers getSchedulers() {
         return schedulers;
     }
 
     @NotNull
     public String getTitle() {
-        return getSubmitModel().getSubmissionParameter().getMainClassName();
+        return getSubmissionParameter().getMainClassName();
     }
 
     protected Observable<? extends SparkBatchJob> attachInputStreams(SparkBatchJob job) {
@@ -290,5 +273,15 @@ public class SparkBatchJobRemoteProcess extends RemoteProcess {
     @NotNull
     public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
         return ctrlSubject;
+    }
+
+    @NotNull
+    public SparkSubmissionParameter getSubmissionParameter() {
+        return submissionParameter;
+    }
+
+    @NotNull
+    public String getArtifactPath() {
+        return artifactPath;
     }
 }

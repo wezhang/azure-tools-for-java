@@ -38,6 +38,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
+import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import rx.subjects.PublishSubject;
@@ -65,7 +66,11 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
 
         SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(project);
         PublishSubject<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
-        SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(project, submitModel, ctrlSubject);
+        SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(
+                new IdeaSchedulers(project),
+                submitModel.getSubmissionParameter(),
+                submitModel.getArtifactPath().orElseThrow(() -> new ExecutionException("No artifact selected")),
+                ctrlSubject);
         SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
 
         jobOutputView.attachToProcess(processHandler);

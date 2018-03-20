@@ -1,18 +1,18 @@
 /*
  * Copyright (c) Microsoft Corporation
- * <p/>
+ *
  * All rights reserved.
- * <p/>
+ *
  * MIT License
- * <p/>
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * <p/>
+ *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
  * the Software.
- * <p/>
+ *
  * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
  * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
@@ -22,35 +22,31 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.execution.ExecutionException;
-import com.intellij.openapi.project.Project;
 import com.jcraft.jsch.JSchException;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
-    public SparkBatchJobRemoteDebugProcess(@NotNull Project project,
-                                           @NotNull SparkSubmitModel sparkSubmitModel,
-                                           @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject)
-            throws ExecutionException {
-        super(project, sparkSubmitModel, ctrlSubject);
+    @NotNull
+    private SparkBatchRemoteDebugJobSshAuth authData;
 
-        if (!sparkSubmitModel.getAdvancedConfigModel().enableRemoteDebug) {
-            throw new ExecutionException(
-                    new SparkSubmitAdvancedConfigModel.NotAdvancedConfig("SSH authentication not set"));
-        }
+    public SparkBatchJobRemoteDebugProcess(@NotNull IdeSchedulers schedulers,
+                                           @NotNull SparkSubmissionParameter submissionParameter,
+                                           @NotNull String artifactPath,
+                                           @NotNull SparkBatchRemoteDebugJobSshAuth authData,
+                                           @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
+        super(schedulers, submissionParameter, artifactPath, ctrlSubject);
+        this.authData = authData;
     }
 
     @NotNull
@@ -65,7 +61,7 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
             // Create the Spark Job with special debug enabling parameters
             return SparkBatchRemoteDebugJob.factory(
                     URI.create(JobUtils.getLivyConnectionURL(cluster)).toString(),
-                    getSubmitModel().getSubmissionParameter(),
+                    getSubmissionParameter(),
                     SparkBatchSubmission.getInstance());
         } catch (DebugParameterDefinedException e) {
             throw new RuntimeException(e);
@@ -84,7 +80,7 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
     protected SparkBatchDebugJobJdbPortForwardedEvent createEventWithJdbPorForwarding(SparkBatchRemoteDebugJob job)
             throws SparkJobException, JSchException, IOException {
         SparkBatchDebugSession session = SparkBatchDebugSession.factoryByAuth(job.getConnectUri().toString(),
-                                                                              getSubmitModel().getAdvancedConfigModel())
+                                                                              getAuthData())
                                                                .open();
 
         String remoteHost = job.getSparkDriverHost();
@@ -113,13 +109,17 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
 
                 return job;
             } catch (JSchException e) {
-                throw new ExecutionException(
+                // Rethrow it since JSch can't handle the certificate expired issue
+                throw new SparkJobException(
                         "Can't create Spark Job remote debug session, " +
                                 "please check your SSH connect with manually login.",
                         e);
-            } catch (SparkJobException | IOException e) {
-                throw new ExecutionException(e);
             }
         });
+    }
+
+    @NotNull
+    public SparkBatchRemoteDebugJobSshAuth getAuthData() {
+        return authData;
     }
 }

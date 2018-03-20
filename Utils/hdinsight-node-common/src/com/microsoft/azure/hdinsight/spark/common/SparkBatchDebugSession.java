@@ -27,6 +27,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import org.apache.commons.lang3.StringUtils;
 import rx.Subscription;
@@ -43,6 +44,7 @@ public class SparkBatchDebugSession implements ILogger{
     private Session portForwardingSession;
     private JSch jsch;
     private Subscription logSubscription;
+    private SparkBatchRemoteDebugJobSshAuth auth;
 
     SparkBatchDebugSession(JSch jsch, Session portForwardingSession) {
         this.jsch = jsch;
@@ -182,7 +184,7 @@ public class SparkBatchDebugSession implements ILogger{
      * @return an SparkBatchDebugSession instance
      * @throws JSchException JSch operation exceptions
      */
-    static public SparkBatchDebugSession factory(String host, String user) throws JSchException {
+    private static SparkBatchDebugSession factory(String host, String user) throws JSchException {
         JSch jsch = new JSch();
         Session session = jsch.getSession(user, host);
 
@@ -217,6 +219,8 @@ public class SparkBatchDebugSession implements ILogger{
                         "Unknown SSH authentication type: " + auth.sshAuthType.name());
         }
 
+        session.auth = auth;
+
         return session;
     }
 
@@ -231,5 +235,9 @@ public class SparkBatchDebugSession implements ILogger{
         String segs[] = connectUri.getHost().split("\\.");
         segs[0] = segs[0].concat("-ssh");
         return StringUtils.join(segs, ".");
+    }
+
+    public SparkBatchRemoteDebugJobSshAuth getAuth() {
+        return auth;
     }
 }

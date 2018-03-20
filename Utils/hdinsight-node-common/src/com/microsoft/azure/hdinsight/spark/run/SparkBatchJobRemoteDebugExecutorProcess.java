@@ -22,11 +22,13 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.execution.ExecutionException;
-import com.intellij.openapi.project.Project;
 import com.jcraft.jsch.JSchException;
+import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.spark.common.*;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import rx.Observable;
 import rx.subjects.PublishSubject;
@@ -49,13 +51,14 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
     @NotNull
     private final SparkJobExecutorLogInputStream stdErrInputStream;
 
-    public SparkBatchJobRemoteDebugExecutorProcess(@NotNull Project project,
-                                                   @NotNull SparkSubmitModel sparkSubmitModel,
+    public SparkBatchJobRemoteDebugExecutorProcess(@NotNull IdeSchedulers schedulers,
+                                                   @NotNull SparkSubmissionParameter submissionParameter,
                                                    @NotNull SparkBatchRemoteDebugJob parentJob,
                                                    @NotNull String host,
                                                    @NotNull SparkBatchDebugSession debugSshSession,
-                                                   @NotNull String logBaseUrl) throws ExecutionException {
-        super(project, sparkSubmitModel, PublishSubject.create());
+                                                   @NotNull String logBaseUrl) {
+        // Needn't artifact path for executor since no deployment
+        super(schedulers, submissionParameter, "", debugSshSession.getAuth(), PublishSubject.create());
 
         this.parentJob = parentJob;
         this.host = host;
