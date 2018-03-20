@@ -115,12 +115,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         final SparkSubmitModel submitModel = submissionState.getSubmitModel();
         final Project project = submitModel.getProject();
         final IdeaSchedulers schedulers = new IdeaSchedulers(project);
-
-        if (!submitModel.getAdvancedConfigModel().enableRemoteDebug) {
-            throw new ExecutionException(
-                    new SparkBatchRemoteDebugJobSshAuth.NotAdvancedConfig("SSH authentication not set"));
-        }
-
         final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
         final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
         final SparkBatchJobRemoteDebugProcess driverDebugProcess = new SparkBatchJobRemoteDebugProcess(
@@ -189,6 +183,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             childState.setRemoteConnection(
                                     new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
 
+                            // Prepare the debug tab console view UI
                             SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(project);
                             jobOutputView.attachToProcess(handlerReadyEvent.getDebugProcessHandler());
 

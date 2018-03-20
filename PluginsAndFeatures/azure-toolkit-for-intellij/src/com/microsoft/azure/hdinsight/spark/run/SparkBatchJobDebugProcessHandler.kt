@@ -42,16 +42,8 @@ class SparkBatchJobDebugProcessHandler(project: Project,
                                        debugEventSubject: PublishSubject<SparkBatchJobSubmissionEvent>)
     : RemoteDebugProcessHandler(project), SparkBatchJobProcessCtrlLogOut {
 
-
-    override fun getCtrlSubject(): PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> {
-        return remoteDebugProcess.ctrlSubject
-    }
-
     init {
-        //        this.remoteDebugProcess.start();
-
         this.remoteDebugProcess.eventSubject
-                //                .observeOn(new IdeaSchedulers(project).processBarVisibleAsync("Listening for remote debug process events"))
                 .subscribe {
                     if (it is SparkBatchDebugJobJdbPortForwardedEvent) {
                         debugEventSubject.onNext(SparkBatchRemoteDebugHandlerReadyEvent(this, it))
@@ -66,6 +58,10 @@ class SparkBatchJobDebugProcessHandler(project: Project,
                 (event.processHandler as SparkBatchJobDebugProcessHandler).remoteDebugProcess.disconnect()
             }
         })
+    }
+
+    override fun getCtrlSubject(): PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> {
+        return remoteDebugProcess.ctrlSubject
     }
 
     // A simple log reader to connect the input stream and process handler
@@ -96,6 +92,7 @@ class SparkBatchJobDebugProcessHandler(project: Project,
                         { },
                         { },
                         {
+                            // Stop readers when the process is finished
                             stderrReader.stop()
                             stdoutReader.stop()
 

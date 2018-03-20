@@ -64,6 +64,7 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
         SparkSubmitModel submitModel = submissionState.getSubmitModel();
         Project project = submitModel.getProject();
 
+        // Prepare the run table console view UI
         SparkJobLogConsoleView jobOutputView = new SparkJobLogConsoleView(project);
         PublishSubject<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
         SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(
@@ -73,6 +74,7 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
                 ctrlSubject);
         SparkBatchJobRunProcessHandler processHandler = new SparkBatchJobRunProcessHandler(remoteProcess, "Package and deploy the job to Spark cluster", null);
 
+        // After attaching, the console view can read the process inputStreams and display them
         jobOutputView.attachToProcess(processHandler);
 
         remoteProcess.start();
