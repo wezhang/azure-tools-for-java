@@ -177,6 +177,8 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             if (jdbReadyEvent.isDriver()) {
                                 // Let the debug console view to handle the log
                                 jobSubscription.unsubscribe();
+                            } else {
+                                debugProcessHandlers.remove(handlerReadyEvent.getDebugProcessHandler());
                             }
 
                             // Set the debug connection to localhost and local forwarded port to the state
