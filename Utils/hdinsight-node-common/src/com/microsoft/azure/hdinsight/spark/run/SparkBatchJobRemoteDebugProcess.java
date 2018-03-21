@@ -29,7 +29,9 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import rx.Observable;
+import rx.Subscription;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
@@ -39,6 +41,8 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
     @NotNull
     private SparkBatchRemoteDebugJobSshAuth authData;
+    @Nullable
+    private Subscription executorSubscription;
 
     public SparkBatchJobRemoteDebugProcess(@NotNull IdeSchedulers schedulers,
                                            @NotNull SparkSubmissionParameter submissionParameter,
@@ -91,12 +95,21 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                 .getForwardedLocalPort(remoteHost, remotePort);
 
         // Start to find executors
-        job.getExecutorsObservable()
+        executorSubscription = job.getExecutorsObservable()
                 .map(hostContainerPair -> new SparkBatchJobExecutorCreatedEvent(
                         job, session, hostContainerPair.getKey(), hostContainerPair.getValue()))
                 .subscribe(getEventSubject()::onNext);
 
         return new SparkBatchDebugJobJdbPortForwardedEvent(job, session, remoteHost, remotePort, localPort, true);
+    }
+
+    @Override
+    public void disconnect() {
+        super.disconnect();
+
+        if (executorSubscription != null) {
+            executorSubscription.unsubscribe();
+        }
     }
 
     private Observable<SparkBatchRemoteDebugJob> createDebugSession(SparkBatchRemoteDebugJob job) {

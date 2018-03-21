@@ -29,7 +29,6 @@ import rx.Observable;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
@@ -108,7 +107,6 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      * @param submission the Spark Batch Job submission
      * @return a new SparkBatchRemoteDebugJob instance
      * @throws DebugParameterDefinedException the exception for the Spark driver debug option exists
-     * @throws URISyntaxException the exception for connectUrl syntax errors
      */
     static public SparkBatchRemoteDebugJob factory(
             String connectUrl,

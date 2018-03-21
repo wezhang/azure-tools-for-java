@@ -26,10 +26,7 @@ import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.Cache;
 import com.gargoylesoftware.htmlunit.ScriptException;
 import com.gargoylesoftware.htmlunit.WebClient;
-import com.gargoylesoftware.htmlunit.html.DomElement;
-import com.gargoylesoftware.htmlunit.html.HtmlAnchor;
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
-import com.gargoylesoftware.htmlunit.html.HtmlTableBody;
+import com.gargoylesoftware.htmlunit.html.*;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
@@ -496,28 +493,38 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 .flatMap(this::loadPageByBrowserObservable)
                 .retry(getRetriesMax())
                 .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
-                .takeUntil(this::isSparkJobYarnAppAttemptNotJustLaunched)
                 .filter(this::isSparkJobYarnAppAttemptNotJustLaunched)
-                .flatMap(htmlPage -> {
-                            // Get the container table by XPath
-                            HtmlTableBody containerBody = htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody");
+                .map(htmlPage -> htmlPage.getFirstByXPath("//*[@id=\"containers\"]/tbody")) // Get the container table by XPath
+                .filter(Objects::nonNull)       // May get null in the last step
+                .map(HtmlTableBody.class::cast)
+                .map(HtmlTableBody::getRows)    // To container rows
+                .buffer(2, 1)
+                // Wait for last two refreshes getting the same rows count, which means the yarn application
+                // launching containers finished
+                .takeUntil(buf -> buf.size() == 2 && buf.get(0).size() == buf.get(1).size())
+                .filter(buf -> buf.size() == 2 && buf.get(0).size() == buf.get(1).size())
+                .map(buf -> buf.get(1))
+                .flatMap(Observable::from)  // From rows to row one by one
+                .filter(containerRow -> {
+                    try {
+                        // Read container URL from YarnUI page
+                        String urlFromPage = ((HtmlAnchor) containerRow.getCell(3).getFirstChild()).getHrefAttribute();
+                        URI containerUri = getConnectUri().resolve(urlFromPage);
 
-                            return Observable
-                                    .from(containerBody.getRows())
-                                    .flatMap(row -> Observable.just(getConnectUri())
-                                                    .map(baseUri -> baseUri.resolve(((HtmlAnchor) row.getCell(3).getFirstChild())
-                                                                .getHrefAttribute())
-                                                                .toString())
-                                                    .flatMap(this::loadPageByBrowserObservable)
-                                                    .filter(this::isSparkJobYarnContainerLogAvailable)
-                                                    .map(page -> row))
-                                    .map(row -> {
-                                        String hostUrl = row.getCell(1).getTextContent().trim();
-                                        String host = URI.create(hostUrl).getHost();
-                                        String containerId = row.getCell(0).getTextContent().trim();
+                        return loadPageByBrowserObservable(containerUri.toString())
+                                .map(this::isSparkJobYarnContainerLogAvailable)
+                                .toBlocking()
+                                .single();
+                    } catch (Exception ignore) {
+                        return false;
+                    }
+                })
+                .map(row -> {
+                    String hostUrl = row.getCell(1).getTextContent().trim();
+                    String host = URI.create(hostUrl).getHost();
+                    String containerId = row.getCell(0).getTextContent().trim();
 
-                                        return new SimpleImmutableEntry<>(host, containerId);
-                                    });
+                    return new SimpleImmutableEntry<>(host, containerId);
                 });
     }
 
@@ -526,11 +533,17 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      */
     private Boolean isSparkJobYarnAppAttemptNotJustLaunched(@NotNull HtmlPage htmlPage) {
         // Get the info table by XPath
+        @Nullable
         HtmlTableBody infoBody = htmlPage.getFirstByXPath("//*[@class=\"info\"]/tbody");
+
+        if (infoBody == null) {
+            return false;
+        }
 
         return infoBody
                 .getRows()
                 .stream()
+                .filter(row -> row.getCells().size() >= 2)
                 .filter(row -> row.getCell(0)
                                   .getTextContent()
                                   .trim()
