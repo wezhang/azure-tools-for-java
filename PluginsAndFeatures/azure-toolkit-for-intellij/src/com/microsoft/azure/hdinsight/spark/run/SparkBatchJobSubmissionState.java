@@ -75,6 +75,7 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
     private RemoteConnection remoteConnection;
     @NotNull
     private SparkBatchJobConfigurableModel jobModel;
+    private final Boolean isExecutor;
 
     // Properties for executing
     @Nullable
@@ -84,9 +85,12 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
     @Nullable
     private ConsoleView consoleView;
 
-    public SparkBatchJobSubmissionState(@NotNull Project project, @NotNull SparkBatchJobConfigurableModel jobModel) {
+    public SparkBatchJobSubmissionState(@NotNull Project project,
+                                        @NotNull SparkBatchJobConfigurableModel jobModel,
+                                        Boolean isExecutor) {
         this.myProject = project;
         this.jobModel = jobModel;
+        this.isExecutor = isExecutor;
     }
 
     @NotNull
@@ -147,6 +151,13 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
                             }});
 
                             ctrlMessageView.print("ERROR: " + errMessage, ConsoleViewContentType.ERROR_OUTPUT);
+                        },
+                        () -> {
+                            if (!isExecutor) {
+                                createAppInsightEvent(executor, new HashMap<String, String>() {{
+                                    put("IsSubmitSucceed", "true");
+                                }});
+                            }
                         });
 
                 programRunner.onProcessStarted(null, result);

@@ -29,7 +29,6 @@ import com.intellij.debugger.impl.GenericDebuggerRunnerSettings;
 import com.intellij.execution.DefaultExecutionResult;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.ExecutionResult;
-import com.intellij.execution.Executor;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
@@ -38,7 +37,6 @@ import com.intellij.openapi.util.Key;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
@@ -53,7 +51,6 @@ import rx.subjects.PublishSubject;
 import java.net.URI;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,9 +61,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     public static final String DebugExecutor = "executor";
 
     private boolean isAppInsightEnabled = true;
-
-    @NotNull
-    private final List<SparkBatchJobDebugProcessHandler> debugProcessHandlers = new ArrayList<>();
 
     @Override
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
@@ -101,13 +95,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     }
 
     /**
-     *
      * Running in Event dispatch thread
-     *
-     * @param environment
-     * @param callback
-     * @param state
-     * @throws ExecutionException
      */
     @Override
     protected void execute(ExecutionEnvironment environment, Callback callback, RunProfileState state) throws ExecutionException {
@@ -177,8 +165,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             if (jdbReadyEvent.isDriver()) {
                                 // Let the debug console view to handle the log
                                 jobSubscription.unsubscribe();
-                            } else {
-                                debugProcessHandlers.remove(handlerReadyEvent.getDebugProcessHandler());
                             }
 
                             // Set the debug connection to localhost and local forwarded port to the state
@@ -225,8 +211,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                     new SparkBatchJobDebugProcessHandler(project, executorDebugProcess, debugEventSubject);
 
                             executorDebugHandler.getRemoteDebugProcess().start();
-
-                            debugProcessHandlers.add(executorDebugHandler);
                         }
                     } catch (ExecutionException e) {
                         throw new UncheckedExecutionException(e);
@@ -254,29 +238,4 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
         return childEnv;
     }
-
-
-    private void postAppInsightDebugSuccessEvent(@NotNull Executor executor, @NotNull SparkBatchJobSubmissionState state) {
-        if (!isAppInsightEnabled) {
-            return;
-        }
-
-        state.createAppInsightEvent(executor, new HashMap<String, String>() {{
-            put("IsSubmitSucceed", "true");
-        }});
-    }
-
-    private void postAppInsightDebugErrorEvent(@NotNull Executor executor,
-                                               @NotNull SparkBatchJobSubmissionState state,
-                                               @NotNull String errorMessage) {
-        if (!isAppInsightEnabled) {
-            return;
-        }
-
-        state.createAppInsightEvent(executor, new HashMap<String, String>() {{
-            put("IsSubmitSucceed", "false");
-            put("SubmitFailedReason", HDInsightUtil.normalizeTelemetryMessage(errorMessage));
-        }});
-    }
-
 }

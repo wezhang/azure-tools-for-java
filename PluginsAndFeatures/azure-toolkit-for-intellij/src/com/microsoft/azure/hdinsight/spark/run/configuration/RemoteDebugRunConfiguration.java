@@ -147,7 +147,7 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
         String debugTarget = executionEnvironment.getUserData(SparkBatchJobDebuggerRunner.DebugTargetKey);
         Boolean isExecutor = StringUtils.equals(debugTarget, SparkBatchJobDebuggerRunner.DebugExecutor);
 
-        SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel);
+        SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel, isExecutor);
 
         if (!isExecutor) {
             if (executor instanceof SparkBatchJobDebugExecutor ||
