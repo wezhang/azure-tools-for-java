@@ -484,13 +484,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * @return The string pair Observable of Host and Container Id
      */
     public Observable<SimpleImmutableEntry<String, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
-        return Observable.just(appAttempt)
-                .delay(3, TimeUnit.SECONDS) // Workaround to waiting for the page loading finished
-                .map(attempt -> getConnectUri()
-                        .resolve("/yarnui/hn/cluster/appattempt/")
-                        .resolve(attempt.getAppAttemptId())
-                        .toString())
-                .flatMap(this::loadPageByBrowserObservable)
+        return loadPageByBrowserObservable(getConnectUri().resolve("/yarnui/hn/cluster/appattempt/")
+                                                          .resolve(appAttempt.getAppAttemptId()).toString())
                 .retry(getRetriesMax())
                 .repeatWhen(ob -> ob.delay(getDelaySeconds(), TimeUnit.SECONDS))
                 .filter(this::isSparkJobYarnAppAttemptNotJustLaunched)
