@@ -22,6 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.run
 
 import com.intellij.debugger.engine.RemoteDebugProcessHandler
+import com.intellij.execution.KillableProcess
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessOutputTypes
@@ -40,12 +41,17 @@ import java.util.concurrent.Future
 class SparkBatchJobDebugProcessHandler(project: Project,
                                        val remoteDebugProcess: SparkBatchJobRemoteProcess,
                                        debugEventSubject: PublishSubject<SparkBatchJobSubmissionEvent>)
-    : RemoteDebugProcessHandler(project), SparkBatchJobProcessCtrlLogOut {
+    : RemoteDebugProcessHandler(project), SparkBatchJobProcessCtrlLogOut, KillableProcess {
+    private var isKilled: Boolean = false
+
+    private var isJdbPortForwarded: Boolean = false
 
     init {
         this.remoteDebugProcess.eventSubject
                 .subscribe {
                     if (it is SparkBatchDebugJobJdbPortForwardedEvent) {
+                        isJdbPortForwarded = true
+
                         debugEventSubject.onNext(SparkBatchRemoteDebugHandlerReadyEvent(this, it))
                     } else {
                         debugEventSubject.onNext(it)
@@ -59,6 +65,21 @@ class SparkBatchJobDebugProcessHandler(project: Project,
             }
         })
     }
+
+    override fun killProcess() {
+        // Just do it
+        remoteDebugProcess.destroy()
+
+        isKilled = true
+    }
+
+    override fun canKillProcess(): Boolean = true
+
+    // True for killProcess() will be called after the Stop button is pressed
+    override fun isProcessTerminating(): Boolean = !isJdbPortForwarded && !isKilled || super.isProcessTerminating()
+
+    // True for the Stop button will be disabled, and Remote Debug button will be enabled
+    override fun isProcessTerminated(): Boolean = isKilled || super.isProcessTerminated()
 
     override fun getCtrlSubject(): PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> {
         return remoteDebugProcess.ctrlSubject

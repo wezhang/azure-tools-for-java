@@ -74,6 +74,6 @@ public class IdeaSchedulers implements IdeSchedulers {
     }
 
     public Scheduler dispatchUIThread() {
-        return Schedulers.from(SwingUtilities::invokeLater);
+        return Schedulers.from(command -> ApplicationManager.getApplication().invokeAndWait(command));
     }
 }

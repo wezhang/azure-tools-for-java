@@ -26,15 +26,16 @@ package com.microsoft.azure.hdinsight.spark.run;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.intellij.debugger.impl.GenericDebuggerRunner;
 import com.intellij.debugger.impl.GenericDebuggerRunnerSettings;
-import com.intellij.execution.DefaultExecutionResult;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.ExecutionResult;
+import com.intellij.execution.*;
 import com.intellij.execution.configurations.*;
+import com.intellij.execution.impl.ConsoleViewImpl;
+import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
+import com.intellij.execution.ui.ConsoleViewContentType;
+import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
-import com.microsoft.azure.hdinsight.common.HDInsightUtil;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType;
@@ -44,14 +45,15 @@ import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.concurrency.AsyncPromise;
+import org.jetbrains.concurrency.Promise;
+import rx.Observable;
 import rx.Subscription;
 import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 
 import java.net.URI;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
@@ -59,8 +61,6 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     private static final Key<String> ProfileNameKey = new Key<>("profile-name");
     public static final String DebugDriver = "driver";
     public static final String DebugExecutor = "executor";
-
-    private boolean isAppInsightEnabled = true;
 
     @Override
     public boolean canRun(@NotNull String executorId, @NotNull RunProfile profile) {
@@ -99,6 +99,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
      */
     @Override
     protected void execute(ExecutionEnvironment environment, Callback callback, RunProfileState state) throws ExecutionException {
+        final AsyncPromise<ExecutionEnvironment> jobDriverEnvReady = new AsyncPromise<> ();
         final SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
         final SparkSubmitModel submitModel = submissionState.getSubmitModel();
         final Project project = submitModel.getProject();
@@ -115,23 +116,45 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 new SparkBatchJobDebugProcessHandler(project, driverDebugProcess, debugEventSubject);
         driverDebugHandler.getRemoteDebugProcess().start();
 
-        Subscription jobSubscription = ctrlSubject.subscribe(typedMessage -> {
+        // Prepare an independent submission console
+        final ConsoleViewImpl submissionConsole = new ConsoleViewImpl(project, true);
+        final RunContentDescriptor submissionDesc = new RunContentDescriptor(
+                submissionConsole,
+                driverDebugHandler,
+                submissionConsole.getComponent(),
+                String.format("Submit %s to cluster %s",
+                              submitModel.getSubmissionParameter().getMainClassName(),
+                              submitModel.getSubmissionParameter().getClusterName()));
+
+        // Show the submission console view
+        ExecutionManager.getInstance(project).getContentManager().showRunContent(environment.getExecutor(), submissionDesc);
+
+        // Use the submission console to display the deployment ctrl message
+        final Subscription jobSubscription = ctrlSubject.subscribe(typedMessage -> {
+                    String line = typedMessage.getValue() + "\n";
+
                     switch (typedMessage.getKey()) {
                         case Error:
-                            HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, typedMessage.getValue());
+                            submissionConsole.print(line, ConsoleViewContentType.ERROR_OUTPUT);
                             break;
                         case Info:
-                            HDInsightUtil.showInfoOnSubmissionMessageWindow(project, typedMessage.getValue());
+                            submissionConsole.print(line, ConsoleViewContentType.NORMAL_OUTPUT);
                             break;
                         case Log:
-                            HDInsightUtil.showInfoOnSubmissionMessageWindow(project, typedMessage.getValue());
+                            submissionConsole.print(line, ConsoleViewContentType.SYSTEM_OUTPUT);
                             break;
                         case Warning:
-                            HDInsightUtil.showWarningMessageOnSubmissionMessageWindow(project, typedMessage.getValue());
+                            submissionConsole.print(line, ConsoleViewContentType.LOG_WARNING_OUTPUT);
                             break;
                     }
                 },
-                err -> HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, err.getMessage()));
+                err -> submissionConsole.print(err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT),
+                () -> {
+                    if (Optional.ofNullable(driverDebugHandler.getUserData(ProcessHandler.TERMINATION_REQUESTED))
+                                .orElse(false)) {
+                        jobDriverEnvReady.setError("The Spark job remote debug is cancelled by user.");
+                    }
+                });
 
         debugEventSubject
                 .subscribeOn(Schedulers.io())
@@ -149,26 +172,21 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
                             int localPort = jdbReadyEvent.getLocalJdbForwardedPort().get();
 
-                            ExecutionEnvironment childEnv = buildChildEnvironment(
+                            ExecutionEnvironment forkEnv = forkEnvironment(
                                     environment,
                                     jdbReadyEvent.getRemoteHost().orElse("unknown"),
                                     jdbReadyEvent.isDriver());
 
-                            SparkBatchJobSubmissionState childState = jdbReadyEvent.isDriver() ?
+                            SparkBatchJobSubmissionState forkState = jdbReadyEvent.isDriver() ?
                                     submissionState :
-                                    (SparkBatchJobSubmissionState) childEnv.getState();
+                                    (SparkBatchJobSubmissionState) forkEnv.getState();
 
-                            if (childState == null) {
+                            if (forkState == null) {
                                 return;
                             }
 
-                            if (jdbReadyEvent.isDriver()) {
-                                // Let the debug console view to handle the log
-                                jobSubscription.unsubscribe();
-                            }
-
                             // Set the debug connection to localhost and local forwarded port to the state
-                            childState.setRemoteConnection(
+                            forkState.setRemoteConnection(
                                     new RemoteConnection(true, "localhost", Integer.toString(localPort), false));
 
                             // Prepare the debug tab console view UI
@@ -177,12 +195,20 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
                             ExecutionResult result = new DefaultExecutionResult(
                                     jobOutputView, handlerReadyEvent.getDebugProcessHandler());
-                            childState.setExecutionResult(result);
-                            childState.setConsoleView(jobOutputView.getSecondaryConsoleView());
-                            childState.setRemoteProcessCtrlLogHandler(handlerReadyEvent.getDebugProcessHandler());
+                            forkState.setExecutionResult(result);
+                            forkState.setConsoleView(jobOutputView.getSecondaryConsoleView());
+                            forkState.setRemoteProcessCtrlLogHandler(handlerReadyEvent.getDebugProcessHandler());
 
-                            // Call supper class method to attach Java virtual machine
-                            super.execute(childEnv, jdbReadyEvent.isDriver() ? callback : d -> {}, childState);
+                            if (jdbReadyEvent.isDriver()) {
+                                // Let the debug console view to handle the control log
+                                jobSubscription.unsubscribe();
+
+                                // Resolve job driver promise, handle the driver VM attaching separately
+                                jobDriverEnvReady.setResult(forkEnv);
+                            } else {
+                                // Call supper class method to attach Java virtual machine
+                                super.execute(forkEnv, null, forkState);
+                            }
                         } else if (debugEvent instanceof SparkBatchJobExecutorCreatedEvent) {
                             SparkBatchJobExecutorCreatedEvent executorCreatedEvent =
                                     (SparkBatchJobExecutorCreatedEvent) debugEvent;
@@ -216,14 +242,40 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                         throw new UncheckedExecutionException(e);
                     }
                 });
+
+        // Driver side execute, leverage Intellij Async Promise, to wait for the Spark app deployed
+        ExecutionManager.getInstance(project).startRunProfile(new RunProfileStarter() {
+            @Override
+            public Promise<RunContentDescriptor> executeAsync(@NotNull RunProfileState state, @NotNull ExecutionEnvironment env) throws ExecutionException {
+                return jobDriverEnvReady
+                        .then(forkEnv -> Observable.fromCallable(() -> doExecute(state, forkEnv))
+                                .subscribeOn(schedulers.dispatchUIThread()).toBlocking().singleOrDefault(null))
+                        .then(descriptor -> {
+                            // Borrow BaseProgramRunner.postProcess() codes since it's only package public accessible.
+                            if (descriptor != null) {
+                                descriptor.setExecutionId(env.getExecutionId());
+                                descriptor.setContentToolWindowId(ExecutionManager.getInstance(env.getProject()).getContentManager()
+                                        .getContentDescriptorToolWindowId(env.getRunnerAndConfigurationSettings()));
+                                RunnerAndConfigurationSettings settings = env.getRunnerAndConfigurationSettings();
+
+                                if (settings != null) {
+                                    descriptor.setActivateToolWindowWhenAdded(settings.isActivateToolWindowBeforeRun());
+                                }
+                            }
+
+                            if (callback != null) {
+                                callback.processStarted(descriptor);
+                            }
+                            return descriptor;
+                        });
+            }
+        }, submissionState, environment);
     }
 
     /*
      * Build a child environment with specified host and type
      */
-    private ExecutionEnvironment buildChildEnvironment(@NotNull ExecutionEnvironment parentEnv,
-                                                       String host,
-                                                       boolean isDriver) {
+    private ExecutionEnvironment forkEnvironment(@NotNull ExecutionEnvironment parentEnv, String host, boolean isDriver) {
         String savedProfileName = parentEnv.getUserData(ProfileNameKey);
         String originProfileName = savedProfileName == null ? parentEnv.getRunProfile().getName() : savedProfileName;
 
