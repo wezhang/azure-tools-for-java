@@ -278,6 +278,6 @@ public class SparkBatchRemoteDebugJobScenario {
 
     @And("^mock Spark job uri '(.*)' is (valid|invalid)$")
     public void mockSparkJobUriIsValidOrNot(String uriToCheck, String validOrNot) throws Throwable {
-        doReturn(validOrNot.equals("valid")).when(debugJobMock).isUriValid(uriToCheck);
+        doReturn(validOrNot.equals("valid")).when(debugJobMock).isUriValid(URI.create(uriToCheck));
     }
 }
