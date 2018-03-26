@@ -213,15 +213,14 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             SparkBatchJobExecutorCreatedEvent executorCreatedEvent =
                                     (SparkBatchJobExecutorCreatedEvent) debugEvent;
 
-                            final String host = executorCreatedEvent.getHost();
                             final String containerId = executorCreatedEvent.getContainerId();
                             final SparkBatchRemoteDebugJob debugJob =
                                     (SparkBatchRemoteDebugJob) executorCreatedEvent.getJob();
 
-                            URI executorLogUrl = debugJob.getConnectUri().resolve(String.format(
-                                    "/yarnui/%s/node/containerlogs/%s/livy",
-                                    host,
-                                    containerId));
+                            URI internalHostUri = executorCreatedEvent.getHostUri();
+                            URI executorLogUrl = debugJob.convertToPublicLogUri(internalHostUri)
+                                    .map(uri -> uri.resolve(String.format("node/containerlogs/%s/livy", containerId)))
+                                    .toBlocking().singleOrDefault(internalHostUri);
 
                             // Create an Executor Debug Process
                             SparkBatchJobRemoteDebugExecutorProcess executorDebugProcess =
@@ -229,7 +228,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                                             schedulers,
                                             submitModel.getSubmissionParameter(),
                                             debugJob,
-                                            host,
+                                            internalHostUri.getHost(),
                                             executorCreatedEvent.getDebugSshSession(),
                                             executorLogUrl.toString());
 

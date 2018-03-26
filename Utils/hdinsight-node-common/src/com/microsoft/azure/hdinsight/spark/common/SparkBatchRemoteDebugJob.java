@@ -121,7 +121,7 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
     /**
      * To get Executor from Yarn UI App Attempt page
      */
-    public Observable<SimpleEntry<String, String>> getExecutorsObservable() {
+    public Observable<SimpleEntry<URI, String>> getExecutorsObservable() {
         return getSparkJobYarnCurrentAppAttempt()
                 .flatMap(appAttempt -> getSparkJobYarnContainersObservable(appAttempt)
                         .filter(hostContainerPair -> !StringUtils.equals(

@@ -31,7 +31,6 @@ import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.ObjectConvertUtils;
 import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.App;
@@ -43,8 +42,6 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
-import rx.Single;
-import rx.SingleSubscriber;
 import rx.Subscriber;
 
 import java.io.IOException;
@@ -483,7 +480,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      *
      * @return The string pair Observable of Host and Container Id
      */
-    public Observable<SimpleImmutableEntry<String, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
+    public Observable<SimpleImmutableEntry<URI, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
         return loadPageByBrowserObservable(getConnectUri().resolve("/yarnui/hn/cluster/appattempt/")
                                                           .resolve(appAttempt.getAppAttemptId()).toString())
                 .retry(getRetriesMax())
@@ -515,11 +512,10 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                     }
                 })
                 .map(row -> {
-                    String hostUrl = row.getCell(1).getTextContent().trim();
-                    String host = URI.create(hostUrl).getHost();
+                    URI hostUrl = URI.create(row.getCell(1).getTextContent().trim());
                     String containerId = row.getCell(0).getTextContent().trim();
 
-                    return new SimpleImmutableEntry<>(host, containerId);
+                    return new SimpleImmutableEntry<>(hostUrl, containerId);
                 });
     }
 
@@ -810,64 +806,67 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 .map(AppAttempt::getLogsLink)
                 .map(URI::create)
                 .filter(uri -> StringUtils.isNotEmpty(uri.getHost()))
-                .flatMap(logUriWithIP -> {
-                    // New version, without port info in log URL
-                    return convertToDriverLogUrl(getDriverLogConversionMode(), logUriWithIP)
-                            .map(Observable::just)
-                            .orElseGet(() -> {
-                                // Probe usable driver log URI
-                                DriverLogConversionMode probeMode = getDriverLogConversionMode();
-
-                                while ((probeMode = DriverLogConversionMode.next(probeMode)) != null) {
-                                    Optional<String> uri = convertToDriverLogUrl(probeMode, logUriWithIP)
-                                            .filter(uriProbe -> {
-                                                try {
-                                                    return isUriValid(uriProbe);
-                                                } catch (IOException e) {
-                                                    return false;
-                                                }
-                                            });
-
-                                    if (uri.isPresent()) {
-                                        // Find usable one
-                                        setDriverLogConversionMode(probeMode);
-
-                                        return Observable.just(uri.get());
-                                    }
-                                }
-
-                                // All modes were probed and all failed
-                                return Observable.empty();
-                            });
-                });
+                .flatMap(this::convertToPublicLogUri)
+                .map(URI::toString);
     }
 
-    public boolean isUriValid(@NotNull String uriProbe) throws IOException {
-        return getSubmission().getHttpResponseViaGet(uriProbe).getCode() < 300;
+    public boolean isUriValid(@NotNull URI uriProbe) throws IOException {
+        return getSubmission().getHttpResponseViaGet(uriProbe.toString()).getCode() < 300;
     }
 
-    private Optional<String> convertToDriverLogUrl(@Nullable DriverLogConversionMode mode, @NotNull URI internalLogUrl) {
+    private Optional<URI> convertToPublicLogUri(@Nullable DriverLogConversionMode mode, @NotNull URI internalLogUrl) {
+        String normalizedPath = Optional.of(internalLogUrl.getPath()).filter(StringUtils::isNotBlank).orElse("/");
+
         if (mode != null) {
             switch (mode) {
                 case WITHOUT_PORT:
                     return Optional.of(getConnectUri().resolve(
-                            String.format("/yarnui/%s%s",
-                                    internalLogUrl.getHost(),
-                                    internalLogUrl.getPath())).toString());
+                            String.format("/yarnui/%s%s", internalLogUrl.getHost(), normalizedPath)));
                 case WITH_PORT:
                     return Optional.of(getConnectUri().resolve(
                             String.format("/yarnui/%s/port/%s%s",
                                     internalLogUrl.getHost(),
                                     internalLogUrl.getPort(),
-                                    internalLogUrl.getPath())).toString());
+                                    normalizedPath)));
             }
         }
 
         return Optional.empty();
     }
 
+    public Observable<URI> convertToPublicLogUri(@NotNull URI internalLogUri) {
+        // New version, without port info in log URL
+        return convertToPublicLogUri(getLogUriConversionMode(), internalLogUri)
+                .map(Observable::just)
+                .orElseGet(() -> {
+                    // Probe usable driver log URI
+                    DriverLogConversionMode probeMode = getLogUriConversionMode();
+
+                    while ((probeMode = DriverLogConversionMode.next(probeMode)) != null) {
+                        Optional<URI> uri = convertToPublicLogUri(probeMode, internalLogUri)
+                                .filter(uriProbe -> {
+                                    try {
+                                        return isUriValid(uriProbe);
+                                    } catch (IOException e) {
+                                        return false;
+                                    }
+                                });
+
+                        if (uri.isPresent()) {
+                            // Find usable one
+                            setDriverLogConversionMode(probeMode);
+
+                            return Observable.just(uri.get());
+                        }
+                    }
+
+                    // All modes were probed and all failed
+                    return Observable.empty();
+                });
+    }
+
     @Nullable
-    private DriverLogConversionMode getDriverLogConversionMode() {
+    private DriverLogConversionMode getLogUriConversionMode() {
         return this.driverLogConversionMode;
     }
 
