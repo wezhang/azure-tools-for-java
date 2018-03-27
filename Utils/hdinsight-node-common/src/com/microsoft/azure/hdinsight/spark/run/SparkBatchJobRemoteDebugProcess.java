@@ -125,7 +125,7 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
                 // Rethrow it since JSch can't handle the certificate expired issue
                 throw new SparkJobException(
                         "Can't create Spark Job remote debug session, " +
-                                "please check your SSH connect with manually login.",
+                        "please check whether SSH password has expired or wrong, using Putty or other SSH tool.",
                         e);
             }
         });
