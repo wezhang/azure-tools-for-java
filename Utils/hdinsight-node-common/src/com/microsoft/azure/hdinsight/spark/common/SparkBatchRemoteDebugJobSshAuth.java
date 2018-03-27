@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.File;
 
 public class SparkBatchRemoteDebugJobSshAuth {
@@ -34,6 +36,12 @@ public class SparkBatchRemoteDebugJobSshAuth {
     public enum SSHAuthType {
         UsePassword,
         UseKeyFile
+    }
+
+    public boolean isValid() {
+        return StringUtils.isNotEmpty(sshUserName) &&
+                (sshAuthType == SSHAuthType.UsePassword ? StringUtils.isNotEmpty(sshPassword) :
+                                                          (sshKeyFile != null && sshKeyFile.exists()));
     }
 
     public static class UnknownSSHAuthTypeException extends SparkJobException {

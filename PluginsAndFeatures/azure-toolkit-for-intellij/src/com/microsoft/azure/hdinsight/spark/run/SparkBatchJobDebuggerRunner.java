@@ -71,11 +71,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         boolean isDebugEnabled = Optional.of((RemoteDebugRunConfiguration) profile)
                 .map(RemoteDebugRunConfiguration::getSubmitModel)
                 .map(SparkSubmitModel::getAdvancedConfigModel)
-                .map(advModel -> advModel.enableRemoteDebug &&
-                        StringUtils.isNotEmpty(advModel.sshUserName) &&
-                        StringUtils.isNotEmpty(advModel.sshAuthType == SSHAuthType.UsePassword ?
-                                advModel.sshPassword :
-                                advModel.sshKeyFile.getPath()))
+                .map(advModel -> advModel.enableRemoteDebug && advModel.isValid())
                 .orElse(false);
 
         // Only support debug now, will enable run in future
