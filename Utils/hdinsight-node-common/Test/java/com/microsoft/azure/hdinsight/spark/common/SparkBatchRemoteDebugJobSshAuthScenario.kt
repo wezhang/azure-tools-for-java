@@ -43,8 +43,8 @@ class SparkBatchRemoteDebugJobSshAuthScenario {
                     }
 
                     assertEquals(
-                            sshAuth.isValid,
                             it["isValid"]!!.toBoolean(),
+                            sshAuth.isValid,
                             "Current working directory is ${System.getProperty("user.dir")}")
                 }
 

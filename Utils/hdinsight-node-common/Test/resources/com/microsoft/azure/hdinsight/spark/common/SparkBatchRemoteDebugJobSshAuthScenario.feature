@@ -9,5 +9,4 @@ Feature: SparkBatchRemoteDebugJobSshAuth tests
       | UsePassword | anyUser  | abc      |                | true    |
       | UseKeyFile  | anyUser  |          |                | false   |
       | UseKeyFile  | anyUser  |          | nonexist.file  | false   |
-      | UseKeyFile  | anyUser  |          | ./pom.xml      | true    |
-      | UseKeyFile  | anyUser  |          | .\pom.xml      | true    |
+      | UseKeyFile  | anyUser  |          | pom.xml        | true    |
