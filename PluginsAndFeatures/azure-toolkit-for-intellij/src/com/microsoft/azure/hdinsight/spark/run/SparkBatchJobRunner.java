@@ -61,6 +61,10 @@ public class SparkBatchJobRunner extends DefaultProgramRunner {
     @Override
     protected RunContentDescriptor doExecute(RunProfileState state, ExecutionEnvironment environment) throws ExecutionException {
         SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
+
+        // Check parameters before starting
+        submissionState.checkSubmissionParameter();
+
         SparkSubmitModel submitModel = submissionState.getSubmitModel();
         Project project = submitModel.getProject();
 
