@@ -97,6 +97,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
     protected void execute(ExecutionEnvironment environment, Callback callback, RunProfileState state) throws ExecutionException {
         final AsyncPromise<ExecutionEnvironment> jobDriverEnvReady = new AsyncPromise<> ();
         final SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
+
+        // Check parameters before starting
+        submissionState.checkSubmissionParameter();
+
         final SparkSubmitModel submitModel = submissionState.getSubmitModel();
         final Project project = submitModel.getProject();
         final IdeaSchedulers schedulers = new IdeaSchedulers(project);
