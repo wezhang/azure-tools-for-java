@@ -116,8 +116,6 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
         try {
             if (executor instanceof SparkBatchJobRunExecutor || executor instanceof SparkBatchJobDebugExecutor) {
-                checkSubmissionParameter();
-
                 if (getRemoteProcessCtrlLogHandler() == null || getExecutionResult() == null || getConsoleView() == null) {
                     throw new ExecutionException("Spark Batch Job execution result is not ready");
                 }
@@ -296,6 +294,10 @@ public class SparkBatchJobSubmissionState implements RunProfileState, RemoteStat
 
         if (StringUtils.isEmpty(parameter.getArtifactName())) {
             throw new ExecutionException("The artifact to submit is not selected, please config it at 'Run/Debug configuration -> Remotely Run in Cluster'.");
+        }
+
+        if (StringUtils.isBlank(parameter.getMainClassName())) {
+            throw new ExecutionException("The main class name is empty, please config it at 'Run/Debug configuration -> Remotely Run in Cluster'.");
         }
     }
 
