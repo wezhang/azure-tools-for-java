@@ -33,6 +33,7 @@ import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.InplaceButton;
 import com.intellij.util.PathUtil;
 import com.intellij.util.ui.JBUI;
+import com.jcraft.jsch.JSchException;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.Docs;
@@ -388,20 +389,25 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                             .orElseThrow(() -> new HDIException(
                                     "No cluster name matched selection: " + selectedClusterName));
 
+                    // Verify the certificate
                     SparkBatchDebugSession debugSession = SparkBatchDebugSession.factoryByAuth(clusterDetail.getConnectionUrl(),
                                                                                                advConfModelToProbe)
                                                                                 .open();
 
+                    debugSession.verifyCertificate();
+
                     debugSession.close();
 
-                    return new Pair<>(advConfModelToProbe, true);
+                    return new Pair<>(advConfModelToProbe, "passed");
+                } catch (SparkBatchDebugSession.SshPasswordExpiredException ex) {
+                    return new Pair<>(advConfModelToProbe, "failed (password expired)");
                 } catch (Exception ex) {
-                    return new Pair<>(advConfModelToProbe, false);
+                    return new Pair<>(advConfModelToProbe, "failed");
                 }
             })
             .subscribe(pair -> {
                 SparkSubmitAdvancedConfigModel probedAdvModel = pair.first();
-                Boolean isPass = pair.second();
+                Boolean isPass = pair.second().equals("passed");
 
                 if (enableRemoteDebugCheckBox.isSelected() &&
                         ((probedAdvModel.sshAuthType == UsePassword &&
@@ -413,7 +419,7 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                                 probedAdvModel.sshKeyFile.toString().equals(PathUtil.getLocalPath(sshPasswordUseKeyFileTextField.getText()))))
                         ){
                     // Checked parameter is matched with current content
-                    checkSshCertIndicator.stop("SSH Authentication is " + (isPass ? "passed" : "failed"));
+                    checkSshCertIndicator.stop("SSH Authentication is " + pair.second());
                     okButton.setEnabled(!doesAuthAutoVerify || isPass);
                     SparkSubmissionAdvancedConfigDialog.this.getRootPane()
                             .setDefaultButton(isPass ? okButton : cancelButton);
