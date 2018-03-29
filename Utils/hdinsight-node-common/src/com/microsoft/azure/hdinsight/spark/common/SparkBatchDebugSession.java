@@ -22,33 +22,90 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
+import com.jcraft.jsch.*;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
-import com.microsoft.azure.hdinsight.sdk.common.AuthenticationException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import rx.Subscription;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.UnknownServiceException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /*
  * Spark Batch Job debug session with SSH tunnel
  */
 public class SparkBatchDebugSession implements ILogger{
+    @NotNull
+    private final DebugUserInfo debugUserInfo;
+    @NotNull
     private Session portForwardingSession;
     private JSch jsch;
     private Subscription logSubscription;
     private SparkBatchRemoteDebugJobSshAuth auth;
+    @Nullable
+    private String whoami;
 
-    SparkBatchDebugSession(JSch jsch, Session portForwardingSession) {
+    class DebugUserInfo implements UserInfo {
+        @Nullable
+        private String password;
+
+        @Override
+        public String getPassphrase() {
+            throw new NotImplementedException("SSH key pass phrase hasn't be supported yet");
+        }
+
+        public void setPassword(@Nullable String password) {
+            this.password = password;
+        }
+
+        @Nullable
+        @Override
+        public String getPassword() {
+            return this.password;
+        }
+
+        @Override
+        public boolean promptPassword(String message) {
+            log().info(message);
+
+            return true;
+        }
+
+        @Override
+        public boolean promptPassphrase(String message) {
+            log().info(message);
+
+            return false;
+        }
+
+        @Override
+        public boolean promptYesNo(String message) {
+            log().info(message);
+
+            return true;
+        }
+
+        @Override
+        public void showMessage(String message) {
+            log().info(message);
+        }
+    }
+
+    SparkBatchDebugSession(JSch jsch, @NotNull Session portForwardingSession) {
         this.jsch = jsch;
         this.portForwardingSession = portForwardingSession;
+        this.debugUserInfo = new DebugUserInfo();
+
+        this.portForwardingSession.setUserInfo(this.debugUserInfo);
     }
 
     /**
@@ -83,6 +140,7 @@ public class SparkBatchDebugSession implements ILogger{
      *
      * @return portForwardingSession instance
      */
+    @NotNull
     public Session getPortForwardingSession() {
         return portForwardingSession;
     }
@@ -107,9 +165,67 @@ public class SparkBatchDebugSession implements ILogger{
      * @return the current instance for chain calling
      */
     public SparkBatchDebugSession setPassword(String password) {
-        this.getPortForwardingSession().setPassword(password);
+        getDebugUserInfo().setPassword(password);
 
         return this;
+    }
+
+    /**
+     * Verify the user certificate with trying to talk with SSH server
+     *
+     * @return verified debug session
+     * @throws JSchException
+     * @throws IOException
+     */
+    public SparkBatchDebugSession verifyCertificate() throws JSchException, IOException {
+        Session session = this.getPortForwardingSession();
+
+        if (!session.isConnected()) {
+            throw new JSchException("The session isn't connected, call the function after open()");
+        }
+
+        ChannelExec chan = (ChannelExec) session.openChannel("exec");
+
+        // `whoami` command would return the current user,
+        // which returns local user name in Linux, <domain>\<user> in Windows
+        chan.setCommand("whoami");
+
+        InputStream err = chan.getErrStream();
+        InputStream stdout = chan.getInputStream();
+
+        chan.connect();
+
+        this.whoami = IOUtils.toString(stdout, "utf8").trim();
+
+        log().info("Executing 'whoami' got the user: " + this.whoami);
+
+        String errMessage = IOUtils.toString(err, "utf8");
+
+        chan.disconnect();
+        if (StringUtils.isNotBlank(errMessage)) {
+            log().warn("Executing 'whoami' got error message: " + errMessage);
+        }
+
+        // For password expired case, the error message would be like:
+        //
+        //    WARNING: Your password has expired.
+        //    Password change required but no TTY available.
+        if (Pattern.compile("WARNING.*password.*expired").matcher(errMessage).find()) {
+            throw new SshPasswordExpiredException(
+                    "The user " + session.getUserName() + " password is expired. Error message:" + errMessage);
+        }
+
+        return this;
+    }
+
+    @Nullable
+    public String getWhoami() {
+        return whoami;
+    }
+
+    @NotNull
+    public DebugUserInfo getDebugUserInfo() {
+        return debugUserInfo;
     }
 
     /**
@@ -239,5 +355,14 @@ public class SparkBatchDebugSession implements ILogger{
 
     public SparkBatchRemoteDebugJobSshAuth getAuth() {
         return auth;
+    }
+
+    /**
+     * The SSH password expired exception
+     */
+    public class SshPasswordExpiredException extends JSchException {
+        public SshPasswordExpiredException(String message) {
+            super(message);
+        }
     }
 }
