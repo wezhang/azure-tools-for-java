@@ -92,7 +92,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         this.submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
 
         final SparkSubmissionAdvancedConfigDialog advConfDialog = this.submissionPanel.getAdvancedConfigDialog();
-        advConfDialog.setData(submitModel.getAdvancedConfigModel());
         advConfDialog.addCallbackOnOk(() -> advConfDialog.getData(submitModel.getAdvancedConfigModel()));
 
         this.submissionPanel.addAdvancedConfigurationButtonActionListener(e -> {
@@ -100,6 +99,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
             advConfDialog.setAuthenticationAutoVerify(submitModel.getSelectedClusterDetail().map(IClusterDetail::getName)
                                                                                             .orElse(null));
+            advConfDialog.setData(submitModel.getAdvancedConfigModel());
             advConfDialog.setModal(true);
             advConfDialog.setVisible(true);
         });
