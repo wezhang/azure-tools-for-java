@@ -99,7 +99,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
             advConfDialog.setAuthenticationAutoVerify(submitModel.getSelectedClusterDetail().map(IClusterDetail::getName)
                                                                                             .orElse(null));
-            advConfDialog.setData(submitModel.getAdvancedConfigModel());
             advConfDialog.setModal(true);
             advConfDialog.setVisible(true);
         });

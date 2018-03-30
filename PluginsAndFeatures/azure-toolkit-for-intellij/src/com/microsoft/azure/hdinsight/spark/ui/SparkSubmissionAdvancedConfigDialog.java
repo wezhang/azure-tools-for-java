@@ -33,7 +33,6 @@ import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.InplaceButton;
 import com.intellij.util.PathUtil;
 import com.intellij.util.ui.JBUI;
-import com.jcraft.jsch.JSchException;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.Docs;
@@ -42,7 +41,6 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel;
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRemoteDebugProcess;
 import com.microsoft.azuretools.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import rx.Subscription;
@@ -52,6 +50,8 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.util.Locale;
 import java.util.Optional;
@@ -68,7 +68,7 @@ import static javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
 public class SparkSubmissionAdvancedConfigDialog extends JDialog
                                                  implements SettableControl<SparkSubmitAdvancedConfigModel> {
     SparkSubmissionAdvancedConfigDialog() {
-        this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
+        this.initialModel = new SparkSubmitAdvancedConfigModel();
 
         // FIXME!!! Since the Intellij has no locale setting, just set en-us here.
         this.helpUrl = new Docs(Locale.US).getDocUrlByTopic(Docs.TOPIC_CONNECT_HADOOP_LINUX_USING_SSH);
@@ -119,11 +119,11 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
         pack();
     }
 
-    public SparkSubmitAdvancedConfigModel getAdvancedConfigModel() {
-        return advancedConfigModel;
+    private SparkSubmitAdvancedConfigModel getInitialModel() {
+        return initialModel;
     }
 
-    private SparkSubmitAdvancedConfigModel advancedConfigModel;
+    private SparkSubmitAdvancedConfigModel initialModel;
     private String helpUrl;
     private Boolean doesAuthAutoVerify = false;
 
@@ -429,8 +429,6 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
     }
 
     private void onOk() {
-        this.advancedConfigModel = saveParameters();
-
         if (updateCallBack != null) {
             updateCallBack.run();
         }
@@ -439,6 +437,9 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
     }
 
     private void onCancel() {
+        // Restore to the initial state
+        setData(getInitialModel());
+
         dispose();
     }
 
@@ -450,6 +451,16 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
 
     public void addCallbackOnOk(CallBack cb) {
         this.updateCallBack = cb;
+    }
+
+    @Override
+    public void setVisible(boolean isVisible) {
+        if (isVisible) {
+            // Save the initial state
+            getData(getInitialModel());
+        }
+
+        super.setVisible(isVisible);
     }
 
     @Override
