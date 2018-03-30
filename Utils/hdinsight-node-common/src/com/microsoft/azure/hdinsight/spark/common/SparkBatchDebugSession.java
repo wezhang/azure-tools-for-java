@@ -60,7 +60,7 @@ public class SparkBatchDebugSession implements ILogger{
 
         @Override
         public String getPassphrase() {
-            throw new NotImplementedException("SSH key pass phrase hasn't be supported yet");
+            throw new NotImplementedException("SSH key pass phrase hasn't been supported yet");
         }
 
         public void setPassword(@Nullable String password) {

@@ -392,9 +392,8 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                     // Verify the certificate
                     SparkBatchDebugSession debugSession = SparkBatchDebugSession.factoryByAuth(clusterDetail.getConnectionUrl(),
                                                                                                advConfModelToProbe)
-                                                                                .open();
-
-                    debugSession.verifyCertificate();
+                                                                                .open()
+                                                                                .verifyCertificate();
 
                     debugSession.close();
 
