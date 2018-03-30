@@ -36,15 +36,23 @@ import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.execution.ui.RunContentDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
+import com.jcraft.jsch.JSchException;
+import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.sdk.common.HDIException;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType;
+import com.microsoft.azure.hdinsight.spark.common.SparkJobException;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfiguration;
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.jetbrains.concurrency.AsyncPromise;
 import org.jetbrains.concurrency.Promise;
 import rx.Observable;
@@ -90,6 +98,15 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         return null;
     }
 
+    private String getSparkJobUrl(@NotNull SparkSubmitModel submitModel) throws ExecutionException {
+        String clusterName = submitModel.getSubmissionParameter().getClusterName();
+
+        IClusterDetail clusterDetail = ClusterManagerEx.getInstance()
+                .getClusterDetailByName(clusterName)
+                .orElseThrow(() -> new ExecutionException("No cluster name matched selection: " + clusterName));
+
+        return JobUtils.getLivyConnectionURL(clusterDetail);
+    }
     /**
      * Running in Event dispatch thread
      */
@@ -102,12 +119,24 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
         submissionState.checkSubmissionParameter();
 
         final SparkSubmitModel submitModel = submissionState.getSubmitModel();
+        // Create SSH debug session firstly
+        SparkBatchDebugSession session;
+        try {
+            session = SparkBatchDebugSession.factoryByAuth(getSparkJobUrl(submitModel), submitModel.getAdvancedConfigModel())
+                    .open()
+                    .verifyCertificate();
+        } catch (Exception e) {
+            throw new ExecutionException("Failed to create SSH session for debugging. " +
+                    ExceptionUtils.getRootCauseMessage(e));
+        }
+
         final Project project = submitModel.getProject();
         final IdeaSchedulers schedulers = new IdeaSchedulers(project);
         final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
         final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
         final SparkBatchJobRemoteDebugProcess driverDebugProcess = new SparkBatchJobRemoteDebugProcess(
                 schedulers,
+                session,
                 submitModel.getSubmissionParameter(),
                 submitModel.getArtifactPath().orElseThrow(() -> new ExecutionException("No artifact selected")),
                 submitModel.getAdvancedConfigModel(),
@@ -148,7 +177,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                             break;
                     }
                 },
-                err -> submissionConsole.print(err.getMessage(), ConsoleViewContentType.ERROR_OUTPUT),
+                err -> submissionConsole.print(ExceptionUtils.getRootCauseMessage(err), ConsoleViewContentType.ERROR_OUTPUT),
                 () -> {
                     if (Optional.ofNullable(driverDebugHandler.getUserData(ProcessHandler.TERMINATION_REQUESTED))
                                 .orElse(false)) {
@@ -158,6 +187,10 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
 
         debugEventSubject
                 .subscribeOn(Schedulers.io())
+                .doAfterTerminate(() -> {
+                    // Call after completed or error
+                    session.close();
+                })
                 .subscribe(debugEvent -> {
                     try {
                         if (debugEvent instanceof SparkBatchRemoteDebugHandlerReadyEvent) {

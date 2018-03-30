@@ -43,8 +43,6 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
     @NotNull
     private final String host;
     @NotNull
-    private final SparkBatchDebugSession debugSshSession;
-    @NotNull
     private final String logUrl;
     @NotNull
     private final SparkJobExecutorLogInputStream stdOutInputStream;
@@ -58,11 +56,10 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
                                                    @NotNull SparkBatchDebugSession debugSshSession,
                                                    @NotNull String logBaseUrl) {
         // Needn't artifact path for executor since no deployment
-        super(schedulers, submissionParameter, "", debugSshSession.getAuth(), PublishSubject.create());
+        super(schedulers, debugSshSession, submissionParameter, "", debugSshSession.getAuth(), PublishSubject.create());
 
         this.parentJob = parentJob;
         this.host = host;
-        this.debugSshSession = debugSshSession;
         this.logUrl = logBaseUrl;
         this.stdOutInputStream = new SparkJobExecutorLogInputStream("stdout", logBaseUrl);
         this.stdErrInputStream = new SparkJobExecutorLogInputStream("stderr", logBaseUrl);
@@ -100,10 +97,10 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
             throws JSchException, IOException {
         int remotePort = job.getYarnContainerJDBListenPort(logUrl);
 
-        int localPort = debugSshSession
+        int localPort = getDebugSession()
                 .forwardToRemotePort(host, remotePort)
                 .getForwardedLocalPort(host, remotePort);
 
-        return new SparkBatchDebugJobJdbPortForwardedEvent(job, debugSshSession, host, remotePort, localPort, false);
+        return new SparkBatchDebugJobJdbPortForwardedEvent(job, getDebugSession(), host, remotePort, localPort, false);
     }
 }

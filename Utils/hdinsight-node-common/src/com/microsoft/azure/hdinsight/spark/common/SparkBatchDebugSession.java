@@ -306,6 +306,7 @@ public class SparkBatchDebugSession implements ILogger{
 
         java.util.Properties config = new java.util.Properties() {{
             put("StrictHostKeyChecking", "no");
+            put("MaxAuthTries", "2");
         }};
 
         session.setConfig(config);

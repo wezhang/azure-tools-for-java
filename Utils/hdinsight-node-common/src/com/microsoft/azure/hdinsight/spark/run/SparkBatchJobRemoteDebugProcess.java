@@ -40,16 +40,20 @@ import java.util.AbstractMap.SimpleImmutableEntry;
 
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
     @NotNull
+    private final SparkBatchDebugSession debugSession;
+    @NotNull
     private SparkBatchRemoteDebugJobSshAuth authData;
     @Nullable
     private Subscription executorSubscription;
 
     public SparkBatchJobRemoteDebugProcess(@NotNull IdeSchedulers schedulers,
+                                           @NotNull SparkBatchDebugSession debugSession,
                                            @NotNull SparkSubmissionParameter submissionParameter,
                                            @NotNull String artifactPath,
                                            @NotNull SparkBatchRemoteDebugJobSshAuth authData,
                                            @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
         super(schedulers, submissionParameter, artifactPath, ctrlSubject);
+        this.debugSession = debugSession;
         this.authData = authData;
     }
 
@@ -82,25 +86,21 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
 
     @NotNull
     protected SparkBatchDebugJobJdbPortForwardedEvent createEventWithJdbPorForwarding(SparkBatchRemoteDebugJob job)
-            throws SparkJobException, JSchException, IOException {
-        SparkBatchDebugSession session = SparkBatchDebugSession.factoryByAuth(job.getConnectUri().toString(),
-                                                                              getAuthData())
-                                                               .open();
-
+            throws JSchException, IOException {
         String remoteHost = job.getSparkDriverHost();
         int remotePort = job.getSparkDriverDebuggingPort();
 
-        int localPort = session
+        int localPort = debugSession
                 .forwardToRemotePort(remoteHost, remotePort)
                 .getForwardedLocalPort(remoteHost, remotePort);
 
         // Start to find executors
         executorSubscription = job.getExecutorsObservable()
                 .map(hostContainerPair -> new SparkBatchJobExecutorCreatedEvent(
-                        job, session, hostContainerPair.getKey(), hostContainerPair.getValue()))
+                        job, debugSession, hostContainerPair.getKey(), hostContainerPair.getValue()))
                 .subscribe(getEventSubject()::onNext);
 
-        return new SparkBatchDebugJobJdbPortForwardedEvent(job, session, remoteHost, remotePort, localPort, true);
+        return new SparkBatchDebugJobJdbPortForwardedEvent(job, debugSession, remoteHost, remotePort, localPort, true);
     }
 
     @Override
@@ -134,5 +134,10 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
     @NotNull
     public SparkBatchRemoteDebugJobSshAuth getAuthData() {
         return authData;
+    }
+
+    @NotNull
+    public SparkBatchDebugSession getDebugSession() {
+        return debugSession;
     }
 }
