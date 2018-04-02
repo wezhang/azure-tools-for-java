@@ -43,9 +43,12 @@ import java.io.Closeable;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static rx.exceptions.Exceptions.propagate;
 
@@ -310,10 +313,15 @@ public abstract class Session implements AutoCloseable, Closeable {
                     List<String> currentLogs = ses.getLastLogs();
 
                     if (ses.isStop()) {
+                        String exceptionMessage = StringUtils.join(sesLogsPair.right).equals(StringUtils.join(currentLogs)) ?
+                                StringUtils.join(currentLogs, " ; ") :
+                                StringUtils.join(Stream.of(sesLogsPair.right, currentLogs)
+                                                       .flatMap(Collection::stream)
+                                                       .collect(Collectors.toList()),
+                                                 " ; ");
+
                         throw propagate(new SessionNotStartException(
-                                "Session " + getName() + " is " + getLastState() + ". " +
-                                        StringUtils.join(sesLogsPair.right, " ; ") +
-                                        StringUtils.join(currentLogs, " ; ")));
+                                "Session " + getName() + " is " + getLastState() + ". " + exceptionMessage));
                     }
 
                     return new ImmutablePair<>(ses, currentLogs);
