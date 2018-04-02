@@ -571,7 +571,15 @@ public class JobUtils {
 
         return selectedClusterDetail.isEmulator() ?
                 JobUtils.uploadFileToEmulator(selectedClusterDetail, buildJarPath, logSubject) :
-                JobUtils.uploadFileToHDFS(selectedClusterDetail, buildJarPath, logSubject);
+                (selectedClusterDetail.getStorageAccount() == null ?
+                        JobUtils.uploadFileToHDFS(selectedClusterDetail, buildJarPath, logSubject):
+                        JobUtils.uploadFileToAzure(
+                                new File(buildJarPath),
+                                selectedClusterDetail.getStorageAccount(),
+                                selectedClusterDetail.getStorageAccount().getDefaultContainerOrRootPath(),
+                                getFormatPathByDate(),
+                                logSubject,
+                                null));
     }
 
     public static String getLivyConnectionURL(IClusterDetail clusterDetail) {
