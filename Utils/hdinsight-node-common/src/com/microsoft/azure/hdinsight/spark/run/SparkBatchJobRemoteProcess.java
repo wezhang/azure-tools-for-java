@@ -163,8 +163,12 @@ public class SparkBatchJobRemoteProcess extends Process {
                 .flatMap(this::awaitForJobDone)
                 .subscribe(sdPair -> {
                     if (sdPair.getKey() == SparkBatchJobState.SUCCESS) {
+                        logInfo("");
+                        logInfo("========== RESULT ==========");
                         logInfo("Job run successfully.");
                     } else {
+                        logInfo("");
+                        logInfo("========== RESULT ==========");
                         logError("Job state is " + sdPair.getKey().toString());
                         logError("Diagnostics: " + sdPair.getValue());
                     }

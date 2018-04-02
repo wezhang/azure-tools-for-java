@@ -756,6 +756,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                                         "Bad spark job response: " + httpResponse.getMessage()));
 
                         state = SparkBatchJobState.valueOf(jobResp.getState().toUpperCase());
+                        diagnostics = String.join("\n", jobResp.getLog());
 
                         isJobActive = !state.isJobDone();
                     }
