@@ -305,6 +305,7 @@ public abstract class Session implements AutoCloseable, Closeable {
     private Observable<Session> awaitReady() {
         return get()
                 .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                .takeUntil(Session::isStatementRunnable)
                 .reduce(new ImmutablePair<>(this, getLastLogs()), (sesLogsPair, ses) -> {
                     List<String> currentLogs = ses.getLastLogs();
 
@@ -318,7 +319,6 @@ public abstract class Session implements AutoCloseable, Closeable {
                     return new ImmutablePair<>(ses, currentLogs);
                 })
                 .map(ImmutablePair::getLeft)
-                .takeUntil(Session::isStatementRunnable)
                 .filter(Session::isStatementRunnable);
     }
 
