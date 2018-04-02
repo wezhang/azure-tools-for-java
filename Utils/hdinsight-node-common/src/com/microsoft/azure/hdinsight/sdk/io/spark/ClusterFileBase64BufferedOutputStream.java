@@ -64,7 +64,7 @@ public class ClusterFileBase64BufferedOutputStream extends OutputStream {
         // Pre-load
         session.runCodes(String.format(preloadedCodes, destination.toString()))
                 .toBlocking()
-                .single();
+                .singleOrDefault(null);
     }
 
     public ClusterFileBase64BufferedOutputStream(@NotNull Session session, @NotNull URI destination) {
@@ -77,14 +77,11 @@ public class ClusterFileBase64BufferedOutputStream extends OutputStream {
 
         session.runCodes("out.close()")
                 .toBlocking()
-                .single();
+                .singleOrDefault(null);
 
         session.close();
         super.close();
     }
-
-    @NotNull
-    private StringBuilder bufBuilder = new StringBuilder();
 
     @Override
     public void write(int b) throws IOException {
@@ -105,7 +102,7 @@ public class ClusterFileBase64BufferedOutputStream extends OutputStream {
             buf.clear();
             session.runCodes(String.format("writePage(\"%s\")", codesPage))
                     .toBlocking()
-                    .single();
+                    .singleOrDefault(null);
         }
 
         super.flush();

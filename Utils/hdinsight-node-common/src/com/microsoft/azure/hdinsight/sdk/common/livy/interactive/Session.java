@@ -32,19 +32,23 @@ import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionState;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.api.PostSessions;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.http.entity.StringEntity;
 import rx.Observable;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static rx.exceptions.Exceptions.propagate;
 
@@ -161,9 +165,9 @@ public abstract class Session implements AutoCloseable, Closeable {
         this.lastLogs = lastLogs;
     }
 
-    @Nullable
+    @NotNull
     public List<String> getLastLogs() {
-        return lastLogs;
+        return lastLogs == null ? new ArrayList<>() : lastLogs;
     }
 
     /*
@@ -303,19 +307,26 @@ public abstract class Session implements AutoCloseable, Closeable {
 
     private Observable<Session> awaitReady() {
         return get()
-                .map(ses -> {
-                    if (ses.isStop()) {
-                        throw propagate(new SessionNotStartException(
-                                "Session " + getName() + " is " + getLastState() + ". " +
-                                        Optional.ofNullable(ses.getLastLogs())
-                                                .map(logs -> String.join("\n", logs))
-                                                .orElse("")));
-                    }
-
-                    return ses;
-                })
                 .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
                 .takeUntil(Session::isStatementRunnable)
+                .reduce(new ImmutablePair<>(this, getLastLogs()), (sesLogsPair, ses) -> {
+                    List<String> currentLogs = ses.getLastLogs();
+
+                    if (ses.isStop()) {
+                        String exceptionMessage = StringUtils.join(sesLogsPair.right).equals(StringUtils.join(currentLogs)) ?
+                                StringUtils.join(currentLogs, " ; ") :
+                                StringUtils.join(Stream.of(sesLogsPair.right, currentLogs)
+                                                       .flatMap(Collection::stream)
+                                                       .collect(Collectors.toList()),
+                                                 " ; ");
+
+                        throw propagate(new SessionNotStartException(
+                                "Session " + getName() + " is " + getLastState() + ". " + exceptionMessage));
+                    }
+
+                    return new ImmutablePair<>(ses, currentLogs);
+                })
+                .map(ImmutablePair::getLeft)
                 .filter(Session::isStatementRunnable);
     }
 
