@@ -178,7 +178,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
                 },
                 err -> {
                     submissionConsole.print(ExceptionUtils.getRootCauseMessage(err), ConsoleViewContentType.ERROR_OUTPUT);
-                    jobDriverEnvReady.setError("The Spark job remote debug is cancelled due ot " + ExceptionUtils.getRootCauseMessage(err));
+                    jobDriverEnvReady.setError("The Spark job remote debug is cancelled due to " + ExceptionUtils.getRootCauseMessage(err));
                 },
                 () -> {
                     if (Optional.ofNullable(driverDebugHandler.getUserData(ProcessHandler.TERMINATION_REQUESTED))
