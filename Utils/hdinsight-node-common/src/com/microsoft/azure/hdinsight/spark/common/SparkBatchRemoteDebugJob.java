@@ -33,6 +33,7 @@ import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -75,9 +76,13 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      */
     @Override
     public int getSparkDriverDebuggingPort() throws IOException {
-        String driverLogUrl = this.getSparkJobDriverLogUrlObservable().toBlocking().first();
+        try {
+            String driverLogUrl = this.getSparkJobDriverLogUrlObservable().toBlocking().first();
 
-        return getYarnContainerJDBListenPort(driverLogUrl);
+            return getYarnContainerJDBListenPort(driverLogUrl);
+        } catch (NoSuchElementException ignored) {
+            throw new UnknownServiceException("Can't get Spark job driver log URL.");
+        }
     }
 
     /**

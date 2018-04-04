@@ -175,7 +175,7 @@ public abstract class Session implements AutoCloseable, Closeable {
      */
     @Override
     public void close() {
-        kill().toBlocking().single();
+        kill().toBlocking().subscribe();
     }
 
     /*

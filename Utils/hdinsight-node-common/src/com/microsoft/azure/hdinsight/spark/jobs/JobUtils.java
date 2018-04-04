@@ -534,35 +534,40 @@ public class JobUtils {
 
         logSubject.onNext(new SimpleImmutableEntry<>(Info, "Create Spark helper interactive session..."));
 
-        return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
-                                SparkSession::create,
-                                SparkSession::close)
-                .map(sparkSession -> {
-                    ClusterFileBase64BufferedOutputStream clusterFileBase64Out = new ClusterFileBase64BufferedOutputStream(
-                            sparkSession, destUri);
-                    Base64OutputStream base64Enc = new Base64OutputStream(clusterFileBase64Out, true);
-                    InputStream inFile;
+        try {
+            return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
+                    SparkSession::create,
+                    SparkSession::close)
+                    .map(sparkSession -> {
+                        ClusterFileBase64BufferedOutputStream clusterFileBase64Out = new ClusterFileBase64BufferedOutputStream(
+                                sparkSession, destUri);
+                        Base64OutputStream base64Enc = new Base64OutputStream(clusterFileBase64Out, true);
+                        InputStream inFile;
 
-                    try {
-                        inFile = new BufferedInputStream(new FileInputStream(srcJarFile));
+                        try {
+                            inFile = new BufferedInputStream(new FileInputStream(srcJarFile));
 
-                        logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploading %s...", srcJarFile)));
-                        IOUtils.copy(inFile, base64Enc);
+                            logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploading %s...", srcJarFile)));
+                            IOUtils.copy(inFile, base64Enc);
 
-                        inFile.close();
-                        base64Enc.close();
-                    } catch (FileNotFoundException fnfEx) {
-                        throw propagate(new HDIException(String.format("Source file %s not found.", srcJarFile), fnfEx));
-                    } catch (IOException ioEx) {
-                        throw propagate(new HDIException(String.format("Failed to upload file %s.", destUri), ioEx));
-                    }
+                            inFile.close();
+                            base64Enc.close();
+                        } catch (FileNotFoundException fnfEx) {
+                            throw propagate(new HDIException(String.format("Source file %s not found.", srcJarFile), fnfEx));
+                        } catch (IOException ioEx) {
+                            throw propagate(new HDIException(String.format("Failed to upload file %s.", destUri), ioEx));
+                        }
 
-                    logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploaded to %s.", destUri)));
+                        logSubject.onNext(new SimpleImmutableEntry<>(Info, String.format("Uploaded to %s.", destUri)));
 
-                    return destUri.toString();
-                })
-                .toBlocking()
-                .single();
+                        return destUri.toString();
+                    })
+                    .toBlocking()
+                    .single();
+        } catch (NoSuchElementException ignored) {
+            // The cause exception will be thrown inside
+            throw new HDIException("Failed to upload file to HDFS (Should Not Reach).");
+        }
     }
 
     public static String uploadFileToCluster(@NotNull final IClusterDetail selectedClusterDetail,

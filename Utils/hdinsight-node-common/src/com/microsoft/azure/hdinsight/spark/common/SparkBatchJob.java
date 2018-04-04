@@ -506,7 +506,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         return loadPageByBrowserObservable(containerUri.toString())
                                 .map(this::isSparkJobYarnContainerLogAvailable)
                                 .toBlocking()
-                                .single();
+                                .singleOrDefault(false);
                     } catch (Exception ignore) {
                         return false;
                     }
@@ -673,7 +673,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 boolean isSubmitting = true;
 
                 while (isSubmitting) {
-                    Boolean isAppIdAllocated = !this.getSparkJobApplicationIdObservable().isEmpty().toBlocking().last();
+                    Boolean isAppIdAllocated = !this.getSparkJobApplicationIdObservable().isEmpty().toBlocking().lastOrDefault(true);
                     String logUrl = String.format("%s/%d/log?from=%d&size=%d",
                             this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
 

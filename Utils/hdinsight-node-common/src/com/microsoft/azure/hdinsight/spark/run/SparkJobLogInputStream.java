@@ -117,7 +117,7 @@ public class SparkJobLogInputStream extends InputStream {
     }
 
     protected void refreshLogUrl(SparkBatchJob sparkJob) {
-        String currentLogUrl = sparkJob.getSparkJobDriverLogUrlObservable().toBlocking().single();
+        String currentLogUrl = sparkJob.getSparkJobDriverLogUrlObservable().toBlocking().singleOrDefault(this.logUrl);
 
         if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
             // The driver log url's changed due to the job was rerun, read it from beginning
