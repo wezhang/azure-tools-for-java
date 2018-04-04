@@ -71,7 +71,7 @@ public class ClusterNode extends RefreshableNode implements TelemetryProperties 
         addAction("Open Azure Storage Explorer for storage", new NodeActionListener() {
             @Override
             protected void actionPerformed(NodeActionEvent e) {
-                String aseDeepLink = "adl:///";
+                String aseDeepLink = "storageexplorer:///";
                 openUrlLink(aseDeepLink);
             }
         });
