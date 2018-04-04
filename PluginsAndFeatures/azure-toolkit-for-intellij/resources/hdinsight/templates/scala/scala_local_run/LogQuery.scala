@@ -17,7 +17,7 @@
  */
 
 
-//package org.apache.spark.examples
+package sample
 
 import org.apache.spark.{SparkConf, SparkContext}
 //import com.example.hello._
