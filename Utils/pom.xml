@@ -39,6 +39,7 @@
         <module>./check-tools</module>
         <module>./azuretools-core</module>
         <module>./azure-explorer-common</module>
+        <module>./spark-tools</module>
         <module>./hdinsight-node-common</module>
     </modules>
     <profiles>
