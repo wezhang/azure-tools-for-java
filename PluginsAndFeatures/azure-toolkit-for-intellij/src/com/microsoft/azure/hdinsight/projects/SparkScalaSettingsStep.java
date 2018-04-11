@@ -39,7 +39,12 @@ public class SparkScalaSettingsStep extends ModuleWizardStep {
         this.builder = builder;
         this.javaStep = StdModuleTypes.JAVA.modifyProjectTypeStep(settingsStep, builder);
 
-        this.sparkVersionOptionsPanel = new SparkVersionOptionsPanel();
+        if (builder.getSelectedTemplate() != null &&
+                builder.getSelectedTemplate().getTemplateType() == HDInsightTemplatesType.ScalaFailureTaskDebugSample) {
+            this.sparkVersionOptionsPanel = new SparkVersionOptionsPanel(new SparkVersion[] { SparkVersion.SPARK_2_1_0 });
+        } else {
+            this.sparkVersionOptionsPanel = new SparkVersionOptionsPanel();
+        }
         settingsStep.addSettingsField("Spark \u001Bversion:", this.sparkVersionOptionsPanel);
 
         if (builder.getSelectedExternalSystem() == HDInsightExternalSystem.SBT) {

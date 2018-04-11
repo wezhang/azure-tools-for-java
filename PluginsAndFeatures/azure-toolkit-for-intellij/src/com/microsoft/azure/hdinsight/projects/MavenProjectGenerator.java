@@ -27,15 +27,21 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.util.PathUtil;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.intellij.openapi.util.io.FileUtil;
 import com.microsoft.azure.hdinsight.projects.util.ProjectSampleUtil;
+import com.microsoft.azuretools.SparkToolsAnchor;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
+import org.apache.spark.SparkContextWithFailureSave;
 import org.jetbrains.idea.maven.project.MavenProjectsManager;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 
 public class MavenProjectGenerator {
@@ -60,12 +66,14 @@ public class MavenProjectGenerator {
             copySamples(root);
             importMavenProject();
         } catch (Exception e) {
-            DefaultLoader.getUIHelper().showError("Failed to create project", "Create Sample Project");
+            DefaultLoader.getUIHelper().showError("Failed to create project: " + e.getMessage(), "Create Sample Project");
         }
     }
 
     private void createDirectories(String root) throws IOException {
         switch (this.templatesType) {
+            case ScalaFailureTaskDebugSample:
+                VfsUtil.createDirectories(root + "/lib");
             case Java:
                 VfsUtil.createDirectories(root + "/src/main/java/sample");
                 VfsUtil.createDirectories(root + "/src/main/resources");
@@ -96,7 +104,9 @@ public class MavenProjectGenerator {
                 file = StreamUtil.getResourceFile("/hdinsight/templates/pom/spark_2_0_2_pom.xml");
                 break;
             case SPARK_2_1_0:
-                file = StreamUtil.getResourceFile("/hdinsight/templates/pom/spark_2_1_0_pom.xml");
+                file = this.templatesType != HDInsightTemplatesType.ScalaFailureTaskDebugSample ?
+                        StreamUtil.getResourceFile("/hdinsight/templates/pom/spark_2_1_0_pom.xml") :
+                        StreamUtil.getResourceFile("/hdinsight/templates/pom/spark_2_1_0_failure_task_debug_pom.xml");
                 break;
             case SPARK_2_2_0:
                 file = StreamUtil.getResourceFile("/hdinsight/templates/pom/spark_2_2_0_pom.xml");
@@ -160,6 +170,21 @@ public class MavenProjectGenerator {
                 ProjectSampleUtil.copyFileToPath(new String[]{
                         "/hdinsight/templates/log4j.properties"
                 }, root + "/src/main/resources");
+                break;
+            case ScalaFailureTaskDebugSample:
+                ProjectSampleUtil.copyFileToPath(new String[]{
+                        "/hdinsight/templates/scala/sample/AgeMean_Div0.scala"
+                }, root + "/src/main/scala/sample");
+
+                new File(root, "data/__default__/user/current/").mkdirs();
+
+                ProjectSampleUtil.copyFileToPath(new String[]{
+                        "/hdinsight/templates/log4j.properties"
+                }, root + "/src/main/resources");
+
+                Path sparkToolsLibSource = Paths.get(PathUtil.getJarPathForClass(SparkToolsAnchor.class));
+                Files.copy(sparkToolsLibSource, Paths.get(root, "lib").resolve(sparkToolsLibSource.getFileName()));
+
                 break;
         }
     }

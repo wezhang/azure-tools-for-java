@@ -100,6 +100,7 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
         switch (this.selectedTemplate.getTemplateType()) {
             case Scala:
             case ScalaClusterSample:
+            case ScalaFailureTaskDebugSample:
                 return new SparkScalaSettingsStep(this, settingsStep);
             default:
                 return new SparkJavaSettingsStep(this, settingsStep);
@@ -150,6 +151,11 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
         this.selectedTemplate = selectedTemplate;
     }
 
+    @Nullable
+    HDInsightProjectTemplate getSelectedTemplate() {
+        return selectedTemplate;
+    }
+
     public void setSbtVersion(String sbtVersion) {
         this.sbtVersion = sbtVersion;
     }
@@ -177,6 +183,7 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
         this.templates.add(new HDInsightProjectTemplate(HDInsightTemplatesType.Java));
         this.templates.add(new HDInsightProjectTemplate(HDInsightTemplatesType.Scala));
         this.templates.add(new HDInsightProjectTemplate(HDInsightTemplatesType.ScalaClusterSample));
+        this.templates.add(new HDInsightProjectTemplate(HDInsightTemplatesType.ScalaFailureTaskDebugSample));
     }
 
     private void addTelemetry(HDInsightTemplatesType templatesType, SparkVersion sparkVersion) {
@@ -190,6 +197,8 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
             AppInsightsClient.create(HDInsightBundle.message("SparkProjectSystemScalaCreation"), null, hdiProperties);
         } else if (templatesType == HDInsightTemplatesType.ScalaClusterSample) {
             AppInsightsClient.create(HDInsightBundle.message("SparkProjectSystemScalaSampleCreation"), null, hdiProperties);
+        } else if (templatesType == HDInsightTemplatesType.ScalaFailureTaskDebugSample) {
+            AppInsightsClient.create(HDInsightBundle.message("SparkProjectSystemScalaFailureTaskDebugSampleCreation"), null, hdiProperties);
         } else {
             AppInsightsClient.create(HDInsightBundle.message("SparkProjectSystemOtherCreation"), null, hdiProperties);
         }

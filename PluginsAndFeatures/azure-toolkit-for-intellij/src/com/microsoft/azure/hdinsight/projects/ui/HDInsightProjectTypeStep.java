@@ -102,6 +102,7 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
                 return true;
             case Scala:
             case ScalaClusterSample:
+            case ScalaFailureTaskDebugSample:
                 return this.scalaPluginInstalled;
             default:
                 return false;
@@ -130,6 +131,7 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
         switch (template.getTemplateType()) {
             case Scala:
             case ScalaClusterSample:
+            case ScalaFailureTaskDebugSample:
                 if (!this.scalaPluginInstalled) {
                     showScalaPluginInstallDialog();
                 }

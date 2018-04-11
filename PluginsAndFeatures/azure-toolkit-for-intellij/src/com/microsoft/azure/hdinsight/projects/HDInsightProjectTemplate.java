@@ -48,6 +48,8 @@ public class HDInsightProjectTemplate implements ProjectTemplate {
                 return "Spark on HDInsight (Scala)";
             case ScalaClusterSample:
                 return "Spark on HDInsight Sample (Scala)";
+            case ScalaFailureTaskDebugSample:
+                return "Spark with Failure Task Debugging on HDInsight Sample (Scala)";
             default:
                 return "HDInsight Tools";
         }
@@ -62,6 +64,8 @@ public class HDInsightProjectTemplate implements ProjectTemplate {
                 return "HDInsight Spark blank module.";
             case ScalaClusterSample:
                 return "HDInsight Spark samples written in Scala.";
+            case ScalaFailureTaskDebugSample:
+                return "HDInsight Spark samples with Failure Task Debugging enabled library included, written in Scala";
             default:
                 return "HDInsight Tools";
         }
@@ -74,6 +78,7 @@ public class HDInsightProjectTemplate implements ProjectTemplate {
                 return StreamUtil.getImageResourceFile(CommonConst.JavaProjectIconPath);
             case Scala:
             case ScalaClusterSample:
+            case ScalaFailureTaskDebugSample:
                 return StreamUtil.getImageResourceFile(CommonConst.ScalaProjectIconPath);
             default:
                 return StreamUtil.getImageResourceFile(CommonConst.JavaProjectIconPath);

@@ -38,8 +38,13 @@ public class SparkVersionOptionsPanel extends JPanel {
     }
 
     public SparkVersionOptionsPanel() {
+        this(SparkVersion.class.getEnumConstants());
+    }
+
+    public SparkVersionOptionsPanel(SparkVersion sparkVersions[]) {
         sparkVersionComboBox = new ComboBox();
-        for (SparkVersion sv : SparkVersion.class.getEnumConstants()) {
+
+        for (SparkVersion sv : sparkVersions) {
             sparkVersionComboBox.addItem(sv);
         }
 
