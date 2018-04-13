@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -35,6 +35,7 @@ import com.intellij.openapi.updateSettings.impl.pluginsAdvertisement.PluginsAdve
 import com.microsoft.azure.hdinsight.projects.HDInsightExternalSystem;
 import com.microsoft.azure.hdinsight.projects.HDInsightModuleBuilder;
 import com.microsoft.azure.hdinsight.projects.HDInsightProjectTemplate;
+import com.microsoft.azure.hdinsight.projects.HDInsightTemplatesType;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -48,26 +49,18 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
 
     private JPanel mainPanel;
     private ProjectTemplateList templateList;
-    private JComboBox externalSystemsComboBox;
+    private JComboBox<HDInsightExternalSystem> externalSystemsComboBox;
     private JLabel externalSystemsLabel;
 
     private static final String SCALA_PLUGIN_ID = "org.intellij.scala";
 
     public HDInsightProjectTypeStep(HDInsightModuleBuilder moduleBuilder) {
         this.moduleBuilder = moduleBuilder;
+        this.scalaPluginInstalled = PluginManager.getPlugin(PluginId.findId(SCALA_PLUGIN_ID)) != null;
 
-        this.scalaPluginInstalled = (null == PluginManager.getPlugin(PluginId.findId(SCALA_PLUGIN_ID))) ?
-                false : true;
-
+        this.templateList.addListSelectionListener(e -> onTemplateSelected());
         this.templateList.setTemplates(moduleBuilder.getTemplates(), false);
-        this.templateList.addListSelectionListener(e -> templateUpdated());
         checkScalaPlugin();
-
-        this.externalSystemsComboBox.addItem(HDInsightExternalSystem.MAVEN);
-        if (this.scalaPluginInstalled) {
-            this.externalSystemsComboBox.addItem(HDInsightExternalSystem.SBT);
-        }
-        setExternalSystems();
 
         this.externalSystemsLabel.setText("Build tool:");
         this.externalSystemsLabel.setDisplayedMnemonic('u');
@@ -97,6 +90,11 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
 
     private boolean isScalaPluginStatusValid() {
         HDInsightProjectTemplate template = (HDInsightProjectTemplate) this.templateList.getSelectedTemplate();
+
+        if (template == null) {
+            return false;
+        }
+
         switch (template.getTemplateType()) {
             case Java:
                 return true;
@@ -109,15 +107,26 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
         }
     }
 
-    private void templateUpdated() {
+    private void onTemplateSelected() {
         setExternalSystems();
         checkScalaPlugin();
     }
 
     private void setExternalSystems() {
+        HDInsightProjectTemplate selectedTemplate = (HDInsightProjectTemplate) this.templateList.getSelectedTemplate();
+        this.externalSystemsComboBox.removeAllItems();
+
+        if (selectedTemplate == null) {
+            return;
+        }
+
+        this.externalSystemsComboBox.addItem(HDInsightExternalSystem.MAVEN);
+        if (this.scalaPluginInstalled && selectedTemplate.getTemplateType() != HDInsightTemplatesType.ScalaFailureTaskDebugSample) {
+            this.externalSystemsComboBox.addItem(HDInsightExternalSystem.SBT);
+        }
+
         this.externalSystemsComboBox.setSelectedItem(HDInsightExternalSystem.MAVEN);
-        HDInsightProjectTemplate template = (HDInsightProjectTemplate) this.templateList.getSelectedTemplate();
-        switch (template.getTemplateType()) {
+        switch (selectedTemplate.getTemplateType()) {
             case Java:
                 this.externalSystemsComboBox.setEnabled(false);
                 break;
@@ -128,6 +137,11 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
 
     private void checkScalaPlugin() {
         HDInsightProjectTemplate template = (HDInsightProjectTemplate) this.templateList.getSelectedTemplate();
+
+        if (template == null) {
+            return;
+        }
+
         switch (template.getTemplateType()) {
             case Scala:
             case ScalaClusterSample:
@@ -137,7 +151,6 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
                 }
                 return;
             default:
-                return;
         }
     }
 
@@ -150,11 +163,9 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
 
             Set<String> pluginIds = new HashSet<>();
             pluginIds.add(SCALA_PLUGIN_ID);
-            ApplicationManager.getApplication().invokeAndWait(() -> {
-                PluginsAdvertiser.installAndEnablePlugins(pluginIds, new Runnable() {
-                    @Override
-                    public void run() {
-                        PluginInstaller.addStateListener(new PluginStateListener() {
+            ApplicationManager.getApplication().invokeAndWait(() ->
+                PluginsAdvertiser.installAndEnablePlugins(pluginIds, () -> PluginInstaller.addStateListener(
+                        new PluginStateListener() {
                             @Override
                             public void install(@NotNull IdeaPluginDescriptor descriptor) {
                                 if (descriptor.getPluginId().toString().equals(SCALA_PLUGIN_ID)) {
@@ -165,10 +176,9 @@ public class HDInsightProjectTypeStep extends ModuleWizardStep implements Dispos
                             @Override
                             public void uninstall(@NotNull IdeaPluginDescriptor descriptor) {
                             }
-                        });
-                    }
-                });
-            });
+                        }
+                ))
+            );
         }
     }
 
