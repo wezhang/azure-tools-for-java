@@ -23,7 +23,6 @@
 package com.microsoft.azure.hdinsight.projects;
 
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VfsUtil;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -34,7 +33,9 @@ import com.microsoft.azure.hdinsight.projects.util.ProjectSampleUtil;
 import com.microsoft.azuretools.SparkToolsAnchor;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
-import org.apache.spark.SparkContextWithFailureSave;
+import org.jetbrains.concurrency.Promise;
+import org.jetbrains.concurrency.Promises;
+import org.jetbrains.idea.maven.project.MavenProject;
 import org.jetbrains.idea.maven.project.MavenProjectsManager;
 
 import java.io.File;
@@ -57,16 +58,18 @@ public class MavenProjectGenerator {
         this.sparkVersion = sparkVersion;
     }
 
-    public void generate() {
+    public Promise<MavenProject> generate() {
         String root = ProjectSampleUtil.getRootOrSourceFolder(this.module, false);
 
         try {
             createDirectories(root);
             createPom(root);
             copySamples(root);
-            importMavenProject();
+            return importMavenProject();
         } catch (Exception e) {
             DefaultLoader.getUIHelper().showError("Failed to create project: " + e.getMessage(), "Create Sample Project");
+
+            return Promises.rejectedPromise(e);
         }
     }
 
@@ -189,7 +192,7 @@ public class MavenProjectGenerator {
         }
     }
 
-    private void importMavenProject() throws ConfigurationException {
+    private Promise<MavenProject> importMavenProject() {
         Project project = this.module.getProject();
         String baseDirPath = project.getBasePath();
         MavenProjectsManager manager = MavenProjectsManager.getInstance(project);
@@ -197,7 +200,13 @@ public class MavenProjectGenerator {
         File pomFile = new File(baseDirPath + File.separator + "pom.xml");
         VirtualFile pom = VfsUtil.findFileByIoFile(pomFile, true);
 
+        if (pom == null) {
+            return Promises.rejectedPromise("Can't find Maven pom.xml file to import into IDEA");
+        }
+
         manager.addManagedFiles(Collections.singletonList(pom));
-        manager.scheduleImportAndResolve();
+
+        return manager.scheduleImportAndResolve()
+                .then(modules -> manager.findProject(module));
     }
 }

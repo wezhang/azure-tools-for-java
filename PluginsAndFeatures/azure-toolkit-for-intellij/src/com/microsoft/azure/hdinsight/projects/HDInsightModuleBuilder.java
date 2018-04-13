@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -32,6 +32,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.InvalidDataException;
+import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.artifacts.ArtifactManager;
 import com.intellij.packaging.elements.CompositePackagingElement;
 import com.intellij.packaging.elements.PackagingElementFactory;
@@ -48,10 +49,8 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.Paths;
+import java.util.*;
 
 public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleBuilderListener {
     private HDInsightProjectTemplate selectedTemplate;
@@ -59,6 +58,7 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
     private List<ProjectTemplate> templates;
     private SparkVersion sparkVersion;
     private String sbtVersion;
+    private PackagingElementFactory artifactPackagingFactory;
 
     public HDInsightModuleBuilder() {
         this.selectedExternalSystem = HDInsightExternalSystem.MAVEN;
@@ -128,10 +128,26 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
 
     @Override
     public void moduleCreated(@NotNull Module module) {
-        createDefaultArtifact(module);
+        Artifact artifact = createDefaultArtifact(module);
         switch(this.selectedExternalSystem) {
             case MAVEN:
-                new MavenProjectGenerator(module, this.selectedTemplate.getTemplateType(), sparkVersion).generate();
+                new MavenProjectGenerator(module, this.selectedTemplate.getTemplateType(), sparkVersion)
+                        .generate()
+                        .done(mavenProject -> {
+                            if (getSelectedTemplate() != null && artifactPackagingFactory != null &&
+                                    getSelectedTemplate().getTemplateType() == HDInsightTemplatesType.ScalaFailureTaskDebugSample) {
+
+                                // TODO: Remove hardcoded packaging here with spark-tools being independent.
+                                File sparkToolsJar = Paths.get(Objects.requireNonNull(module.getProject().getBasePath()),
+                                                               "lib",
+                                                               "spark-tools-0.1.0.jar").toFile();
+
+                                artifact.getRootElement().addOrFindChild(
+                                        artifactPackagingFactory.createExtractedDirectoryWithParentDirectories(
+                                                sparkToolsJar.getPath(), "/", "/"));
+                            }
+
+                        });
                 break;
             case SBT:
                 new SbtProjectGenerator(module, this.selectedTemplate.getTemplateType(), sparkVersion, sbtVersion).generate();
@@ -204,12 +220,14 @@ public class HDInsightModuleBuilder extends JavaModuleBuilder implements ModuleB
         }
     }
 
-    private void createDefaultArtifact(final Module module) {
+    private Artifact createDefaultArtifact(final Module module) {
         final Project project = module.getProject();
         final JarArtifactType type = new JarArtifactType();
-        final PackagingElementFactory factory = PackagingElementFactory.getInstance();
-        CompositePackagingElement root = factory.createArchive("default_artifact.jar");
-        root.addOrFindChild(factory.createModuleOutput(module));
-        ArtifactManager.getInstance(project).addArtifact(module.getName() + "_DefaultArtifact", type, root);
+        artifactPackagingFactory = PackagingElementFactory.getInstance();
+
+        final CompositePackagingElement root = artifactPackagingFactory.createArchive("default_artifact.jar");
+        root.addOrFindChild(artifactPackagingFactory.createModuleOutput(module));
+
+        return ArtifactManager.getInstance(project).addArtifact(module.getName() + "_DefaultArtifact", type, root);
     }
 }
