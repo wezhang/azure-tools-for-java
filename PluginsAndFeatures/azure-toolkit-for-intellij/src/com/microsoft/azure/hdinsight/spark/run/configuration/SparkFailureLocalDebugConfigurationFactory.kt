@@ -26,10 +26,15 @@ import com.intellij.execution.configuration.ConfigurationFactoryEx
 import com.intellij.execution.configurations.ConfigurationType
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.project.Project
+import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
 
 class SparkFailureLocalDebugConfigurationFactory(type: ConfigurationType) :
         ConfigurationFactoryEx<SparkFailureLocalDebugConfiguration>(type) {
+    companion object {
+        @JvmStatic val NAME = "Spark Job Failure Local Debug"
+    }
+
     override fun createTemplateConfiguration(project: Project): RunConfiguration {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return SparkFailureLocalDebugConfiguration(NAME, SparkFailureTaskDebugConfigurableModel(project), this)
     }
 }

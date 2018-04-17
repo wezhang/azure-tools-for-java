@@ -20,26 +20,38 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.openapi.options.SettingsEditor
-import com.microsoft.azure.hdinsight.spark.ui.SparkFailureTaskDebugConfigurable
-import javax.swing.JComponent
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
-class SparkFailureLocalDebugSettingsEditor : SettingsEditor<SparkFailureLocalDebugConfiguration>() {
-    private val configurable = SparkFailureTaskDebugConfigurable()
+public class SparkFailureTaskDebugSettingsModel implements Cloneable {
+    @Nullable
+    private String failureContextPath;
 
-    override fun createEditor(): JComponent {
-        return configurable.component
+    @Nullable
+    private String winutilsPath;
+
+    @Nullable
+    public String getFailureContextPath() {
+        return failureContextPath;
     }
 
-    override fun resetEditorFrom(data: SparkFailureLocalDebugConfiguration) {
-        // Reset the panel from the RunConfiguration
-        configurable.setData(data.module.settings)
+    public void setFailureContextPath(@Nullable String failureContextPath) {
+        this.failureContextPath = failureContextPath;
     }
 
-    override fun applyEditorTo(data: SparkFailureLocalDebugConfiguration) {
-        // Apply the panel's setting to RunConfiguration
-        configurable.getData(data.module.settings)
+    @Nullable
+    public String getWinutilsPath() {
+        return winutilsPath;
+    }
+
+    public void setWinutilsPath(@Nullable String winutilsPath) {
+        this.winutilsPath = winutilsPath;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        // Here is a shadow clone, not deep clone
+        return super.clone();
     }
 }

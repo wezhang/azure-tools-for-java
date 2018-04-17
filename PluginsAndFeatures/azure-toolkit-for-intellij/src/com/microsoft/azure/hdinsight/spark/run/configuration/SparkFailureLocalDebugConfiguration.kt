@@ -27,19 +27,33 @@ import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
+import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
+import com.microsoft.azure.hdinsight.spark.run.SparkFailureLocalDebugProfileState
+import org.jdom.Element
 
 class SparkFailureLocalDebugConfiguration(name: String,
-                                          val module: RunConfigurationModule,
+                                          val module: SparkFailureTaskDebugConfigurableModel,
                                           factory: ConfigurationFactory) :
         ModuleBasedConfiguration<RunConfigurationModule>(name, module, factory) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return SparkFailureLocalDebugSettingsEditor()
     }
 
-    override fun getState(p0: Executor, p1: ExecutionEnvironment): RunProfileState? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
+        return SparkFailureLocalDebugProfileState()
     }
 
+    override fun readExternal(element: Element) {
+        super.readExternal(element)
+        module.readExternal(element)
+    }
+
+    override fun writeExternal(element: Element) {
+        super.writeExternal(element)
+        module.writeExternal(element)
+    }
+
+    // Validation
     override fun getValidModules(): MutableCollection<Module> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }

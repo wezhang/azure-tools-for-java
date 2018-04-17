@@ -20,26 +20,29 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.common
 
-import com.intellij.openapi.options.SettingsEditor
-import com.microsoft.azure.hdinsight.spark.ui.SparkFailureTaskDebugConfigurable
-import javax.swing.JComponent
+import com.intellij.execution.configurations.RunConfigurationModule
+import com.intellij.openapi.project.Project
+import com.intellij.util.xmlb.XmlSerializer
+import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskDebugSettingsModel
+import org.jdom.Element
 
-class SparkFailureLocalDebugSettingsEditor : SettingsEditor<SparkFailureLocalDebugConfiguration>() {
-    private val configurable = SparkFailureTaskDebugConfigurable()
+// As a model adapter
+class SparkFailureTaskDebugConfigurableModel(project: Project)
+    : RunConfigurationModule(project) {
+    var settings: SparkFailureTaskDebugSettingsModel = SparkFailureTaskDebugSettingsModel()
 
-    override fun createEditor(): JComponent {
-        return configurable.component
+    override fun readExternal(element: Element) {
+        super.readExternal(element)
+
+        settings = XmlSerializer.deserialize(element.getChild(SparkFailureTaskDebugSettingsModel::class.simpleName),
+                                             SparkFailureTaskDebugSettingsModel::class.java)
     }
 
-    override fun resetEditorFrom(data: SparkFailureLocalDebugConfiguration) {
-        // Reset the panel from the RunConfiguration
-        configurable.setData(data.module.settings)
-    }
+    override fun writeExternal(parent: Element) {
+        super.writeExternal(parent)
 
-    override fun applyEditorTo(data: SparkFailureLocalDebugConfiguration) {
-        // Apply the panel's setting to RunConfiguration
-        configurable.getData(data.module.settings)
+        parent.addContent(XmlSerializer.serialize(settings))
     }
 }

@@ -43,6 +43,7 @@ public class CommonConst {
     public static final String EmualtorPath = "/emulator/";
     public static final String EmulatorArchieveFileName = "service.zip";
     public static final String EmulatorSetupScriptFileName = "setup.sh";
+    public static final String SparkFailureTaskDebugIconPath = "/icons/ToolWindowSparkJobDebug.png";
 
     public static final String HDINSIGHT_ADDITIONAL_CLUSTERS = "com.microsoft.azure.hdinsight.AdditionalClusters";
     public static final String EMULATOR_CLUSTERS = "com.microsoft.azure.hdinsight.EmulatorClusters";

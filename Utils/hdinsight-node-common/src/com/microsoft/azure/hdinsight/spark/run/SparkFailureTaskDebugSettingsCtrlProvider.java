@@ -20,26 +20,16 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run;
 
-import com.intellij.openapi.options.SettingsEditor
-import com.microsoft.azure.hdinsight.spark.ui.SparkFailureTaskDebugConfigurable
-import javax.swing.JComponent
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
-class SparkFailureLocalDebugSettingsEditor : SettingsEditor<SparkFailureLocalDebugConfiguration>() {
-    private val configurable = SparkFailureTaskDebugConfigurable()
+public class SparkFailureTaskDebugSettingsCtrlProvider {
+    @NotNull
+    private final SettableControl<SparkFailureTaskDebugSettingsModel> view;
 
-    override fun createEditor(): JComponent {
-        return configurable.component
-    }
-
-    override fun resetEditorFrom(data: SparkFailureLocalDebugConfiguration) {
-        // Reset the panel from the RunConfiguration
-        configurable.setData(data.module.settings)
-    }
-
-    override fun applyEditorTo(data: SparkFailureLocalDebugConfiguration) {
-        // Apply the panel's setting to RunConfiguration
-        configurable.getData(data.module.settings)
+    public SparkFailureTaskDebugSettingsCtrlProvider(@NotNull SettableControl<SparkFailureTaskDebugSettingsModel> view) {
+        this.view = view;
     }
 }

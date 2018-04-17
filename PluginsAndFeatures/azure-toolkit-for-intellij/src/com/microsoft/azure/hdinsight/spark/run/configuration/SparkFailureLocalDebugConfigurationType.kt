@@ -24,26 +24,34 @@ package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.ConfigurationType
+import com.microsoft.azure.hdinsight.common.CommonConst
+import com.microsoft.intellij.util.PluginUtil
 import javax.swing.Icon
 
 class SparkFailureLocalDebugConfigurationType : ConfigurationType {
+    companion object {
+        @JvmStatic val DISPLAY_NAME = "Azure Spark Job Failure Local Debug"
+        @JvmStatic val ID = "SparkJobFailureLocalDebug_configuration"
+        @JvmStatic val DESCRIPTION = "Azure Spark Job Failure Local Debug Configuration Type"
+    }
+
     override fun getIcon(): Icon {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return PluginUtil.getIcon(CommonConst.SparkFailureTaskDebugIconPath)
     }
 
     override fun getConfigurationTypeDescription(): String {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return DESCRIPTION
     }
 
     override fun getId(): String {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return ID
     }
 
     override fun getDisplayName(): String {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return DISPLAY_NAME
     }
 
     override fun getConfigurationFactories(): Array<ConfigurationFactory> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return arrayOf(SparkFailureLocalDebugConfigurationFactory(this))
     }
 }
