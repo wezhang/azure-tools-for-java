@@ -28,7 +28,7 @@ import com.microsoft.azure.hdinsight.common.CommonConst
 import com.microsoft.intellij.util.PluginUtil
 import javax.swing.Icon
 
-class SparkFailureLocalDebugConfigurationType : ConfigurationType {
+class SparkFailureTaskDebugConfigurationType : ConfigurationType {
     companion object {
         @JvmStatic val DISPLAY_NAME = "Azure Spark Job Failure Local Debug"
         @JvmStatic val ID = "SparkJobFailureLocalDebug_configuration"
@@ -52,6 +52,6 @@ class SparkFailureLocalDebugConfigurationType : ConfigurationType {
     }
 
     override fun getConfigurationFactories(): Array<ConfigurationFactory> {
-        return arrayOf(SparkFailureLocalDebugConfigurationFactory(this))
+        return arrayOf(SparkFailureTaskDebugConfigurationFactory(this))
     }
 }

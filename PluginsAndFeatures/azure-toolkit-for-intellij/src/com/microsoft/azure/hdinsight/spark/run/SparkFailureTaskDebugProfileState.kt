@@ -20,21 +20,15 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.configuration.ConfigurationFactoryEx
-import com.intellij.execution.configurations.ConfigurationType
-import com.intellij.execution.configurations.RunConfiguration
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
+import com.intellij.execution.ExecutionResult
+import com.intellij.execution.Executor
+import com.intellij.execution.configurations.RunProfileState
+import com.intellij.execution.runners.ProgramRunner
 
-class SparkFailureLocalDebugConfigurationFactory(type: ConfigurationType) :
-        ConfigurationFactoryEx<SparkFailureLocalDebugConfiguration>(type) {
-    companion object {
-        @JvmStatic val NAME = "Spark Job Failure Local Debug"
-    }
-
-    override fun createTemplateConfiguration(project: Project): RunConfiguration {
-        return SparkFailureLocalDebugConfiguration(NAME, SparkFailureTaskDebugConfigurableModel(project), this)
+class SparkFailureTaskDebugProfileState : RunProfileState {
+    override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult? {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }

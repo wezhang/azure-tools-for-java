@@ -31,12 +31,12 @@ import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigura
 import com.microsoft.azure.hdinsight.spark.run.SparkFailureLocalDebugProfileState
 import org.jdom.Element
 
-class SparkFailureLocalDebugConfiguration(name: String,
-                                          val module: SparkFailureTaskDebugConfigurableModel,
-                                          factory: ConfigurationFactory) :
+class SparkFailureTaskDebugConfiguration(name: String,
+                                         val module: SparkFailureTaskDebugConfigurableModel,
+                                         factory: ConfigurationFactory) :
         ModuleBasedConfiguration<RunConfigurationModule>(name, module, factory) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
-        return SparkFailureLocalDebugSettingsEditor()
+        return SparkFailureTaskDebugSettingsEditor()
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {

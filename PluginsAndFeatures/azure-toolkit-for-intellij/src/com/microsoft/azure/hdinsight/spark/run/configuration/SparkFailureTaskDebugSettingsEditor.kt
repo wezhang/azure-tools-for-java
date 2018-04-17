@@ -26,19 +26,19 @@ import com.intellij.openapi.options.SettingsEditor
 import com.microsoft.azure.hdinsight.spark.ui.SparkFailureTaskDebugConfigurable
 import javax.swing.JComponent
 
-class SparkFailureLocalDebugSettingsEditor : SettingsEditor<SparkFailureLocalDebugConfiguration>() {
+class SparkFailureTaskDebugSettingsEditor : SettingsEditor<SparkFailureTaskDebugConfiguration>() {
     private val configurable = SparkFailureTaskDebugConfigurable()
 
     override fun createEditor(): JComponent {
         return configurable.component
     }
 
-    override fun resetEditorFrom(data: SparkFailureLocalDebugConfiguration) {
+    override fun resetEditorFrom(data: SparkFailureTaskDebugConfiguration) {
         // Reset the panel from the RunConfiguration
         configurable.setData(data.module.settings)
     }
 
-    override fun applyEditorTo(data: SparkFailureLocalDebugConfiguration) {
+    override fun applyEditorTo(data: SparkFailureTaskDebugConfiguration) {
         // Apply the panel's setting to RunConfiguration
         configurable.getData(data.module.settings)
     }
