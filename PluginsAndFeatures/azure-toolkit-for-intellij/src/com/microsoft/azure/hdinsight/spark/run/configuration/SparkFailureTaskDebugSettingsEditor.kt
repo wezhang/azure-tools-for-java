@@ -23,11 +23,12 @@
 package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.openapi.options.SettingsEditor
+import com.intellij.openapi.project.Project
 import com.microsoft.azure.hdinsight.spark.ui.SparkFailureTaskDebugConfigurable
 import javax.swing.JComponent
 
-class SparkFailureTaskDebugSettingsEditor : SettingsEditor<SparkFailureTaskDebugConfiguration>() {
-    private val configurable = SparkFailureTaskDebugConfigurable()
+class SparkFailureTaskDebugSettingsEditor(project: Project) : SettingsEditor<SparkFailureTaskDebugConfiguration>() {
+    private val configurable = SparkFailureTaskDebugConfigurable(project)
 
     override fun createEditor(): JComponent {
         return configurable.component

@@ -22,7 +22,12 @@
 
 package com.microsoft.azure.hdinsight.spark.ui;
 
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.ui.MacroAwareTextBrowseFolderListener;
+import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskDebugSettingsModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -33,6 +38,14 @@ public class SparkFailureTaskDebugConfigurable implements SettableControl<SparkF
     private TextFieldWithBrowseButton myWinutilsPathField;
     private TextFieldWithBrowseButton myFailureJobContextPathField;
     private JPanel myWholePanel;
+
+    public SparkFailureTaskDebugConfigurable(Project myProject) {
+        // Bind the folder file chooser for Failure Task Context file
+        FileChooserDescriptor dataRootDirectoryChooser = FileChooserDescriptorFactory.createSingleFileDescriptor(
+                CommonConst.SPARK_FAILURE_TASK_CONTEXT_EXTENSION);
+        myFailureJobContextPathField.addBrowseFolderListener(
+                new MacroAwareTextBrowseFolderListener(dataRootDirectoryChooser, myProject));
+    }
 
     // Data --> Component
     @Override

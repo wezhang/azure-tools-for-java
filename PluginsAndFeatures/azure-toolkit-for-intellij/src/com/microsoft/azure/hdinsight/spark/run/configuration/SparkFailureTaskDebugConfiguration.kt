@@ -36,7 +36,7 @@ class SparkFailureTaskDebugConfiguration(name: String,
                                          factory: ConfigurationFactory) :
         ModuleBasedConfiguration<RunConfigurationModule>(name, module, factory) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
-        return SparkFailureTaskDebugSettingsEditor()
+        return SparkFailureTaskDebugSettingsEditor(module.project)
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
