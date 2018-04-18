@@ -22,6 +22,7 @@
 
 package com.microsoft.azure.hdinsight.spark.common
 
+import com.intellij.execution.CommonJavaRunConfigurationParameters
 import com.intellij.execution.configurations.RunConfigurationModule
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializer
@@ -30,8 +31,70 @@ import org.jdom.Element
 
 // As a model adapter
 class SparkFailureTaskDebugConfigurableModel(project: Project)
-    : RunConfigurationModule(project) {
+    : RunConfigurationModule(project), CommonJavaRunConfigurationParameters {
     var settings: SparkFailureTaskDebugSettingsModel = SparkFailureTaskDebugSettingsModel()
+
+    override fun getEnvs(): MutableMap<String, String> {
+        return settings.envs
+    }
+
+    override fun setAlternativeJrePath(ignored: String?) {
+    }
+
+    override fun isPassParentEnvs(): Boolean {
+        return settings.isPassParentEnvs
+    }
+
+    override fun setProgramParameters(programeParameters: String?) {
+        settings.programParameters = programParameters
+    }
+
+    override fun setVMParameters(vmParameters: String?) {
+        settings.vmParameters = vmParameters
+    }
+
+    override fun isAlternativeJrePathEnabled(): Boolean {
+        return false
+    }
+
+    override fun getPackage(): String? {
+        return null
+    }
+
+    override fun getRunClass(): String? {
+        return "org.apache.spark.tools.FailureTaskRecoveryApp"
+    }
+
+    override fun getWorkingDirectory(): String? {
+        return settings.workingDirectory
+    }
+
+    override fun setAlternativeJrePathEnabled(ignored: Boolean) {
+    }
+
+    override fun getVMParameters(): String? {
+        return settings.vmParameters
+    }
+
+    override fun setWorkingDirectory(wd: String?) {
+        settings.workingDirectory = wd
+    }
+
+    override fun setEnvs(envs: MutableMap<String, String>) {
+        settings.envs = envs
+    }
+
+    override fun setPassParentEnvs(isPassParentEnvs: Boolean) {
+        settings.isPassParentEnvs = isPassParentEnvs
+    }
+
+    override fun getProgramParameters(): String? {
+        return settings.programParameters
+    }
+
+    override fun getAlternativeJrePath(): String? {
+        return null
+    }
 
     override fun readExternal(element: Element) {
         super.readExternal(element)

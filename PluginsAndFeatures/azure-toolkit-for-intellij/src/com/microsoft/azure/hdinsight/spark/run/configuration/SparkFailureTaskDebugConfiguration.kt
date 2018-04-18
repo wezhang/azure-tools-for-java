@@ -40,7 +40,7 @@ class SparkFailureTaskDebugConfiguration(name: String,
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
-        return SparkFailureTaskDebugProfileState()
+        return SparkFailureTaskDebugProfileState(name, module)
     }
 
     override fun readExternal(element: Element) {

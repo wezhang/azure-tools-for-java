@@ -22,7 +22,11 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class SparkFailureTaskDebugSettingsModel implements Cloneable {
     @Nullable
@@ -30,6 +34,31 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
 
     @Nullable
     private String winutilsPath;
+
+    private boolean isPassParentEnvs = true;
+
+    @Nullable
+    private String programParameters;
+
+    @Nullable
+    private String workingDirectory;
+
+    @NotNull
+    private Map<String, String> envs = new HashMap<>();
+
+    @Nullable
+    private String vmParameters;
+
+    @Nullable
+    private String runClass;
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        // Here is a shadow clone, not deep clone
+        return super.clone();
+    }
+
+    // Getters / Setters
 
     @Nullable
     public String getFailureContextPath() {
@@ -49,9 +78,56 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
         this.winutilsPath = winutilsPath;
     }
 
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        // Here is a shadow clone, not deep clone
-        return super.clone();
+    public boolean isPassParentEnvs() {
+        return isPassParentEnvs;
+    }
+
+    public void setPassParentEnvs(boolean passParentEnvs) {
+        isPassParentEnvs = passParentEnvs;
+    }
+
+    @Nullable
+    public String getProgramParameters() {
+        return programParameters;
+    }
+
+    public void setProgramParameters(@Nullable String programParameters) {
+        this.programParameters = programParameters;
+    }
+
+    @Nullable
+    public String getWorkingDirectory() {
+        return workingDirectory;
+    }
+
+    public void setWorkingDirectory(@Nullable String workingDirectory) {
+        this.workingDirectory = workingDirectory;
+    }
+
+    @NotNull
+    public Map<String, String> getEnvs() {
+        return envs;
+    }
+
+    public void setEnvs(@NotNull Map<String, String> envs) {
+        this.envs = envs;
+    }
+
+    @Nullable
+    public String getVmParameters() {
+        return vmParameters;
+    }
+
+    public void setVmParameters(@Nullable String vmParameters) {
+        this.vmParameters = vmParameters;
+    }
+
+    @Nullable
+    public String getRunClass() {
+        return runClass;
+    }
+
+    public void setRunClass(@Nullable String runClass) {
+        this.runClass = runClass;
     }
 }
