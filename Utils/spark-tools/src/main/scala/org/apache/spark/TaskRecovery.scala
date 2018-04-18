@@ -178,7 +178,9 @@ object TaskRecovery {
     val recoveryTask = new TaskRecovery(sc, failureTask)
     recoveryTask.rerun()
 
-    Thread.sleep(1000 * 60 * 10)
+    while (sc.taskScheduler.rootPool.schedulableQueue.size() != 0) {
+      Thread.sleep(1000)
+    }
   }
 
 }
