@@ -36,8 +36,11 @@ class SparkFailureTaskDebugConfigurableModel(project: Project)
     override fun readExternal(element: Element) {
         super.readExternal(element)
 
-        settings = XmlSerializer.deserialize(element.getChild(SparkFailureTaskDebugSettingsModel::class.simpleName),
-                                             SparkFailureTaskDebugSettingsModel::class.java)
+        val settingsElement : Element? = element.getChild(SparkFailureTaskDebugSettingsModel::class.simpleName)
+
+        if (settingsElement != null) {
+            settings = XmlSerializer.deserialize(settingsElement, SparkFailureTaskDebugSettingsModel::class.java)
+        }
     }
 
     override fun writeExternal(parent: Element) {
