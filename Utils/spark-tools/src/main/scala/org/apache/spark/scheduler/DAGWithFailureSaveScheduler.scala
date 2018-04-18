@@ -208,7 +208,7 @@ class DAGWithFailureSaveScheduler(sc: SparkContextWithFailureSave) extends DAGSc
 
     // Serialize to JSON
     val json = write(failureTask)
-    val failureContextFile = new Path("failure_save.json")
+    val failureContextFile = new Path("failure_save.ftd")
     val out = fs.create(failureContextFile, true)
     val writer = new PrintWriter(out)
 
