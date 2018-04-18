@@ -28,7 +28,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
-import com.microsoft.azure.hdinsight.spark.run.SparkFailureLocalDebugProfileState
+import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskDebugProfileState
 import org.jdom.Element
 
 class SparkFailureTaskDebugConfiguration(name: String,
@@ -40,7 +40,7 @@ class SparkFailureTaskDebugConfiguration(name: String,
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
-        return SparkFailureLocalDebugProfileState()
+        return SparkFailureTaskDebugProfileState()
     }
 
     override fun readExternal(element: Element) {
