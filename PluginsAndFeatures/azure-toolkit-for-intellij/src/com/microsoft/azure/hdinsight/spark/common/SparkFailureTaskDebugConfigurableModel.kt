@@ -61,7 +61,7 @@ class SparkFailureTaskDebugConfigurableModel(project: Project)
         return null
     }
 
-    override fun getRunClass(): String? {
+    override fun getRunClass(): String {
         return "org.apache.spark.tools.FailureTaskRecoveryApp"
     }
 

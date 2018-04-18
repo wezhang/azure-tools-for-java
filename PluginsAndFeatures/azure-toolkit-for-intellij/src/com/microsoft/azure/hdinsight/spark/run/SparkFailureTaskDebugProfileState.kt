@@ -71,20 +71,11 @@ class SparkFailureTaskDebugProfileState(val name: String,
         // The dependent spark-tools.jar is already in the Maven project lib/ directory
         JavaParametersUtil.configureProject(project, params, JavaParameters.JDK_AND_CLASSES_AND_TESTS, null)
 
-        // Application Name
-        params.programParametersList.add("--name", "${name}-reproduce")
-
-        // Class to run
-        params.programParametersList.add("--class", settingsConfigModel.runClass!!)
-
-        // Failure Task Context
-        params.programParametersList.add("--conf", "spark.failure.task.context=${failureContext}")
+        // Failure Task Context file
+        params.vmParametersList.add("-Dspark.failure.task.context=$failureContext")
 
         // Helper Main class
-        params.mainClass = "org.apache.spark.deploy.SparkSubmit"
-
-        // Spark tools lib
-        params.programParametersList.add(PathUtil.getLocalPath("${project.basePath}/lib/spark-tools-0.1.0.jar"))
+        params.mainClass = settingsConfigModel.runClass
 
         return params.toCommandLine()
     }

@@ -27,7 +27,7 @@ import org.json4s.jackson.Serialization.read
 
 object FailureTaskRecoveryApp {
   def main(args: Array[String]): Unit = {
-    val sparkconf = new SparkConf().setMaster("local[1]")
+    val sparkconf = new SparkConf().setAppName("Failure task recovery").setMaster("local[1]")
 
     val sc = new SparkContext(sparkconf)
 
