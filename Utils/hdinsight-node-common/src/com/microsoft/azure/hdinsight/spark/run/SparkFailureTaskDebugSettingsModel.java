@@ -32,25 +32,16 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
     @Nullable
     private String failureContextPath;
 
-    @Nullable
-    private String winutilsPath;
-
     private boolean isPassParentEnvs = true;
 
     @Nullable
     private String programParameters;
-
-    @Nullable
-    private String workingDirectory;
 
     @NotNull
     private Map<String, String> envs = new HashMap<>();
 
     @Nullable
     private String vmParameters;
-
-    @Nullable
-    private String runClass;
 
     @Override
     protected Object clone() throws CloneNotSupportedException {
@@ -67,15 +58,6 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
 
     public void setFailureContextPath(@Nullable String failureContextPath) {
         this.failureContextPath = failureContextPath;
-    }
-
-    @Nullable
-    public String getWinutilsPath() {
-        return winutilsPath;
-    }
-
-    public void setWinutilsPath(@Nullable String winutilsPath) {
-        this.winutilsPath = winutilsPath;
     }
 
     public boolean isPassParentEnvs() {
@@ -95,15 +77,6 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
         this.programParameters = programParameters;
     }
 
-    @Nullable
-    public String getWorkingDirectory() {
-        return workingDirectory;
-    }
-
-    public void setWorkingDirectory(@Nullable String workingDirectory) {
-        this.workingDirectory = workingDirectory;
-    }
-
     @NotNull
     public Map<String, String> getEnvs() {
         return envs;
@@ -120,14 +93,5 @@ public class SparkFailureTaskDebugSettingsModel implements Cloneable {
 
     public void setVmParameters(@Nullable String vmParameters) {
         this.vmParameters = vmParameters;
-    }
-
-    @Nullable
-    public String getRunClass() {
-        return runClass;
-    }
-
-    public void setRunClass(@Nullable String runClass) {
-        this.runClass = runClass;
     }
 }

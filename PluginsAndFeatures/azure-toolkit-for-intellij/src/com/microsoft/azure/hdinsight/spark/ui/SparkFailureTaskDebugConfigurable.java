@@ -35,7 +35,6 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import javax.swing.*;
 
 public class SparkFailureTaskDebugConfigurable implements SettableControl<SparkFailureTaskDebugSettingsModel> {
-    private TextFieldWithBrowseButton myWinutilsPathField;
     private TextFieldWithBrowseButton myFailureJobContextPathField;
     private JPanel myWholePanel;
 
@@ -51,14 +50,12 @@ public class SparkFailureTaskDebugConfigurable implements SettableControl<SparkF
     @Override
     public void setData(@NotNull SparkFailureTaskDebugSettingsModel data) {
         myFailureJobContextPathField.setText(data.getFailureContextPath());
-        myWinutilsPathField.setText(data.getWinutilsPath());
     }
 
     // Component -> Data
     @Override
     public void getData(@NotNull SparkFailureTaskDebugSettingsModel data) {
         data.setFailureContextPath(myFailureJobContextPathField.getText());
-        data.setWinutilsPath(myWinutilsPathField.getText());
     }
 
     @NotNull

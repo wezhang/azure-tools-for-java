@@ -28,6 +28,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializer
 import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskDebugSettingsModel
 import org.jdom.Element
+import java.nio.file.Paths
 
 // As a model adapter
 class SparkFailureTaskDebugConfigurableModel(project: Project)
@@ -66,7 +67,8 @@ class SparkFailureTaskDebugConfigurableModel(project: Project)
     }
 
     override fun getWorkingDirectory(): String? {
-        return settings.workingDirectory
+        // Set the working directory to the one of Spark Failure Task Context
+        return settings.failureContextPath?.let { Paths.get(it).parent?.toString() }
     }
 
     override fun setAlternativeJrePathEnabled(ignored: Boolean) {
@@ -76,8 +78,7 @@ class SparkFailureTaskDebugConfigurableModel(project: Project)
         return settings.vmParameters
     }
 
-    override fun setWorkingDirectory(wd: String?) {
-        settings.workingDirectory = wd
+    override fun setWorkingDirectory(ignored: String?) {
     }
 
     override fun setEnvs(envs: MutableMap<String, String>) {

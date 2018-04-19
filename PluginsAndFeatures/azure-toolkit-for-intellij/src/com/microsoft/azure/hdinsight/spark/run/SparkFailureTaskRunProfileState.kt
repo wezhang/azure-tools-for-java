@@ -34,7 +34,6 @@ import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.util.JavaParametersUtil
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
-import java.nio.file.Paths
 
 open class SparkFailureTaskRunProfileState(val name: String,
                                            private val settingsConfigModel: SparkFailureTaskDebugConfigurableModel)
@@ -51,7 +50,7 @@ open class SparkFailureTaskRunProfileState(val name: String,
         return DefaultExecutionResult(consoleView, processHandler)
     }
 
-    val failureContextPath get() = settingsConfigModel.settings.failureContextPath
+    private val failureContextPath get() = settingsConfigModel.settings.failureContextPath
 
     protected open val additionalVmParameters: Array<String>
         get() {
@@ -64,9 +63,6 @@ open class SparkFailureTaskRunProfileState(val name: String,
         val params = JavaParameters()
 
         JavaParametersUtil.configureConfiguration(params, settingsConfigModel)
-
-        // Change the working directory to the one of Spark Failure Task Context
-        params.workingDirectory = Paths.get(failureContextPath).parent.toString()
 
         // The dependent spark-tools.jar is already in the Maven project lib/ directory
         JavaParametersUtil.configureProject(project, params, JavaParameters.JDK_AND_CLASSES_AND_TESTS, null)
