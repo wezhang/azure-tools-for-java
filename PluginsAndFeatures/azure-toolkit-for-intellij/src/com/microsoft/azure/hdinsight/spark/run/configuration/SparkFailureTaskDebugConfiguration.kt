@@ -24,11 +24,14 @@ package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
 import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskDebugProfileState
+import com.microsoft.azure.hdinsight.spark.run.SparkFailureTaskRunProfileState
 import org.jdom.Element
 
 class SparkFailureTaskDebugConfiguration(name: String,
@@ -40,7 +43,13 @@ class SparkFailureTaskDebugConfiguration(name: String,
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
-        return SparkFailureTaskDebugProfileState(name, module)
+        if (executor is DefaultRunExecutor) {
+            return SparkFailureTaskRunProfileState(name, module)
+        } else if (executor is DefaultDebugExecutor) {
+            return SparkFailureTaskDebugProfileState(name, module)
+        }
+
+        return null
     }
 
     override fun readExternal(element: Element) {

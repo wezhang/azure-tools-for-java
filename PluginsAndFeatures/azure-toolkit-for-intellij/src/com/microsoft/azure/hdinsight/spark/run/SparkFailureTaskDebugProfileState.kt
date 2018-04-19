@@ -22,61 +22,24 @@
 
 package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.DefaultExecutionResult
-import com.intellij.execution.ExecutionException
-import com.intellij.execution.ExecutionResult
-import com.intellij.execution.Executor
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.configurations.JavaParameters
-import com.intellij.execution.configurations.RunProfileState
-import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.execution.process.KillableColoredProcessHandler
-import com.intellij.execution.runners.ProgramRunner
-import com.intellij.execution.util.JavaParametersUtil
-import com.intellij.util.PathUtil
+import com.intellij.execution.configurations.RemoteConnection
+import com.intellij.execution.configurations.RemoteState
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
-import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
-import java.nio.file.Paths
 
-class SparkFailureTaskDebugProfileState(val name: String,
-                                        private val settingsConfigModel: SparkFailureTaskDebugConfigurableModel)
-        : RunProfileState {
-    val project = settingsConfigModel.project
+class SparkFailureTaskDebugProfileState(name: String,
+                                        settingsConfigModel: SparkFailureTaskDebugConfigurableModel)
+    : SparkFailureTaskRunProfileState(name, settingsConfigModel), RemoteState {
+    private val remoteConnection = RemoteConnection(true, "127.0.0.1", "0", true)
 
-    override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult? {
-        if (executor is DefaultRunExecutor || executor is DefaultDebugExecutor) {
-            // Leverage Spark Local Run/Debug console view
-            val consoleView = SparkJobLogConsoleView(project)
-            val processHandler = KillableColoredProcessHandler(createCommandLine())
+    override fun getRemoteConnection(): RemoteConnection {
+        return remoteConnection
+    }
 
-            consoleView.attachToProcess(processHandler)
-
-            return DefaultExecutionResult(consoleView, processHandler)
+    override val additionalVmParameters: Array<String>
+        get() {
+            return super.additionalVmParameters + arrayOf(
+                    // JDB parameters for debugging
+                    "-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${remoteConnection.address},suspend=y"
+            )
         }
-
-        return null
-    }
-
-    @Throws(ExecutionException::class)
-    protected fun createCommandLine() : GeneralCommandLine {
-        val params = JavaParameters()
-        val failureContext = settingsConfigModel.settings.failureContextPath
-
-        JavaParametersUtil.configureConfiguration(params, settingsConfigModel)
-
-        // Change the working directory to the one of Spark Failure Task Context
-        params.workingDirectory = Paths.get(failureContext).parent.toString()
-
-        // The dependent spark-tools.jar is already in the Maven project lib/ directory
-        JavaParametersUtil.configureProject(project, params, JavaParameters.JDK_AND_CLASSES_AND_TESTS, null)
-
-        // Failure Task Context file
-        params.vmParametersList.add("-Dspark.failure.task.context=$failureContext")
-
-        // Helper Main class
-        params.mainClass = settingsConfigModel.runClass
-
-        return params.toCommandLine()
-    }
 }
