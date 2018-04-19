@@ -34,6 +34,7 @@ import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.util.JavaParametersUtil
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
+import java.io.File
 
 open class SparkFailureTaskRunProfileState(val name: String,
                                            private val settingsConfigModel: SparkFailureTaskDebugConfigurableModel)
@@ -41,6 +42,8 @@ open class SparkFailureTaskRunProfileState(val name: String,
     val project = settingsConfigModel.project
 
     override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult? {
+        validate()
+
         // Leverage Spark Local Run/Debug console view
         val consoleView = SparkJobLogConsoleView(project)
         val processHandler = KillableColoredProcessHandler(createCommandLine())
@@ -57,6 +60,24 @@ open class SparkFailureTaskRunProfileState(val name: String,
             // Failure Task Context file
             return arrayOf("-Dspark.failure.task.context=$failureContextPath")
         }
+
+    // Validate the settings
+    @Throws(ExecutionException::class)
+    protected open fun validate() {
+        if (settingsConfigModel.settings.failureContextPath.isNullOrBlank()) {
+            throw ExecutionException("""
+                Spark Failure Task Context file setting is blank, please fill it
+                in `Run Configuration --> Spark Job Failure Context location`
+                """.trimIndent())
+        }
+
+        if (!File(settingsConfigModel.settings.failureContextPath).exists()) {
+            throw ExecutionException("""
+                The specified Spark Failure Task Context file '${settingsConfigModel.settings.failureContextPath}'
+                doesn't exist, please select the right one in `Run Configuration --> Spark Job Failure Context location`
+                """.trimIndent())
+        }
+    }
 
     @Throws(ExecutionException::class)
     private fun createCommandLine() : GeneralCommandLine {
