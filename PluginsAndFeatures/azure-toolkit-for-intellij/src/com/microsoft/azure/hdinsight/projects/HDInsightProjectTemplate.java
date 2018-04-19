@@ -49,7 +49,7 @@ public class HDInsightProjectTemplate implements ProjectTemplate {
             case ScalaClusterSample:
                 return "Spark on HDInsight Sample (Scala)";
             case ScalaFailureTaskDebugSample:
-                return "Spark with Failure Task Debugging on HDInsight Sample (Scala)";
+                return "Spark with Failure Task Debugging Sample (Preview) (Scala)";
             default:
                 return "HDInsight Tools";
         }
@@ -65,7 +65,7 @@ public class HDInsightProjectTemplate implements ProjectTemplate {
             case ScalaClusterSample:
                 return "HDInsight Spark samples written in Scala.";
             case ScalaFailureTaskDebugSample:
-                return "HDInsight Spark samples with Failure Task Debugging enabled library included, written in Scala";
+                return "HDInsight Spark samples with Failure Task Debugging feature enabled, written in Scala";
             default:
                 return "HDInsight Tools";
         }
