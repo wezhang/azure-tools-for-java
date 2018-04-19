@@ -25,7 +25,7 @@ package sample
 import org.apache.spark.{SparkConf, SparkContextWithFailureSave}
 import org.apache.spark.sql.{Row, SparkSession}
 
-case class GenderMeanAge(gender: String, meanAge: Int)
+case class GenderMeanAge(gender: String, meanAge: Long)
 case class People(name: String, age: Int, gender: String)
 object AgeMean_Div0 {
 
@@ -61,10 +61,10 @@ object AgeMean_Div0 {
 
     println("The age means table group by genders:")
     ageAgg.map(row => {
-      val totalAge = row.getAs[Int]("sum(age)")
+      val totalAge = row.getAs[Long]("sum(age)")
       // Make a mistake here:
       // val peopleCount = row.getAs[Long]("count(name)")
-      val peopleCount = row.getAs[Int]("count(name)") - 1
+      val peopleCount = row.getAs[Long]("count(name)") - 1
 
       GenderMeanAge(row.getString(0), totalAge / peopleCount)
     })
