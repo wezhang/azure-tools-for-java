@@ -32,8 +32,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.shuffle.BlockFetchingListener
 import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.{BlockId, BlockManagerId, ShuffleIndexBlockId}
-import org.apache.spark.util.{ThreadUtils, Utils}
+import org.apache.spark.storage.{BlockId, BlockManagerId, BlockManagerMaster, ShuffleIndexBlockId}
+import org.apache.spark.util.{Clock, SystemClock, ThreadUtils, Utils}
 import org.json4s.jackson.Serialization.write
 
 import scala.collection.mutable
@@ -42,11 +42,32 @@ import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.control.NonFatal
 
+private[spark]
+class DAGWithFailureSaveScheduler(
+    sc: SparkContextWithFailureSave,
+    taskScheduler: TaskScheduler,
+    listenerBus: LiveListenerBus,
+    var mapOutputTracker: MapOutputTrackerMaster,
+    blockManagerMaster: BlockManagerMaster,
+    env: SparkEnv,
+    clock: Clock = new SystemClock())
+  extends DAGScheduler(sc, taskScheduler, listenerBus, mapOutputTracker, blockManagerMaster, env, clock) {
 
-class DAGWithFailureSaveScheduler(sc: SparkContextWithFailureSave) extends DAGScheduler(sc) {
+  def this(sc: SparkContextWithFailureSave, taskScheduler: TaskScheduler) = {
+    this(
+      sc,
+      taskScheduler,
+      sc.listenerBus,
+      sc.env.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster],
+      sc.env.blockManager.master,
+      sc.env)
+  }
+
+  def this(sc: SparkContextWithFailureSave) = this(sc, sc.taskScheduler)
+
   var jobRDD: RDD[AnyRef] = _
   private val driverBlockManager = SparkEnv.get.blockManager
-  private val mapOutputTracker = sc.env.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
+//  private val mapOutputTracker = sc.env.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
   val failedEvents: mutable.HashMap[Int, CompletionEvent] = new mutable.HashMap()
   val fs = org.apache.hadoop.fs.FileSystem.get(sc.hadoopConfiguration)
 

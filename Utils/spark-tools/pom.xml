@@ -12,7 +12,7 @@
     <properties>
         <spark.version>2.1.0</spark.version>
         <scala.version.major>2.11</scala.version.major>
-        <scala.version.minor>11</scala.version.minor>
+        <scala.version.minor>7</scala.version.minor>
         <scala.version>${scala.version.major}.${scala.version.minor}</scala.version>
         <build.copyDependenciesPhase>none</build.copyDependenciesPhase>
         <CodeCacheSize>512m</CodeCacheSize>
