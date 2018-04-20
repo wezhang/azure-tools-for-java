@@ -10,8 +10,13 @@
     <artifactId>spark-tools</artifactId>
     <version>0.1.0</version>
     <properties>
-        <scala.version>2.11.11</scala.version>
         <spark.version>2.1.0</spark.version>
+        <scala.version.major>2.11</scala.version.major>
+        <scala.version.minor>11</scala.version.minor>
+        <scala.version>${scala.version.major}.${scala.version.minor}</scala.version>
+        <build.copyDependenciesPhase>none</build.copyDependenciesPhase>
+        <CodeCacheSize>512m</CodeCacheSize>
+        <test.exclude.tags></test.exclude.tags>
     </properties>
 
     <build>
@@ -48,6 +53,84 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration><skip>true</skip></configuration>
+            </plugin>
+
+            <!-- This plugin dumps the test classpath into a file -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-test-classpath</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>build-classpath</goal>
+                        </goals>
+                        <configuration>
+                            <includeScope>test</includeScope>
+                            <outputProperty>test_classpath</outputProperty>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-module-dependencies</id>
+                        <phase>${build.copyDependenciesPhase}</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeScope>runtime</includeScope>
+                            <outputDirectory>${jars.target.dir}</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Scalatest runs all Scala tests -->
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <version>1.0</version>
+                <!-- Note config is repeated in surefire config -->
+                <configuration>
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+                    <junitxml>.</junitxml>
+                    <filereports>SparkTestSuite.txt</filereports>
+                    <argLine>-ea -Xmx3g -Xss4m -XX:ReservedCodeCacheSize=${CodeCacheSize}</argLine>
+                    <stderr/>
+                    <environmentVariables>
+                        <!--
+                          Setting SPARK_DIST_CLASSPATH is a simple way to make sure any child processes
+                          launched by the tests have access to the correct test-time classpath.
+                        -->
+                        <SPARK_DIST_CLASSPATH>${test_classpath}</SPARK_DIST_CLASSPATH>
+                        <SPARK_PREPEND_CLASSES>1</SPARK_PREPEND_CLASSES>
+                        <SPARK_SCALA_VERSION>${scala.version.major}</SPARK_SCALA_VERSION>
+                        <SPARK_TESTING>1</SPARK_TESTING>
+                        <JAVA_HOME>${java.home}</JAVA_HOME>
+                    </environmentVariables>
+                    <systemProperties>
+                        <log4j.configuration>file:src/test/resources/log4j.properties</log4j.configuration>
+                        <derby.system.durability>test</derby.system.durability>
+                        <java.awt.headless>true</java.awt.headless>
+                        <java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir>
+                        <spark.test.home></spark.test.home>
+                        <spark.testing>1</spark.testing>
+                        <spark.ui.enabled>false</spark.ui.enabled>
+                        <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
+                        <spark.unsafe.exceptionOnMemoryLeak>true</spark.unsafe.exceptionOnMemoryLeak>
+                        <!-- Needed by sql/hive tests. -->
+                        <test.src.tables>__not_used__</test.src.tables>
+                    </systemProperties>
+                    <tagsToExclude>${test.exclude.tags}</tagsToExclude>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -121,6 +204,20 @@
                     <artifactId>jackson-module-scala_2.11</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.version.major}</artifactId>
+            <version>3.0.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.version.major}</artifactId>
+            <version>${spark.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

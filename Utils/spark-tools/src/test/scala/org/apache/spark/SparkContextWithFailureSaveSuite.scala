@@ -22,22 +22,25 @@
 
 package org.apache.spark
 
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.scheduler.DAGWithFailureSaveScheduler
+import org.scalatest.concurrent.Eventually
+import org.scalatest.MustMatchers._
 
-import scala.collection.immutable
-import scala.reflect.ClassTag
+class SparkContextWithFailureSaveSuite extends SparkFunSuite with LocalSparkContext with Eventually {
+  def mySC: SparkContextWithFailureSave = sc.asInstanceOf[SparkContextWithFailureSave]
 
-class SparkContextWithFailureSave(conf: SparkConf) extends SparkContext(conf) {
-  private[spark] var bcIdMap: immutable.Map[Long, Broadcast[_]] = Map()
+  test("SparkContextWithFailureSave should use paired DAGWithFailureSaveScheduler scheduler") {
+    val conf = new SparkConf().setAppName("test").setMaster("local")
+    sc = new SparkContextWithFailureSave(conf)
 
-  this.dagScheduler = new DAGWithFailureSaveScheduler(this)
+    sc.dagScheduler mustBe a[DAGWithFailureSaveScheduler]
+  }
 
-  override def broadcast[T: ClassTag](value: T): Broadcast[T] = {
-    val bc = super.broadcast(value)
+  test("SparkContextWithFailureSave should save the broadcast values") {
+    val conf = new SparkConf().setAppName("test").setMaster("local")
+    sc = new SparkContextWithFailureSave(conf)
 
-    bcIdMap = bcIdMap + (bc.id -> bc)
-
-    bc
+    val bc = sc.broadcast("hello broadcast world!")
+    mySC.bcIdMap must contain value bc
   }
 }
