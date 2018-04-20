@@ -31,10 +31,14 @@ import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigura
 class SparkFailureTaskDebugConfigurationFactory(type: ConfigurationType) :
         ConfigurationFactoryEx<SparkFailureTaskDebugConfiguration>(type) {
     companion object {
-        @JvmStatic val NAME = "Spark Job Failure Local Debug"
+        @JvmStatic val NAME = "Spark Failure Task Debug"
     }
 
     override fun createTemplateConfiguration(project: Project): RunConfiguration {
         return SparkFailureTaskDebugConfiguration(NAME, SparkFailureTaskDebugConfigurableModel(project), this)
+    }
+
+    override fun getName(): String {
+        return NAME
     }
 }

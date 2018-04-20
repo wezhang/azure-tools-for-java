@@ -62,7 +62,10 @@ public class RemoteDebugRunConfigurationType implements ConfigurationType {
 
     @Override
     public ConfigurationFactory[] getConfigurationFactories() {
-        return new ConfigurationFactory[]{ new RemoteDebugConfigurationFactory(this)};
+        return new ConfigurationFactory[]{
+                new RemoteDebugConfigurationFactory(this),
+                new SparkFailureTaskDebugConfigurationFactory(this)
+        };
     }
 
     @NotNull

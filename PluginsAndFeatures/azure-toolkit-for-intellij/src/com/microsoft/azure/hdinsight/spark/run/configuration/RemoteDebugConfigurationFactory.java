@@ -29,7 +29,7 @@ import com.intellij.openapi.project.Project;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 public class RemoteDebugConfigurationFactory extends ConfigurationFactoryEx {
-    private static final String NAME = "Submit Spark Job";
+    private static final String NAME = "HDInsight Spark";
 
     public RemoteDebugConfigurationFactory(@NotNull ConfigurationType type) {
         super(type);
@@ -37,7 +37,7 @@ public class RemoteDebugConfigurationFactory extends ConfigurationFactoryEx {
 
     @Override
     public String getName() {
-        return super.getName();
+        return NAME;
     }
 
     @NotNull
