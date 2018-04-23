@@ -23,7 +23,8 @@
 package org.apache.spark.scheduler
 
 import java.io._
-import java.util.Base64
+import java.text.SimpleDateFormat
+import java.util.{Base64, Date}
 
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.Path
@@ -136,7 +137,18 @@ class DAGWithFailureSaveScheduler(
     }
   }
 
-  def saveFailureTask(task: Task[_], stageId: Int, taskId: String, attemptId: Int): Unit = {
+  def saveFailureTask(task: Task[_], stageId: Int, taskId: String, attemptId: Int, timestamp: String): Unit = {
+    def getFailureSavingPath(fileName: String = null): Path = {
+      val appFolderName = sc.appName + sc.applicationAttemptId.map(attemptId => s"[${attemptId}]@").getOrElse("@") + timestamp
+
+      val savingBase: Path = new Path(".spark-failures", appFolderName)
+
+      if (fileName != null) {
+        new Path(savingBase, fileName)
+      } else {
+        savingBase
+      }
+    }
 
     // Save task binary ID in broadcasts
     val taskBinaryField = task.getClass.getDeclaredField("taskBinary")
@@ -174,7 +186,7 @@ class DAGWithFailureSaveScheduler(
                 getShuffleBuffer(blockMgrId, blockId)._2 match {
                   case Some(buffer: ManagedBuffer) =>
                     // Copy the shuffle partition data into a file
-                    val shuffleFile = new Path(blockId.toString())
+                    val shuffleFile = getFailureSavingPath(blockId.toString())
                     val shuffleIn = buffer.createInputStream()
                     val shuffleOut = fs.create(shuffleFile, true)
 
@@ -190,7 +202,7 @@ class DAGWithFailureSaveScheduler(
                       case SHUFFLE(shuffleId, mapId, reduceId) =>
                         val shuffleIndexId = ShuffleIndexBlockId(shuffleId.toInt, mapId.toInt, 0)
                         val idxFile = driverBlockManager.diskBlockManager.getFile(shuffleIndexId).getName
-                        val idxFileOutput = fs.create(new Path(idxFile), true)
+                        val idxFileOutput = fs.create(getFailureSavingPath(idxFile), true)
 
                         writeIndexFile(idxFileOutput, Array.fill(reduceId.toInt)(0.toLong) :+ blockSize)
                         idxFileOutput.close()
@@ -229,7 +241,7 @@ class DAGWithFailureSaveScheduler(
 
     // Serialize to JSON
     val json = write(failureTask)
-    val failureContextFile = new Path("failure_save.ftd")
+    val failureContextFile = getFailureSavingPath("failure_save.ftd")
     val out = fs.create(failureContextFile, true)
     val writer = new PrintWriter(out)
 
@@ -264,9 +276,10 @@ class DAGWithFailureSaveScheduler(
             val task = event.task
             val taskId = event.taskInfo.id
             val stageId = task.stageId
+            val taskFailureTimestamp = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'").format(new Date(event.taskInfo.finishTime))
 
             logInfo("Save failure task " + taskIndex)
-            saveFailureTask(task, stageId, taskId, event.taskInfo.attemptNumber)
+            saveFailureTask(task, stageId, taskId, event.taskInfo.attemptNumber, taskFailureTimestamp)
           })
       }
       case _ =>
