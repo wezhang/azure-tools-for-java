@@ -247,6 +247,9 @@ class DAGWithFailureSaveScheduler(
 
     writer.write(json)
     writer.close()
+
+    val fullSavingFolderUri = new Path(fs.getWorkingDirectory, getFailureSavingPath())
+    logInfo("Failure task has been saved into " + fullSavingFolderUri)
   }
 
   override private[scheduler] def handleTaskCompletion(event: CompletionEvent): Unit = {
