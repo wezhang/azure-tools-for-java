@@ -34,6 +34,8 @@ import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.util.JavaParametersUtil
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
+import com.microsoft.azuretools.telemetry.AppInsightsClient
+import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 import java.io.File
 
 open class SparkFailureTaskRunProfileState(val name: String,
@@ -42,6 +44,7 @@ open class SparkFailureTaskRunProfileState(val name: String,
     val project = settingsConfigModel.project
 
     override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult? {
+        doAppInsightOnExecute()
         validate()
 
         // Leverage Spark Local Run/Debug console view
@@ -54,6 +57,10 @@ open class SparkFailureTaskRunProfileState(val name: String,
     }
 
     private val failureContextPath get() = settingsConfigModel.settings.failureContextPath
+
+    protected open fun doAppInsightOnExecute() {
+        AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigFailureTaskRunButtonClick"), null)
+    }
 
     protected open val additionalVmParameters: Array<String>
         get() {

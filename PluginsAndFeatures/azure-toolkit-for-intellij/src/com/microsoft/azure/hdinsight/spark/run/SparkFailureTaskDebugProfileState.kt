@@ -25,6 +25,8 @@ package com.microsoft.azure.hdinsight.spark.run
 import com.intellij.execution.configurations.RemoteConnection
 import com.intellij.execution.configurations.RemoteState
 import com.microsoft.azure.hdinsight.spark.common.SparkFailureTaskDebugConfigurableModel
+import com.microsoft.azuretools.telemetry.AppInsightsClient
+import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 
 class SparkFailureTaskDebugProfileState(name: String,
                                         settingsConfigModel: SparkFailureTaskDebugConfigurableModel)
@@ -42,4 +44,8 @@ class SparkFailureTaskDebugProfileState(name: String,
                     "-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${remoteConnection.address},suspend=y"
             )
         }
+
+    override fun doAppInsightOnExecute() {
+        AppInsightsClient.create(HDInsightBundle.message("SparkRunConfigFailureTaskDebugButtonClick"), null)
+    }
 }
