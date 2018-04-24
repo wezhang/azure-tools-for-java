@@ -87,7 +87,7 @@ public class HttpObservable {
         this.defaultHeaders = new HeaderGroup();
 
         String loadingClass = this.getClass().getClassLoader().getClass().getName().toLowerCase();
-        String userAgent = loadingClass.contains("intellij") ? "Azure Toolkit for IntelliJ" :
+        this.userAgent = loadingClass.contains("intellij") ? "Azure Toolkit for IntelliJ" :
                 (loadingClass.contains("eclipse") ? "Azure Toolkit for Eclipse" : "Azure HDInsight SDK HTTP RxJava client");
 
         // set default headers
