@@ -139,8 +139,10 @@ public class HttpObservable {
         return defaultRequestConfig;
     }
 
-    public void setDefaultRequestConfig(@NotNull RequestConfig defaultRequestConfig) {
+    public HttpObservable setDefaultRequestConfig(@NotNull RequestConfig defaultRequestConfig) {
         this.defaultRequestConfig = defaultRequestConfig;
+
+        return this;
     }
 
     @NotNull
@@ -148,8 +150,10 @@ public class HttpObservable {
         return cookieStore;
     }
 
-    public void setCookieStore(@NotNull CookieStore cookieStore) {
+    public HttpObservable setCookieStore(@NotNull CookieStore cookieStore) {
         this.cookieStore = cookieStore;
+
+        return this;
     }
 
     @NotNull
@@ -162,8 +166,10 @@ public class HttpObservable {
         return defaultHeaders.getAllHeaders();
     }
 
-    public void setDefaultHeader(@Nullable Header defaultHeader) {
+    public HttpObservable setDefaultHeader(@Nullable Header defaultHeader) {
         this.defaultHeaders.updateHeader(defaultHeader);
+
+        return this;
     }
 
     @NotNull
@@ -176,11 +182,11 @@ public class HttpObservable {
         return userAgent;
     }
 
-    public void setUserAgent(@Nullable String userAgent) {
+    public HttpObservable setUserAgent(@Nullable String userAgent) {
         this.userAgent = userAgent;
 
         // Update the default headers
-        setDefaultHeader(new BasicHeader("User-Agent", getUserAgent()));
+        return setDefaultHeader(new BasicHeader("User-Agent", userAgent));
     }
 
     /*
