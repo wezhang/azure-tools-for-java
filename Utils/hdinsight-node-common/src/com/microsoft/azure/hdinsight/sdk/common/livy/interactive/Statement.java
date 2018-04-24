@@ -177,7 +177,7 @@ public class Statement {
         entity.setContentType("application/json");
 
         return getHttp()
-                .setUserAgent(getUserAgent(true))
+                .setUserAgent(getUserAgent(false))
                 .post(uri.toString(), entity, null, null, com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.Statement.class);
     }
 
