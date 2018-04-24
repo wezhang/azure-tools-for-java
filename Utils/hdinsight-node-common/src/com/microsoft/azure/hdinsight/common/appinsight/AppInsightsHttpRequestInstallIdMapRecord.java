@@ -26,11 +26,11 @@ import com.microsoft.azuretools.telemetry.AppInsightsClient;
 
 import java.util.HashMap;
 
-public class HttpRequestInstallIdMapRecord {
+public class AppInsightsHttpRequestInstallIdMapRecord {
     private final String requestId;
     private final String installId;
 
-    public HttpRequestInstallIdMapRecord(String requestId, String installId) {
+    public AppInsightsHttpRequestInstallIdMapRecord(String requestId, String installId) {
         this.requestId = requestId;
         this.installId = installId;
     }

@@ -24,7 +24,6 @@ package com.microsoft.azure.hdinsight.common.appinsight;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
-import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class HDInsightCommonBundle {
