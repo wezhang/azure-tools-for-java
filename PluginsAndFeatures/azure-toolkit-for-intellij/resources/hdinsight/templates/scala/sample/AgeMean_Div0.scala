@@ -22,20 +22,19 @@
 
 package sample
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContextWithFailureSave}
-import org.apache.spark.sql.{Row, SparkSession}
 
 case class GenderMeanAge(gender: String, meanAge: Long)
 case class People(name: String, age: Int, gender: String)
 object AgeMean_Div0 {
 
   def main(args: Array[String]) {
-    val sparkconf = new SparkConf().setAppName("SQL Query with issue")
+    val sparkconf = new SparkConf().setAppName("Spark Age Mean")
 
     val sc = new SparkContextWithFailureSave(sparkconf)
     val spark = SparkSession
       .builder()
-      .appName("Spark Age Mean")
       .getOrCreate()
 
     // For implicit conversions like converting RDDs to DataFrames
@@ -62,7 +61,7 @@ object AgeMean_Div0 {
     println("The age means table group by genders:")
     ageAgg.map(row => {
       val totalAge = row.getAs[Long]("sum(age)")
-      // Make a mistake here:
+      // Make a mistake here, the right `peopleCount` should be:
       // val peopleCount = row.getAs[Long]("count(name)")
       val peopleCount = row.getAs[Long]("count(name)") - 1
 
