@@ -35,6 +35,7 @@ public class Statement implements IConvertible {
     private String          code;       // The execution code
     private StatementState  state;      // The execution state
     private StatementOutput output;     // The execution output
+    private double          progress;   // The execution progress
 
     public int getId() {
         return this.id;
@@ -50,5 +51,9 @@ public class Statement implements IConvertible {
 
     public StatementOutput getOutput() {
         return output;
+    }
+
+    public double getProgress() {
+        return progress;
     }
 }

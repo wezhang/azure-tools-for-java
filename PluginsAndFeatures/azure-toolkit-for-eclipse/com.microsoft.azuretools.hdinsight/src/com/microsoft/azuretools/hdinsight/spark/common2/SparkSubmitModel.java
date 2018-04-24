@@ -31,6 +31,7 @@ import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitResponse;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
@@ -201,7 +202,8 @@ public class SparkSubmitModel {
         
         String filePath = selectedClusterDetail.isEmulator() ?
                 SparkSubmitHelper.uploadFileToEmulator(selectedClusterDetail, buildJarPath) :
-                SparkSubmitHelper.uploadFileToHDFS(selectedClusterDetail, buildJarPath);
+                (selectedClusterDetail.getStorageAccount() == null ? SparkSubmitHelper.uploadFileToHDFS(selectedClusterDetail, buildJarPath) :
+                    JobUtils.uploadFileToAzure(new File(buildJarPath), selectedClusterDetail.getStorageAccount(), selectedClusterDetail.getStorageAccount().getDefaultContainerOrRootPath(), JobUtils.getFormatPathByDate(), HDInsightUtil.getToolWindowMessageSubject(), null));
         submissionParameter.setFilePath(filePath);
     }
     
