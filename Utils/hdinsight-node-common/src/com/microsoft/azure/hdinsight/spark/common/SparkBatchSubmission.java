@@ -65,6 +65,10 @@ public class SparkBatchSubmission {
 
     @NotNull
     public String getInstallationID() {
+        if (HDInsightLoader.getHDInsightHelper() == null) {
+            return "";
+        }
+
         return HDInsightLoader.getHDInsightHelper().getInstallationId();
     }
 
@@ -122,8 +126,9 @@ public class SparkBatchSubmission {
      */
     @NotNull
     private String getUserAgentPerRequest(Boolean isMapToInstallID) {
-        String userAgentSource = SparkBatchSubmission.class.getClassLoader().getClass().getName().toLowerCase().contains("intellij")
-                ? "Azure Toolkit for IntelliJ " : "Azure Toolkit for Eclipse ";
+        String loadingClass = SparkBatchSubmission.class.getClassLoader().getClass().getName().toLowerCase();
+        String userAgentSource = loadingClass.contains("intellij") ? "Azure Toolkit for IntelliJ " :
+                (loadingClass.contains("eclipse") ? "Azure Toolkit for Eclipse " : "Azure HDInsight Java SDK ");
         String requestId = UUID.randomUUID().toString();
 
         if (isMapToInstallID) {

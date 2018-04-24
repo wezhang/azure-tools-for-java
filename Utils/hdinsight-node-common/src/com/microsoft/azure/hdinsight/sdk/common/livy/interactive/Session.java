@@ -198,13 +198,18 @@ public abstract class Session implements AutoCloseable, Closeable {
 
     @NotNull
     public String getInstallationID() {
+        if (HDInsightLoader.getHDInsightHelper() == null) {
+            return "";
+        }
+
         return HDInsightLoader.getHDInsightHelper().getInstallationId();
     }
 
     @NotNull
     public String getUserAgent(Boolean isMapToInstallID) {
-        String userAgentSource = Session.class.getClassLoader().getClass().getName().toLowerCase().contains("intellij")
-                ? "Azure Toolkit for IntelliJ " : "Azure Toolkit for Eclipse ";
+        String loadingClass = Session.class.getClassLoader().getClass().getName().toLowerCase();
+        String userAgentSource = loadingClass.contains("intellij") ? "Azure Toolkit for IntelliJ " :
+                (loadingClass.contains("eclipse") ? "Azure Toolkit for Eclipse " : "Azure HDInsight RxJava SDK ");
         String requestId = UUID.randomUUID().toString();
 
         if (isMapToInstallID) {
