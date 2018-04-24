@@ -109,7 +109,7 @@ public class Statement {
     }
 
     @Nullable
-    public String getUserAgent(Boolean isMapToInstallID) {
+    public String getUserAgent(boolean isMapToInstallID) {
         return getSession().getUserAgent(isMapToInstallID);
     }
 

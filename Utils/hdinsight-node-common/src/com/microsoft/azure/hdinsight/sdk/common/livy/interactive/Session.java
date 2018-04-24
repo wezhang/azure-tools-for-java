@@ -206,7 +206,7 @@ public abstract class Session implements AutoCloseable, Closeable {
     }
 
     @Nullable
-    public String getUserAgent(Boolean isMapToInstallID) {
+    public String getUserAgent(boolean isMapToInstallID) {
         String originUa = getHttp().getUserAgent();
 
         if (originUa == null) {
