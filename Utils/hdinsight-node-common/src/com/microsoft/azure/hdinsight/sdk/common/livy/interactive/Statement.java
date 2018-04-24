@@ -108,7 +108,7 @@ public class Statement {
         return getSession().getHttp();
     }
 
-    @NotNull
+    @Nullable
     public String getUserAgent(Boolean isMapToInstallID) {
         return getSession().getUserAgent(isMapToInstallID);
     }
