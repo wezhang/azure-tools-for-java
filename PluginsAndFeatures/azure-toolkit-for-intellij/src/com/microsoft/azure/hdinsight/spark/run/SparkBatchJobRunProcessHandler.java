@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.spark.run;
 
+import com.intellij.execution.process.ProcessAdapter;
+import com.intellij.execution.process.ProcessEvent;
 import com.intellij.remote.ColoredRemoteProcessHandler;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import org.jetbrains.annotations.NotNull;
@@ -35,6 +37,20 @@ public class SparkBatchJobRunProcessHandler extends ColoredRemoteProcessHandler<
                                             implements SparkBatchJobProcessCtrlLogOut {
     public SparkBatchJobRunProcessHandler(@NotNull SparkBatchJobRemoteProcess process, String commandLine, @Nullable Charset charset) {
         super(new SparkBatchJobProcessAdapter(process), commandLine, charset);
+
+        super.addProcessListener(new ProcessAdapter() {
+            @Override
+            public void processWillTerminate(@NotNull ProcessEvent event, boolean willBeDestroyed) {
+                if (willBeDestroyed) {
+                    // Kill the Spark Batch Job
+                    process.destroy();
+                } else {
+                    // Just detach
+                    process.disconnect();
+                }
+                super.processWillTerminate(event, willBeDestroyed);
+            }
+        });
     }
 
     @NotNull
