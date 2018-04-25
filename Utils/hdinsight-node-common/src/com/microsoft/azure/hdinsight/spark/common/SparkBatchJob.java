@@ -665,6 +665,13 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     }
 
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
+        // Those lines are carried per response,
+        // if there is no value followed, the line should not be sent to console
+        final Set<String> ignoredEmptyLines = new HashSet<>(Arrays.asList(
+                "stdout:",
+                "stderr:",
+                "yarn diagnostics:"));
+
         return Observable.create(ob -> {
             try {
                 int start = 0;
@@ -685,7 +692,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                                     "Bad spark log response: " + httpResponse.getMessage()));
 
                     // To subscriber
-                    sparkJobLog.getLog().forEach(line -> ob.onNext(new SimpleImmutableEntry<>(Log, line)));
+                    sparkJobLog.getLog().stream()
+                            .filter(line -> !ignoredEmptyLines.contains(line.trim().toLowerCase()))
+                            .forEach(line -> ob.onNext(new SimpleImmutableEntry<>(Log, line)));
 
                     linesGot = sparkJobLog.getLog().size();
                     start += linesGot;
