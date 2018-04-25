@@ -25,12 +25,15 @@ import com.microsoft.azure.hdinsight.spark.common.MockHttpService;
 import cucumber.api.java.Before;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
+import rx.Observable;
 import rx.Subscription;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Thread.sleep;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -50,29 +53,20 @@ public class JobUtilsScenario {
 
     @Then("^Yarn log observable from '(.*)' should produce events:$")
     public void checkYarnLogObservable(String logUrl, List<String> logs) throws Throwable {
-        Object lock = new Object();
-        Iterator logIterExpect = logs.iterator();
+        List<String> logsGot = JobUtils.createYarnLogObservable(null, null, httpServerMock.completeUrl(logUrl), "stderr", 10)
+                .takeUntil(line -> line.isEmpty())
+                .filter(line -> !line.isEmpty())
+                .toList()
+                .toBlocking()
+                .singleOrDefault(null);
 
-        Subscription sub = JobUtils.createYarnLogObservable(null, null, httpServerMock.completeUrl(logUrl), "stderr", 10)
-                .subscribe((line) -> {
-                    String logExpect = logIterExpect.next().toString();
-                    assertEquals(logExpect, line);
-                }, err -> {
-                    assertTrue(err.getMessage(), false);
-                }, () -> {
-                    synchronized (lock) {
-                        lock.notify();
-                    }
-                });
+        assertTrue("There are unmatched requests. All requests (reversed) are: \n" +
+                        httpServerMock.getLivyServerMock().getAllServeEvents().stream()
+                            .map(event -> event.getRequest().getUrl())
+                            .reduce("", (a, b) -> a + "\n" + b),
+                httpServerMock.getLivyServerMock().findAllUnmatchedRequests().isEmpty());
 
-        sleep((logs.size() + 2) * 1000);
+        assertThat(logsGot).containsExactlyElementsOf(logs);
 
-        sub.unsubscribe();
-
-        synchronized (lock) {
-            lock.wait(2000);
-        }
-
-        assertFalse("The expected list shouldn't have unmatched items.", logIterExpect.hasNext());
     }
 }
