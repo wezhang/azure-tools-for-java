@@ -260,6 +260,7 @@ public class JobUtils {
 
             HashMap<String, String> logTypeMap = new HashMap<>();
             final AtomicReference<String> logType = new AtomicReference<>();
+            String logs = "";
 
             while (iterator.hasNext()) {
                 DomElement node = iterator.next();
@@ -277,19 +278,20 @@ public class JobUtils {
                             .ifPresent(logType::set);
                 } else if (node instanceof HtmlPreformattedText) {
                     // In running, no log type paragraph in page
+                    logs = Optional.ofNullable(node.getFirstChild())
+                                .map(DomNode::getTextContent)
+                                .orElse("");
 
                     if (logType.get() != null) {
                         // Only get the first <pre>...</pre>
-                        logTypeMap.put(logType.get(), Optional.ofNullable(node.getFirstChild())
-                                .map(DomNode::getTextContent)
-                                .orElse(""));
+                        logTypeMap.put(logType.get(), logs);
 
                         logType.set(null);
                     }
                 }
             }
 
-            return logTypeMap.getOrDefault(type, "");
+            return logTypeMap.getOrDefault(type, logs);
         } catch (FailingHttpStatusCodeException httpError) {
             // If the URL is wrong, will get 200 response with content:
             //      Unable to locate 'xxx' log for container
@@ -306,7 +308,7 @@ public class JobUtils {
         } catch (URISyntaxException e) {
             LOGGER.error("baseUrl has syntax error: " + baseUrl);
         } catch (Exception e) {
-            LOGGER.error("get Spark job log Error", e);
+            LOGGER.warn("get Spark job log Error", e);
         }
         return "";
     }
