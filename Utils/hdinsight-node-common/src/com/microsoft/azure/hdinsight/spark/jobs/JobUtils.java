@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.spark.jobs;
 
 import com.gargoylesoftware.htmlunit.BrowserVersion;
 import com.gargoylesoftware.htmlunit.Cache;
+import com.gargoylesoftware.htmlunit.FailingHttpStatusCodeException;
 import com.gargoylesoftware.htmlunit.WebClient;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.google.gson.Gson;
@@ -247,10 +248,12 @@ public class JobUtils {
             HTTP_WEB_CLIENT.setCredentialsProvider(credentialsProvider);
         }
 
+        URI url = null;
+
         try {
-            URI url = new URI(baseUrl + "/").resolve(
+            url = new URI(baseUrl + "/").resolve(
                     String.format("%s?start=%d", type, start) +
-                        (size <= 0 ? "" : String.format("&&end=%d", start + size)));
+                            (size <= 0 ? "" : String.format("&&end=%d", start + size)));
             HtmlPage htmlPage = HTTP_WEB_CLIENT.getPage(url.toString());
 
             Iterator<DomElement> iterator = htmlPage.getElementById("navcell").getNextElementSibling().getChildElements().iterator();
@@ -274,18 +277,32 @@ public class JobUtils {
                             .ifPresent(logType::set);
                 } else if (node instanceof HtmlPreformattedText) {
                     // In running, no log type paragraph in page
-                    String typ = Optional.ofNullable(logType.get()).orElse(type);
 
-                    // Only get the first <pre>...</pre>
-                    if (!logTypeMap.containsKey(typ)) {
-                        logTypeMap.put(typ, Optional.ofNullable(node.getFirstChild())
+                    if (logType.get() != null) {
+                        // Only get the first <pre>...</pre>
+                        logTypeMap.put(logType.get(), Optional.ofNullable(node.getFirstChild())
                                 .map(DomNode::getTextContent)
                                 .orElse(""));
+
+                        logType.set(null);
                     }
                 }
             }
 
             return logTypeMap.getOrDefault(type, "");
+        } catch (FailingHttpStatusCodeException httpError) {
+            // If the URL is wrong, will get 200 response with content:
+            //      Unable to locate 'xxx' log for container
+            //  OR
+            //      Logs not available for <user>. Aggregation may not be complete, Check back later or try the nodemanager at...
+            //  OR
+            //      Cannot get container logs without ...
+            //
+            // if fetching Yarn log hits the gap between the job running and stop, will get the status 403
+            // the log is moving to job history server, just wait and retry.
+            if (httpError.getStatusCode() != HttpStatus.SC_FORBIDDEN) {
+                LOGGER.warn("The GET request to " + url + " responded error: " + httpError.getMessage());
+            }
         } catch (URISyntaxException e) {
             LOGGER.error("baseUrl has syntax error: " + baseUrl);
         } catch (Exception e) {
