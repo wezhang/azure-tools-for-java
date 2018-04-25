@@ -667,7 +667,7 @@ public class JobUtils {
         SparkBatchSubmission submission = SparkBatchSubmission.getInstance();
         submission.setCredentialsProvider(clusterDetail.getHttpUserName(), clusterDetail.getHttpPassword());
         String livyUrl = URI.create(ClusterManagerEx.getInstance().getClusterConnectionString(clusterDetail.getName()))
-                .resolve("/livy/")
+                .resolve("/livy/batches")
                 .toString();
         com.microsoft.azure.hdinsight.sdk.common.HttpResponse response = submission.getHttpResponseViaHead(livyUrl);
 
