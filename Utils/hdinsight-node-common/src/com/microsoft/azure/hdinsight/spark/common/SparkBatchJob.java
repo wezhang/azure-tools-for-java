@@ -750,11 +750,11 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     public Observable<SimpleImmutableEntry<SparkBatchJobState, String>> getJobDoneObservable() {
         return Observable.create((Subscriber<? super SimpleImmutableEntry<SparkBatchJobState, String>> ob) -> {
             try {
-                boolean isJobActive = true;
+                boolean isJobActive;
                 SparkBatchJobState state = SparkBatchJobState.NOT_STARTED;
                 String diagnostics = "";
 
-                while (isJobActive) {
+                do {
                     HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
                             this.getConnectUri().toString(), batchId);
 
@@ -768,17 +768,20 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         diagnostics = String.join("\n", jobResp.getLog());
 
                         isJobActive = !state.isJobDone();
+                    } else {
+                        isJobActive = false;
                     }
+
 
                     // Retry interval
                     sleep(1000);
-                }
+                } while (isJobActive);
 
                 ob.onNext(new SimpleImmutableEntry<>(state, diagnostics));
+                ob.onCompleted();
             } catch (IOException ex) {
                 ob.onError(ex);
             } catch (InterruptedException ignored) {
-            } finally {
                 ob.onCompleted();
             }
         });
