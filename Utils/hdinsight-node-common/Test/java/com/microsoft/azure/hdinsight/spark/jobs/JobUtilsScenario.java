@@ -25,17 +25,10 @@ import com.microsoft.azure.hdinsight.spark.common.MockHttpService;
 import cucumber.api.java.Before;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
-import rx.Observable;
-import rx.Subscription;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import static java.lang.Thread.sleep;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class JobUtilsScenario {
@@ -68,5 +61,18 @@ public class JobUtilsScenario {
 
         assertThat(logsGot).containsExactlyElementsOf(logs);
 
+    }
+
+    @Then("^get YarnUI log '(.+)' from '(.+)' should return '(.*)'$")
+    public void checkGetYarnUILogType(String type, String logUrl, String expect) throws Throwable {
+        String actual = JobUtils.getInformationFromYarnLogDom(null, httpServerMock.completeUrl(logUrl), type, 0, -1);
+
+        assertTrue("There are unmatched requests. All requests (reversed) are: \n" +
+                        httpServerMock.getLivyServerMock().getAllServeEvents().stream()
+                                .map(event -> event.getRequest().getUrl())
+                                .reduce("", (a, b) -> a + "\n" + b),
+                httpServerMock.getLivyServerMock().findAllUnmatchedRequests().isEmpty());
+
+        assertThat(actual).isEqualTo(expect);
     }
 }
