@@ -159,13 +159,10 @@ public class AuthMethodManager {
     }
 
     private void cleanAll() throws IOException {
-        AzureManager localAzureManagerRef = azureManager;
-
-        if (localAzureManagerRef != null) {
+        if (azureManager != null) {
             synchronized (this) {
-                localAzureManagerRef = azureManager;
-                if (localAzureManagerRef != null) {
-                    localAzureManagerRef.getSubscriptionManager().cleanSubscriptions();
+                if (azureManager != null) {
+                    azureManager.getSubscriptionManager().cleanSubscriptions();
                     azureManager = null;
                 }
             }
