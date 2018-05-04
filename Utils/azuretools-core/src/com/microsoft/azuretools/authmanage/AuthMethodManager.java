@@ -119,7 +119,8 @@ public class AuthMethodManager {
         switch (authMethod) {
             case AD:
                 if (StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail()) ||
-                        !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails)) {
+                        (!AdAuthManager.getInstance().isSignedIn() &&
+                                !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
                     return null;
                 }
                 azureManager = new AccessTokenAzureManager();
