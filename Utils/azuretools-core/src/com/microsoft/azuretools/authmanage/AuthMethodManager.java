@@ -52,21 +52,21 @@ public class AuthMethodManager {
             + "Please check if you have already signed in.";
     private static final String CANNOT_GET_AZURE_BY_SID = "Cannot get Azure with Subscription ID: %s. "
             + "Please check if you have already signed in with this Subscription.";
-    private static AuthMethodManager instance = null;
     private AuthMethodDetails authMethodDetails = null;
     private AzureManager azureManager;
     private Set<Runnable> signInEventListeners = new HashSet<>();
     private Set<Runnable> signOutEventListeners = new HashSet<>();
 
-    private AuthMethodManager() throws IOException {
+    private AuthMethodManager() {
         loadSettings();
     }
 
-    public static AuthMethodManager getInstance() throws IOException {
-        if (instance == null) {
-            instance = new AuthMethodManager();
-        }
-        return instance;
+    private static class LazyHolder {
+        static final AuthMethodManager INSTANCE = new AuthMethodManager();
+    }
+
+    public static AuthMethodManager getInstance() {
+        return LazyHolder.INSTANCE;
     }
 
     public Azure getAzureClient(String sid) throws IOException {
@@ -177,17 +177,22 @@ public class AuthMethodManager {
         //if (isSignedIn()) notifySignInEventListener();
     }
 
-    private void loadSettings() throws IOException {
+    private void loadSettings() {
         System.out.println("loading authMethodDetails...");
-        FileStorage fs = new FileStorage(CommonSettings.authMethodDetailsFileName, CommonSettings.getSettingsBaseDir());
-        byte[] data = fs.read();
-        String json = new String(data);
-        if (json.isEmpty()) {
-            System.out.println(CommonSettings.authMethodDetailsFileName + "file is empty");
+        try {
+            FileStorage fs = new FileStorage(CommonSettings.authMethodDetailsFileName, CommonSettings.getSettingsBaseDir());
+            byte[] data = fs.read();
+            String json = new String(data);
+            if (json.isEmpty()) {
+                System.out.println(CommonSettings.authMethodDetailsFileName + "file is empty");
+                authMethodDetails = new AuthMethodDetails();
+                return;
+            }
+            authMethodDetails = JsonHelper.deserialize(AuthMethodDetails.class, json);
+        } catch (IOException ignored) {
+            System.out.println("Failed to loading authMethodDetails settings. Use defaults.");
             authMethodDetails = new AuthMethodDetails();
-            return;
         }
-        authMethodDetails = JsonHelper.deserialize(AuthMethodDetails.class, json);
     }
 
     private void saveSettings() throws IOException {

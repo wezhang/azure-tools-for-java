@@ -141,12 +141,8 @@ public class AzureActionsComponent implements ApplicationComponent, PluginCompon
             AzureWebAppMvpModel.getInstance().cleanWebAppsOnLinux();
             AzureWebAppMvpModel.getInstance().cleanWebApps();
         };
-        try {
-            AuthMethodManager.getInstance().addSignOutEventListener(forceCleanWebAppsAction);
-        } catch (IOException e) {
-            e.printStackTrace();
-            LOG.error("loadWebApps()", e);
-        }
+
+        AuthMethodManager.getInstance().addSignOutEventListener(forceCleanWebAppsAction);
     }
 
     private void initLoggerFileHandler() {
