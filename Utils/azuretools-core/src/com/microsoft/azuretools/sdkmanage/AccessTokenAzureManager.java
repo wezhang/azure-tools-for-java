@@ -34,6 +34,7 @@ import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.RefreshableTokenCredentials;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
+import com.microsoft.azuretools.authmanage.SubscriptionManagerPersist;
 import com.microsoft.azuretools.telemetry.TelemetryInterceptor;
 import com.microsoft.azuretools.utils.AzureRegisterProviderNamespaces;
 import com.microsoft.azuretools.utils.Pair;
@@ -49,7 +50,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     private final SubscriptionManager subscriptionManager;
 
     public AccessTokenAzureManager() {
-        this.subscriptionManager = new SubscriptionManager(this);
+        this.subscriptionManager = new SubscriptionManagerPersist(this);
     }
 
     @Override
