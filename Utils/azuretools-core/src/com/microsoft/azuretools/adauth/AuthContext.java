@@ -87,6 +87,19 @@ public class AuthContext {
     }
 
     /**
+     * Get token from last authentication result
+     *
+     * @param lastResult last authentication result
+     * @return authentication result with updated tokens
+     * @throws AuthException exception during getting token
+     */
+    public AuthResult acquireToken(@NotNull AuthResult lastResult) throws AuthException {
+        driver.createAddEntry(lastResult, null);
+
+        return acquireToken(lastResult.getResource(), false, lastResult.getUserId(), lastResult.isMultipleResourceRefreshToken());
+    }
+
+    /**
      * Get token for resource and user.
      * @param resource String resource url.
      * @param newAuthCode String need to get new auth code.
