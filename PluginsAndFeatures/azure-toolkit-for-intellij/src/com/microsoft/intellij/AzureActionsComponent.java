@@ -37,10 +37,13 @@ import com.microsoft.azuretools.core.mvp.ui.base.AppSchedulerProvider;
 import com.microsoft.azuretools.core.mvp.ui.base.MvpUIHelperFactory;
 import com.microsoft.azuretools.core.mvp.ui.base.SchedulerProviderFactory;
 import com.microsoft.azuretools.ijidea.ui.UIFactory;
+import com.microsoft.azuretools.securestore.SecureStore;
+import com.microsoft.azuretools.service.ServiceManager;
 import com.microsoft.intellij.common.CommonConst;
 import com.microsoft.intellij.helpers.IDEHelperImpl;
 import com.microsoft.intellij.helpers.MvpUIHelperImpl;
 import com.microsoft.intellij.helpers.UIHelperImpl;
+import com.microsoft.intellij.secure.IdeaSecureStore;
 import com.microsoft.intellij.serviceexplorer.NodeActionsMap;
 import com.microsoft.intellij.ui.messages.AzureBundle;
 import com.microsoft.intellij.util.PluginUtil;
@@ -94,6 +97,7 @@ public class AzureActionsComponent implements ApplicationComponent, PluginCompon
 
     public void initComponent() {
         if (!AzurePlugin.IS_ANDROID_STUDIO) {
+            ServiceManager.setServiceProvider(SecureStore.class, IdeaSecureStore.getInstance());
             initAuthManage();
             ActionManager am = ActionManager.getInstance();
             DefaultActionGroup toolbarGroup = (DefaultActionGroup) am.getAction(IdeActions.GROUP_MAIN_TOOLBAR);
