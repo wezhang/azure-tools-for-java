@@ -53,7 +53,7 @@ public class AuthMethodManager {
     private static final String CANNOT_GET_AZURE_BY_SID = "Cannot get Azure with Subscription ID: %s. "
             + "Please check if you have already signed in with this Subscription.";
     private AuthMethodDetails authMethodDetails = null;
-    private AzureManager azureManager;
+    private volatile AzureManager azureManager;
     private Set<Runnable> signInEventListeners = new HashSet<>();
     private Set<Runnable> signOutEventListeners = new HashSet<>();
 
@@ -70,10 +70,10 @@ public class AuthMethodManager {
     }
 
     public Azure getAzureClient(String sid) throws IOException {
-        if (azureManager == null) {
+        if (getAzureManager() == null) {
             throw new IOException(CANNOT_GET_AZURE_MANAGER);
         }
-        Azure azure = azureManager.getAzure(sid);
+        Azure azure = getAzureManager().getAzure(sid);
         if (azure == null) {
             throw new IOException(String.format(CANNOT_GET_AZURE_BY_SID, sid));
         }
@@ -115,31 +115,42 @@ public class AuthMethodManager {
     }
 
     private AzureManager getAzureManager(AuthMethod authMethod) throws IOException {
-        if (azureManager != null) return azureManager;
-        switch (authMethod) {
-            case AD:
-                if (StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail()) ||
-                        (!AdAuthManager.getInstance().isSignedIn() &&
-                                !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
-                    return null;
+        AzureManager localAzureManagerRef = azureManager;
+
+        if (localAzureManagerRef == null) {
+            synchronized (this) {
+                localAzureManagerRef = azureManager;
+                if (localAzureManagerRef == null) {
+                    switch (authMethod) {
+                        case AD:
+                            if (StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail()) ||
+                                    (!AdAuthManager.getInstance().isSignedIn() &&
+                                            !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
+                                return null;
+                            }
+                            localAzureManagerRef = new AccessTokenAzureManager();
+                            break;
+                        case SP:
+                            String credFilePath = authMethodDetails.getCredFilePath();
+                            if (StringUtils.isNullOrEmpty(credFilePath)) {
+                                return null;
+                            }
+                            Path filePath = Paths.get(credFilePath);
+                            if (!Files.exists(filePath)) {
+                                cleanAll();
+                                INotification nw = CommonSettings.getUiFactory().getNotificationWindow();
+                                nw.deliver("Credential File Error", "File doesn't exist: " + filePath.toString());
+                                return null;
+                            }
+                            localAzureManagerRef = new ServicePrincipalAzureManager(new File(credFilePath));
+                    }
+
+                    azureManager = localAzureManagerRef;
                 }
-                azureManager = new AccessTokenAzureManager();
-                break;
-            case SP:
-                String credFilePath = authMethodDetails.getCredFilePath();
-                if (StringUtils.isNullOrEmpty(credFilePath)) {
-                    return null;
-                }
-                Path filePath = Paths.get(credFilePath);
-                if (!Files.exists(filePath)) {
-                    cleanAll();
-                    INotification nw = CommonSettings.getUiFactory().getNotificationWindow();
-                    nw.deliver("Credential File Error", "File doesn't exist: " + filePath.toString());
-                    return null;
-                }
-                azureManager = new ServicePrincipalAzureManager(new File(credFilePath));
+            }
         }
-        return azureManager;
+
+        return localAzureManagerRef;
     }
 
     public void signOut() throws IOException {
@@ -148,10 +159,18 @@ public class AuthMethodManager {
     }
 
     private void cleanAll() throws IOException {
-        if (azureManager != null) {
-            azureManager.getSubscriptionManager().cleanSubscriptions();
-            azureManager = null;
+        AzureManager localAzureManagerRef = azureManager;
+
+        if (localAzureManagerRef != null) {
+            synchronized (this) {
+                localAzureManagerRef = azureManager;
+                if (localAzureManagerRef != null) {
+                    localAzureManagerRef.getSubscriptionManager().cleanSubscriptions();
+                    azureManager = null;
+                }
+            }
         }
+
         ServicePrincipalAzureManager.cleanPersist();
         authMethodDetails.setAccountEmail(null);
         authMethodDetails.setCredFilePath(null);
