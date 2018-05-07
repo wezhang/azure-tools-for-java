@@ -23,18 +23,22 @@
 package com.microsoft.azuretools.adauth;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import org.codehaus.jackson.annotate.JsonProperty;
 
 import java.util.Date;
 
 public class AuthResult {
     private final String accessTokenType;
     private final long expiresIn;
+    @JsonProperty("expiresOnDate")
     private final Date expiresOn;
     private UserInfo userInfo;
     private String userId;
+    @JsonProperty("userIdDisplayble")
     private boolean isDisplaybaleUserId;
     private final String accessToken;
     private String refreshToken;
+    @JsonProperty("multipleResourceRefreshToken")
     private final boolean isMultipleResourceRefreshToken;
     private String resource;
 
@@ -47,10 +51,12 @@ public class AuthResult {
      * @param userInfo UserInfo userInfo.
      * @param resource String resource.
      */
-    public AuthResult(final String accessTokenType,
-            final String accessToken, final String refreshToken,
-            final long expiresIn, final UserInfo userInfo,
-            final String resource) {
+    public AuthResult(@JsonProperty("accessTokenType") final String accessTokenType,
+                      @JsonProperty("accessToken") final String accessToken,
+                      @JsonProperty("refreshToken") final String refreshToken,
+                      @JsonProperty("expiresAfter") final long expiresIn,
+                      @JsonProperty("userInfo") final UserInfo userInfo,
+                      @JsonProperty("resource") final String resource) {
         this.accessTokenType = accessTokenType;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;

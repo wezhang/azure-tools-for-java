@@ -52,28 +52,28 @@ public class AuthMethodManager {
             + "Please check if you have already signed in.";
     private static final String CANNOT_GET_AZURE_BY_SID = "Cannot get Azure with Subscription ID: %s. "
             + "Please check if you have already signed in with this Subscription.";
-    private static AuthMethodManager instance = null;
     private AuthMethodDetails authMethodDetails = null;
-    private AzureManager azureManager;
+    private volatile AzureManager azureManager;
     private Set<Runnable> signInEventListeners = new HashSet<>();
     private Set<Runnable> signOutEventListeners = new HashSet<>();
 
-    private AuthMethodManager() throws IOException {
+    private AuthMethodManager() {
         loadSettings();
     }
 
-    public static AuthMethodManager getInstance() throws IOException {
-        if (instance == null) {
-            instance = new AuthMethodManager();
-        }
-        return instance;
+    private static class LazyHolder {
+        static final AuthMethodManager INSTANCE = new AuthMethodManager();
+    }
+
+    public static AuthMethodManager getInstance() {
+        return LazyHolder.INSTANCE;
     }
 
     public Azure getAzureClient(String sid) throws IOException {
-        if (azureManager == null) {
+        if (getAzureManager() == null) {
             throw new IOException(CANNOT_GET_AZURE_MANAGER);
         }
-        Azure azure = azureManager.getAzure(sid);
+        Azure azure = getAzureManager().getAzure(sid);
         if (azure == null) {
             throw new IOException(String.format(CANNOT_GET_AZURE_BY_SID, sid));
         }
@@ -115,29 +115,42 @@ public class AuthMethodManager {
     }
 
     private AzureManager getAzureManager(AuthMethod authMethod) throws IOException {
-        if (azureManager != null) return azureManager;
-        switch (authMethod) {
-            case AD:
-                if (StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail())) {
-                    return null;
+        AzureManager localAzureManagerRef = azureManager;
+
+        if (localAzureManagerRef == null) {
+            synchronized (this) {
+                localAzureManagerRef = azureManager;
+                if (localAzureManagerRef == null) {
+                    switch (authMethod) {
+                        case AD:
+                            if (StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail()) ||
+                                    (!AdAuthManager.getInstance().isSignedIn() &&
+                                            !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
+                                return null;
+                            }
+                            localAzureManagerRef = new AccessTokenAzureManager();
+                            break;
+                        case SP:
+                            String credFilePath = authMethodDetails.getCredFilePath();
+                            if (StringUtils.isNullOrEmpty(credFilePath)) {
+                                return null;
+                            }
+                            Path filePath = Paths.get(credFilePath);
+                            if (!Files.exists(filePath)) {
+                                cleanAll();
+                                INotification nw = CommonSettings.getUiFactory().getNotificationWindow();
+                                nw.deliver("Credential File Error", "File doesn't exist: " + filePath.toString());
+                                return null;
+                            }
+                            localAzureManagerRef = new ServicePrincipalAzureManager(new File(credFilePath));
+                    }
+
+                    azureManager = localAzureManagerRef;
                 }
-                azureManager = new AccessTokenAzureManager();
-                break;
-            case SP:
-                String credFilePath = authMethodDetails.getCredFilePath();
-                if (StringUtils.isNullOrEmpty(credFilePath)) {
-                    return null;
-                }
-                Path filePath = Paths.get(credFilePath);
-                if (!Files.exists(filePath)) {
-                    cleanAll();
-                    INotification nw = CommonSettings.getUiFactory().getNotificationWindow();
-                    nw.deliver("Credential File Error", "File doesn't exist: " + filePath.toString());
-                    return null;
-                }
-                azureManager = new ServicePrincipalAzureManager(new File(credFilePath));
+            }
         }
-        return azureManager;
+
+        return localAzureManagerRef;
     }
 
     public void signOut() throws IOException {
@@ -147,9 +160,14 @@ public class AuthMethodManager {
 
     private void cleanAll() throws IOException {
         if (azureManager != null) {
-            azureManager.getSubscriptionManager().cleanSubscriptions();
-            azureManager = null;
+            synchronized (this) {
+                if (azureManager != null) {
+                    azureManager.getSubscriptionManager().cleanSubscriptions();
+                    azureManager = null;
+                }
+            }
         }
+
         ServicePrincipalAzureManager.cleanPersist();
         authMethodDetails.setAccountEmail(null);
         authMethodDetails.setCredFilePath(null);
@@ -175,17 +193,22 @@ public class AuthMethodManager {
         //if (isSignedIn()) notifySignInEventListener();
     }
 
-    private void loadSettings() throws IOException {
+    private void loadSettings() {
         System.out.println("loading authMethodDetails...");
-        FileStorage fs = new FileStorage(CommonSettings.authMethodDetailsFileName, CommonSettings.getSettingsBaseDir());
-        byte[] data = fs.read();
-        String json = new String(data);
-        if (json.isEmpty()) {
-            System.out.println(CommonSettings.authMethodDetailsFileName + "file is empty");
+        try {
+            FileStorage fs = new FileStorage(CommonSettings.authMethodDetailsFileName, CommonSettings.getSettingsBaseDir());
+            byte[] data = fs.read();
+            String json = new String(data);
+            if (json.isEmpty()) {
+                System.out.println(CommonSettings.authMethodDetailsFileName + "file is empty");
+                authMethodDetails = new AuthMethodDetails();
+                return;
+            }
+            authMethodDetails = JsonHelper.deserialize(AuthMethodDetails.class, json);
+        } catch (IOException ignored) {
+            System.out.println("Failed to loading authMethodDetails settings. Use defaults.");
             authMethodDetails = new AuthMethodDetails();
-            return;
         }
-        authMethodDetails = JsonHelper.deserialize(AuthMethodDetails.class, json);
     }
 
     private void saveSettings() throws IOException {

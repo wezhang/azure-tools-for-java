@@ -26,16 +26,14 @@ import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.management.resources.Tenant;
 import com.microsoft.azuretools.Constants;
-import com.microsoft.azuretools.adauth.AuthContext;
-import com.microsoft.azuretools.adauth.AuthError;
-import com.microsoft.azuretools.adauth.AuthException;
-import com.microsoft.azuretools.adauth.AuthResult;
-import com.microsoft.azuretools.adauth.IWebUi;
-import com.microsoft.azuretools.adauth.PromptBehavior;
-import com.microsoft.azuretools.adauth.StringUtils;
+import com.microsoft.azuretools.adauth.*;
 import com.microsoft.azuretools.authmanage.models.AdAuthDetails;
+import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AccessTokenAzureManager;
+import com.microsoft.azuretools.securestore.SecureStore;
+import com.microsoft.azuretools.service.ServiceManager;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -50,7 +48,14 @@ public class AdAuthManager {
     private IWebUi webUi;
     private AzureEnvironment env;
     private AdAuthDetails adAuthDetails;
+
+    @Nullable
+    final private SecureStore secureStore;
+
     private static AdAuthManager instance = null;
+    private static final String COMMON_TID = "common";  // Common Tenant ID
+    private static final String SECURE_STORE_SERVICE = "ADAuthManager";
+    private static final String SECURE_STORE_KEY = "cachedAuthResult";
 
     private static final String AUTHORIZATIONREQUIRED = "Authorization is required, please sign out and sign in again";
 
@@ -95,25 +100,72 @@ public class AdAuthManager {
     }
 
     /**
+     * Try to sign in with persisted authentication result.
+     *
+     * @param authMethodDetails The authentication method detail for helping
+     * @return true for success
+     */
+    public synchronized boolean tryRestoreSignIn(@NotNull AuthMethodDetails authMethodDetails) {
+        if (secureStore == null) {
+            return false;
+        }
+
+        AdAuthDetails originAdAuthDetails = adAuthDetails;
+
+        adAuthDetails = new AdAuthDetails();
+        adAuthDetails.setAccountEmail(authMethodDetails.getAccountEmail());
+
+        try {
+            // Try to restore
+            signIn(loadFromSecureStore());
+
+            return true;
+        } catch (Exception ignored) {
+            LOGGER.info("The cached token is expired, can't restore it.");
+            cleanCache();
+        }
+
+        adAuthDetails = originAdAuthDetails;
+        return false;
+    }
+
+    /**
      * Sign in azure account.
      * @return AuthResult, auth result.
      * @throws IOException thrown when failed to get auth result.
      */
     public AuthResult signIn() throws IOException {
+        return signIn(null);
+    }
+
+    /**
+     * Sign in azure account with saved authentication result.
+     *
+     * @param savedAuth saved authentication result, null for signing in from scratch
+     * @return AuthResult, auth result.
+     * @throws IOException thrown when failed to get auth result.
+     */
+    public AuthResult signIn(@Nullable AuthResult savedAuth) throws IOException {
 
         // build token cache for azure and graph api
         // using azure sdk directly
 
-        cleanCache();
-        String commonTid = "common";
-        AuthContext ac = createContext(commonTid, null);
-        AuthResult result = ac.acquireToken(env.managementEndpoint(), true, null, false);
+        AuthResult result;
+
+        if (savedAuth == null) {
+            cleanCache();
+            AuthContext ac = createContext(COMMON_TID, null);
+            result = ac.acquireToken(env.managementEndpoint(), true, null, false);
+        } else {
+            result = savedAuth;
+        }
+
         String userId = result.getUserId();
         boolean isDisplayable = result.isUserIdDisplayble();
 
         Map<String, List<String>> tidToSidsMap = new HashMap<>();
 
-        List<Tenant> tenants = AccessTokenAzureManager.getTenants(commonTid);
+        List<Tenant> tenants = AccessTokenAzureManager.getTenants(COMMON_TID);
         for (Tenant t : tenants) {
             String tid = t.tenantId();
             AuthContext ac1 = createContext(tid, null);
@@ -142,6 +194,8 @@ public class AdAuthManager {
         adAuthDetails.setAccountEmail(userId);
         adAuthDetails.setTidToSidsMap(tidToSidsMap);
 
+        saveToSecureStore(result);
+
         return result;
     }
 
@@ -166,6 +220,50 @@ public class AdAuthManager {
         return adAuthDetails.getAccountEmail();
     }
 
+    @Nullable
+    private AuthResult loadFromSecureStore() {
+        if (secureStore == null) {
+            return null;
+        }
+
+        String authJson = secureStore.loadPassword(SECURE_STORE_SERVICE, SECURE_STORE_KEY);
+
+        if (authJson != null) {
+            try {
+                AuthResult savedAuth = JsonHelper.deserialize(AuthResult.class, authJson);
+
+                if (!savedAuth.getUserId().equals(adAuthDetails.getAccountEmail())) {
+                    return null;
+                }
+
+                AuthContext ac = createContext(COMMON_TID, null);
+                AuthResult updatedAuth = ac.acquireToken(savedAuth);
+
+                saveToSecureStore(updatedAuth);
+
+                return updatedAuth;
+            } catch (IOException e) {
+                LOGGER.warning("Can't restore the authentication cache: " + e.getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    private void saveToSecureStore(@Nullable AuthResult authResult) {
+        if (secureStore == null) {
+            return;
+        }
+
+        try {
+            String authJson = JsonHelper.serialize(authResult);
+
+            secureStore.savePassword(SECURE_STORE_SERVICE, SECURE_STORE_KEY, authJson);
+        } catch (IOException e) {
+            LOGGER.warning("Can't persistent the authentication cache: " + e.getMessage());
+        }
+    }
+
     private AuthContext createContext(@NotNull final String tid, final UUID corrId) throws IOException {
         String authority = null;
         String endpoint = env.activeDirectoryEndpoint();
@@ -183,6 +281,10 @@ public class AdAuthManager {
     // logout
     private void cleanCache() {
         AuthContext.cleanTokenCache();
+        adAuthDetails = new AdAuthDetails();
+
+        // clear saved auth result
+        saveToSecureStore(null);
     }
 
     private AdAuthManager() throws IOException {
@@ -192,5 +294,7 @@ public class AdAuthManager {
         if (env == null) {
             throw new IOException("Azure environment is not setup");
         }
+
+        secureStore = ServiceManager.getServiceProvider(SecureStore.class);
     }
 }

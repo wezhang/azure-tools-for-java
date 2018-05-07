@@ -23,7 +23,6 @@
 package com.microsoft.azuretools.authmanage.models;
 
 import com.microsoft.azuretools.authmanage.interact.AuthMethod;
-import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.annotate.JsonIgnoreProperties;
 import org.codehaus.jackson.annotate.JsonProperty;
 
@@ -33,7 +32,7 @@ import org.codehaus.jackson.annotate.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AuthMethodDetails {
 
-    @JsonIgnore
+    @JsonProperty
     private String accountEmail;
 
     @JsonProperty
