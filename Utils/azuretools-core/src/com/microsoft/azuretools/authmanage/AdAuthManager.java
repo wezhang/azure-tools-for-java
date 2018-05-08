@@ -117,9 +117,13 @@ public class AdAuthManager {
 
         try {
             // Try to restore
-            signIn(loadFromSecureStore());
+            AuthResult savedAuth = loadFromSecureStore();
 
-            return true;
+            if (savedAuth != null) {
+                signIn(savedAuth);
+
+                return true;
+            }
         } catch (Exception ignored) {
             LOGGER.info("The cached token is expired, can't restore it.");
             cleanCache();
