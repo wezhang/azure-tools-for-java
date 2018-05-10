@@ -185,6 +185,11 @@ public class SparkBatchJobRemoteProcess extends Process {
     }
 
     @NotNull
+    public boolean isJobStarted(@NotNull SparkBatchJob job, SparkBatchJobState state) {
+        return state == SparkBatchJobState.RUNNING;
+    }
+
+    @NotNull
     private Observable<SparkBatchJob> awaitForJobStarted(@NotNull SparkBatchJob job) {
         return job.getStatus()
                 .map(status -> new SimpleImmutableEntry<>(
@@ -195,8 +200,8 @@ public class SparkBatchJobRemoteProcess extends Process {
                         .doOnNext(ignored -> logInfo("The Spark job is starting..."))
                         .delay(job.getDelaySeconds(), TimeUnit.SECONDS)
                 )
-                .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
-                .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
+                .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || isJobStarted(job, stateLogPair.getKey()))
+                .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || isJobStarted(job, stateLogPair.getKey()))
                 .flatMap(stateLogPair -> {
                     if (stateLogPair.getKey().isJobDone()) {
                         return Observable.error(
