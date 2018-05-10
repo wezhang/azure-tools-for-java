@@ -22,9 +22,18 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.tuple.Pair;
+import rx.Observable;
+import rx.Observer;
+import rx.functions.Action1;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.AbstractMap.SimpleImmutableEntry;
 
 public interface ISparkBatchJob {
     /**
@@ -32,54 +41,49 @@ public interface ISparkBatchJob {
      *
      * @return the instance of Spark Batch Job submission parameter
      */
-    public SparkSubmissionParameter getSubmissionParameter();
-
-    /**
-     * Getter of the Spark Batch Job submission for RestAPI transaction
-     *
-     * @return the Spark Batch Job submission
-     */
-    public SparkBatchSubmission getSubmission();
+//    public SparkSubmissionParameter getSubmissionParameter();
+//    @NotNull
+//    public <T> ISparkBatchJob setSubmissionConfig(String key, T value);
 
     /**
      * Getter of the base connection URI for HDInsight Spark Job service
      *
      * @return the base connection URI for HDInsight Spark Job service
      */
-    public URI getConnectUri();
+    URI getConnectUri();
 
     /**
      * Getter of the LIVY Spark batch job ID got from job submission
      *
      * @return the LIVY Spark batch job ID
      */
-    public int getBatchId();
+    int getBatchId();
 
     /**
      * Getter of the maximum retry count in RestAPI calling
      *
      * @return the maximum retry count in RestAPI calling
      */
-    public int getRetriesMax();
+    int getRetriesMax();
 
     /**
      * Setter of the maximum retry count in RestAPI calling
      * @param retriesMax the maximum retry count in RestAPI calling
      */
-    public void setRetriesMax(int retriesMax);
+    void setRetriesMax(int retriesMax);
 
     /**
      * Getter of the delay seconds between tries in RestAPI calling
      *
      * @return the delay seconds between tries in RestAPI calling
      */
-    public int getDelaySeconds();
+    int getDelaySeconds();
 
     /**
      * Setter of the delay seconds between tries in RestAPI calling
      * @param delaySeconds the delay seconds between tries in RestAPI calling
      */
-    public void setDelaySeconds(int delaySeconds);
+    void setDelaySeconds(int delaySeconds);
 
     /**
      * Create a batch Spark job with driver debugging enabled
@@ -87,7 +91,7 @@ public interface ISparkBatchJob {
      * @return the current instance for chain calling
      * @throws IOException the exceptions for networking connection issues related
      */
-    public ISparkBatchJob createBatchJob() throws IOException;
+    ISparkBatchJob createBatchJob() throws IOException;
 
     /**
      * Kill the batch job specified by ID
@@ -95,7 +99,7 @@ public interface ISparkBatchJob {
      * @return the current instance for chain calling
      * @throws IOException exceptions for networking connection issues related
      */
-    public ISparkBatchJob killBatchJob() throws IOException;
+    ISparkBatchJob killBatchJob() throws IOException;
 
     /**
      * Get Spark batch job driver host by ID
@@ -103,5 +107,29 @@ public interface ISparkBatchJob {
      * @return Spark driver node host
      * @throws IOException exceptions for the driver host not found
      */
-    public String getSparkDriverHost() throws IOException, URISyntaxException;
+    String getSparkDriverHost() throws IOException, URISyntaxException;
+
+    @NotNull
+    Observable<SimpleImmutableEntry<String, Long>> getDriverLog(@NotNull String type, long logOffset, int size);
+
+    @NotNull
+    Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog();
+
+    @NotNull
+    Observable<String> awaitStarted(@Nullable Action1<String> repeatInfo);
+
+    @NotNull
+    Observable<SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> awaitDone();
+
+    @NotNull
+    Observable<String> awaitPostDone();
+
+    @NotNull
+    Observer<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject();
+
+    @NotNull
+    Observable<SparkBatchJob> deploy(@NotNull String artifactPath);
+
+    @NotNull
+    Observable<SparkBatchJob> submit();
 }

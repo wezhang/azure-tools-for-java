@@ -48,11 +48,12 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
 
     public SparkBatchJobRemoteDebugProcess(@NotNull IdeSchedulers schedulers,
                                            @NotNull SparkBatchDebugSession debugSession,
-                                           @NotNull SparkSubmissionParameter submissionParameter,
+                                           @NotNull ISparkBatchDebugJob sparkDebugJob,
                                            @NotNull String artifactPath,
+                                           @NotNull String title,
                                            @NotNull SparkBatchRemoteDebugJobSshAuth authData,
                                            @NotNull PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
-        super(schedulers, submissionParameter, artifactPath, ctrlSubject);
+        super(schedulers, sparkDebugJob, artifactPath, title, ctrlSubject);
         this.debugSession = debugSession;
         this.authData = authData;
     }
@@ -63,22 +64,21 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
         return super.getTitle() + " driver";
     }
 
-    @Override
-    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
-        try {
-            // Create the Spark Job with special debug enabling parameters
-            return SparkBatchRemoteDebugJob.factory(
-                    URI.create(JobUtils.getLivyConnectionURL(cluster)).toString(),
-                    getSubmissionParameter(),
-                    SparkBatchSubmission.getInstance());
-        } catch (DebugParameterDefinedException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//    @Override
+//    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
+//        try {
+//            // Create the Spark Job with special debug enabling parameters
+//            return SparkBatchRemoteDebugJob.factory(
+//                    getSubmissionParameter(),
+//                    SparkBatchSubmission.getInstance());
+//        } catch (DebugParameterDefinedException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
 
     @Override
-    protected Observable<SimpleImmutableEntry<SparkBatchJobState, String>> awaitForJobDone(SparkBatchJob runningJob) {
+    Observable<SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> awaitForJobDone(ISparkBatchJob runningJob) {
         return createDebugSession((SparkBatchRemoteDebugJob) runningJob)
                 .subscribeOn(getSchedulers().processBarVisibleAsync("Create Spark batch job debug session"))
                 .flatMap(super::awaitForJobDone);

@@ -42,7 +42,9 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
+import rx.Observer;
 import rx.Subscriber;
+import rx.functions.Action1;
 
 import java.io.IOException;
 import java.net.URI;
@@ -56,9 +58,24 @@ import java.util.regex.Pattern;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Error;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Log;
 import static java.lang.Thread.sleep;
+import static org.apache.commons.lang3.tuple.ImmutablePair.of;
 import static rx.exceptions.Exceptions.propagate;
 
 public class SparkBatchJob implements ISparkBatchJob, ILogger {
+    @Nullable
+    private String currentLogUrl;
+    @NotNull
+    private Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject;
+
+    @Nullable
+    public String getCurrentLogUrl() {
+        return currentLogUrl;
+    }
+
+    public void setCurrentLogUrl(@Nullable String currentLogUrl) {
+        this.currentLogUrl = currentLogUrl;
+    }
+
     public enum DriverLogConversionMode {
         WITHOUT_PORT,
         WITH_PORT;
@@ -84,6 +101,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     /**
      * The base connection URI for HDInsight Spark Job service, such as: http://livy:8998/batches
      */
+    @Nullable
     private URI connectUri;
 
     /**
@@ -123,12 +141,12 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     private DriverLogConversionMode driverLogConversionMode = null;
 
     public SparkBatchJob(
-            URI connectUri,
             SparkSubmissionParameter submissionParameter,
-            SparkBatchSubmission sparkBatchSubmission) {
-        this.connectUri = connectUri;
+            SparkBatchSubmission sparkBatchSubmission,
+            @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
         this.submissionParameter = submissionParameter;
         this.submission = sparkBatchSubmission;
+        this.ctrlSubject = ctrlSubject;
     }
 
     /**
@@ -136,17 +154,17 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      *
      * @return the instance of Spark Batch Job submission parameter
      */
-    @Override
-    public SparkSubmissionParameter getSubmissionParameter() {
+    private SparkSubmissionParameter getSubmissionParameter() {
         return submissionParameter;
     }
+
+
 
     /**
      * Getter of the Spark Batch Job submission for RestAPI transaction
      *
      * @return the Spark Batch Job submission
      */
-    @Override
     public SparkBatchSubmission getSubmission() {
         return submission;
     }
@@ -266,6 +284,31 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         }
 
         return this;
+    }
+
+    @NotNull
+    @Override
+    public Observable<SimpleImmutableEntry<String, Long>> getDriverLog(@NotNull String type, long logOffset, int size) {
+        return getSparkJobDriverLogUrlObservable()
+                .flatMap(logUrl -> {
+                    long offset = logOffset;
+
+                    if (!StringUtils.equals(logUrl, getCurrentLogUrl())) {
+                        setCurrentLogUrl(logUrl);
+                        offset = 0;
+                    }
+
+                    if (getCurrentLogUrl() == null) {
+                        return Observable.empty();
+                    }
+
+                    return Observable.just(new SimpleImmutableEntry<>(JobUtils.getInformationFromYarnLogDom(
+                            getSubmission().getCredentialsProvider(),
+                            getCurrentLogUrl(),
+                            type,
+                            offset,
+                            size), offset));
+                });
     }
 
     /**
@@ -667,6 +710,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         return driverHost;
     }
 
+    @Override
+    @NotNull
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
         // Those lines are carried per response,
         // if there is no value followed, the line should not be sent to console
@@ -750,8 +795,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         throw new UnknownServiceException("Failed to detect job activity: Unknown service error after " + --retries + " retries");
     }
 
-    public Observable<SimpleImmutableEntry<SparkBatchJobState, String>> getJobDoneObservable() {
-        return Observable.create((Subscriber<? super SimpleImmutableEntry<SparkBatchJobState, String>> ob) -> {
+    private Observable<SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> getJobDoneObservable() {
+        return Observable.create((Subscriber<? super SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> ob) -> {
             try {
                 boolean isJobActive;
                 SparkBatchJobState state = SparkBatchJobState.NOT_STARTED;
@@ -790,7 +835,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         });
     }
 
-    public Observable<String> getJobLogAggregationDoneObservable() {
+    private Observable<String> getJobLogAggregationDoneObservable() {
         return getSparkJobApplicationIdObservable()
                 .flatMap(applicationId ->
                         Observable.fromCallable(() -> getSparkJobYarnApplication(this.getConnectUri(), applicationId))
@@ -893,11 +938,30 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         this.driverLogConversionMode = driverLogConversionMode;
     }
 
+    @NotNull
+    @Override
+    public Observer<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
+        return ctrlSubject;
+    }
+
+    @NotNull
+    @Override
+    public Observable<SparkBatchJob> deploy(@NotNull String artifactPath) {
+        return JobUtils.deployArtifact(artifactPath, getSubmissionParameter().getClusterName(), getCtrlSubject())
+                .map(clusterArtifactUriPair -> {
+                    getSubmissionParameter().setFilePath(clusterArtifactUriPair.getValue());
+                    return this;
+                })
+                .toObservable();
+    }
+
     /**
      * New RxAPI: Submit the job
      *
      * @return Spark Job observable
      */
+    @Override
+    @NotNull
     public Observable<SparkBatchJob> submit() {
         return Observable.fromCallable(() -> {
                 Optional<IClusterDetail> cluster = ClusterManagerEx.getInstance()
@@ -906,6 +970,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                 if (cluster.isPresent()) {
                     SparkBatchSubmission.getInstance()
                             .setCredentialsProvider(cluster.get().getHttpUserName(), cluster.get().getHttpPassword());
+
+                    this.connectUri = URI.create(JobUtils.getLivyConnectionURL(cluster.get()));
 
                     return (SparkBatchJob) createBatchJob();
                 }
@@ -920,7 +986,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * @return Spark Job observable
      */
     @NotNull
-    public Observable<SparkSubmitResponse> getStatus() {
+    private Observable<SparkSubmitResponse> getStatus() {
         return Observable.fromCallable(() -> {
             HttpResponse httpResponse = this.getSubmission().getBatchSparkJobStatus(
                     this.getConnectUri().toString(), getBatchId());
@@ -934,5 +1000,45 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
             throw new SparkJobException("Can't get cluster " + getSubmissionParameter().getClusterName() + " status.");
         });
+    }
+
+    @NotNull
+    @Override
+    public Observable<String> awaitStarted(@Nullable Action1<String> repeatInfo) {
+        return getStatus()
+                .map(status -> new SimpleImmutableEntry<>(
+                        SparkBatchJobState.valueOf(status.getState().toUpperCase()),
+                        String.join("\n", status.getLog())))
+                .retry(getRetriesMax())
+                .repeatWhen(ob -> ob
+                        .doOnNext(ignored -> {
+                            if (repeatInfo != null) {
+                                repeatInfo.call("The Spark job is starting...");
+                            }
+                        })
+                        .delay(getDelaySeconds(), TimeUnit.SECONDS)
+                )
+                .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
+                .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
+                .flatMap(stateLogPair -> {
+                    if (stateLogPair.getKey().isJobDone() && !stateLogPair.getKey().isSuccess()) {
+                        return Observable.error(
+                                new SparkJobException("The Spark job failed to start due to " + stateLogPair.getValue()));
+                    }
+
+                    return Observable.just(stateLogPair.getKey().toString());
+                });
+    }
+
+    @NotNull
+    @Override
+    public Observable<SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> awaitDone() {
+        return getJobDoneObservable();
+    }
+
+    @NotNull
+    @Override
+    public Observable<String> awaitPostDone() {
+        return getJobLogAggregationDoneObservable();
     }
 }

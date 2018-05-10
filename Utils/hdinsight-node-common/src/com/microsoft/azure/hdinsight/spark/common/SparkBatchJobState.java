@@ -22,7 +22,7 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-public enum SparkBatchJobState {
+public enum SparkBatchJobState implements ISparkBatchJobStateSuccess {
     NOT_STARTED("not_started"),
     STARTING("starting"),
     RECOVERING("recovering"),
@@ -62,5 +62,10 @@ public enum SparkBatchJobState {
             default:
                 return false;
         }
+    }
+
+    @Override
+    public boolean isSuccess() {
+        return this == SUCCESS;
     }
 }

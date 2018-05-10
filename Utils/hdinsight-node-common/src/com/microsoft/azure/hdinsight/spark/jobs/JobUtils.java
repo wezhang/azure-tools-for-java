@@ -619,23 +619,6 @@ public class JobUtils {
         return URI.create(clusterDetail.getConnectionUrl()).resolve("/livy/");
     }
 
-    public static Single<SparkBatchJob> submit(@NotNull IClusterDetail cluster, @NotNull SparkSubmissionParameter parameter) {
-        return Single.create((SingleSubscriber<? super SparkBatchJob> ob) -> {
-            try {
-                SparkBatchSubmission.getInstance().setCredentialsProvider(cluster.getHttpUserName(), cluster.getHttpPassword());
-
-                SparkBatchJob sparkJob = new SparkBatchJob(
-                        URI.create(getLivyConnectionURL(cluster)),
-                        parameter,
-                        SparkBatchSubmission.getInstance());
-
-                sparkJob.createBatchJob();
-                ob.onSuccess(sparkJob);
-            } catch (Exception e) {
-                ob.onError(e);
-            }
-        });
-    }
 
     public static Single<SimpleImmutableEntry<IClusterDetail, String>> deployArtifact(@NotNull String artifactLocalPath,
                                                         @NotNull String clusterName,
