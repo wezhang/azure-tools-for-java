@@ -31,6 +31,7 @@ import cucumber.api.java.en.Then;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import rx.Observable;
+import rx.subjects.PublishSubject;
 
 import java.net.URI;
 import java.util.HashMap;
@@ -87,9 +88,7 @@ public class SparkBatchRemoteDebugJobScenario {
         caught = null;
 
         try {
-            debugJobMock = SparkBatchRemoteDebugJob.factory(httpServerMock.completeUrl(connectUrl),
-                    parameter,
-                    submissionMock);
+            debugJobMock = SparkBatchRemoteDebugJob.factory(parameter, submissionMock, PublishSubject.create());
 
             debugJobMock.createBatchJob();
         } catch (Exception e) {
