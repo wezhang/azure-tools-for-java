@@ -203,7 +203,7 @@ public class SparkBatchJobRemoteProcess extends Process {
                 .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || isJobStarted(job, stateLogPair.getKey()))
                 .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || isJobStarted(job, stateLogPair.getKey()))
                 .flatMap(stateLogPair -> {
-                    if (stateLogPair.getKey().isJobDone()) {
+                    if (stateLogPair.getKey().isJobDone() && stateLogPair.getKey() != SparkBatchJobState.SUCCESS) {
                         return Observable.error(
                                 new SparkJobException("The Spark job failed to start due to " + stateLogPair.getValue()));
                     }
