@@ -22,12 +22,22 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azuretools.adauth.AuthException;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import org.apache.commons.lang3.NotImplementedException;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.sdkmanage.AzureManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicHeader;
+
+import java.io.IOException;
+import java.util.Collections;
 
 public class SparkBatchAzureSubmission extends SparkBatchSubmission {
+    @Nullable
+    private String tenantId;
+
     private SparkBatchAzureSubmission() {
         super();
     }
@@ -52,9 +62,38 @@ public class SparkBatchAzureSubmission extends SparkBatchSubmission {
     }
 
     @NotNull
+    public SparkBatchAzureSubmission setTenantId(String tid) {
+        this.tenantId = tid;
+
+        return this;
+    }
+
     @Override
-    protected CloseableHttpClient getHttpClient() {
-        // TODO: Provide a client with Azure Token based credential.
-        throw new NotImplementedException("Need a client for Azure");
+    public void setCredentialsProvider(String username, String password) {
+        getCredentialsProvider().clear();
+    }
+
+    @NotNull
+    String getAccessToken() throws IOException {
+        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
+        // not signed in
+        if (azureManager == null) {
+            throw new AuthException("Not signed in. Can't send out the request.");
+        }
+
+        return azureManager.getAccessToken(tenantId);
+    }
+
+    @NotNull
+    @Override
+    protected CloseableHttpClient getHttpClient() throws IOException {
+        return HttpClients.custom()
+                .setDefaultHeaders(Collections.singletonList(new BasicHeader("Authorization", "Bearer " + getAccessToken())))
+                .build();
+    }
+
+    @Nullable
+    public String getTenantId() {
+        return tenantId;
     }
 }
