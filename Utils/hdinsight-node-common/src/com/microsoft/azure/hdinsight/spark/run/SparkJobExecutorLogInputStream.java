@@ -40,9 +40,4 @@ class SparkJobExecutorLogInputStream extends SparkJobLogInputStream {
 
         return sparkJob;
     }
-
-//    @Override
-//    protected void refreshLogUrl(ISparkBatchJob sparkJob) {
-//        // Needn't to refresh log url for executor
-//    }
 }

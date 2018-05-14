@@ -84,14 +84,16 @@ public class SparkBatchJobRemoteDebugExecutorProcess extends SparkBatchJobRemote
 
     @NotNull
     @Override
-    protected SparkBatchDebugJobJdbPortForwardedEvent createEventWithJdbPorForwarding(SparkBatchRemoteDebugJob job)
-            throws JSchException, IOException {
-        int remotePort = job.getYarnContainerJDBListenPort(logUrl);
+    protected Observable<SparkBatchDebugJobJdbPortForwardedEvent> createEventWithJdbPorForwarding(
+            SparkBatchRemoteDebugJob job) {
+        return Observable.fromCallable(() -> {
+            int remotePort = job.getYarnContainerJDBListenPort(logUrl);
 
-        int localPort = getDebugSession()
-                .forwardToRemotePort(host, remotePort)
-                .getForwardedLocalPort(host, remotePort);
+            int localPort = getDebugSession()
+                    .forwardToRemotePort(host, remotePort)
+                    .getForwardedLocalPort(host, remotePort);
 
-        return new SparkBatchDebugJobJdbPortForwardedEvent(job, getDebugSession(), host, remotePort, localPort, false);
+            return new SparkBatchDebugJobJdbPortForwardedEvent(job, getDebugSession(), host, remotePort, localPort, false);
+        });
     }
 }

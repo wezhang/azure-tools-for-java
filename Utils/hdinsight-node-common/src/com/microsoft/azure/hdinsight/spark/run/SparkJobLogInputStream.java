@@ -56,7 +56,6 @@ public class SparkJobLogInputStream extends InputStream {
     }
 
     public ISparkBatchJob attachJob(@NotNull ISparkBatchJob sparkJob) {
-//        refreshLogUrl(sparkJob);
         setSparkBatchJob(sparkJob);
 
         return sparkJob;
@@ -66,19 +65,6 @@ public class SparkJobLogInputStream extends InputStream {
         return getAttachedJob()
                 .map(job -> job.getDriverLog(getLogType(), logOffset, fetchSize)
                                .toBlocking().singleOrDefault(new SimpleImmutableEntry<>("", logOffset)));
-//        return getAttachedJob()
-//                .flatMap(job -> getLogUrl().map(url -> new AbstractMap.SimpleImmutableEntry<>(job, url)))
-//                .map(jobUrlPair -> {
-//                    SparkBatchJob job = jobUrlPair.getKey();
-//
-//                    return JobUtils.getInformationFromYarnLogDom(
-//                            job.getSubmission().getCredentialsProvider(),
-//                            jobUrlPair.getValue(),
-//                            getLogType(),
-//                            logOffset,
-//                            fetchSize);
-//                })
-//                .filter(slice -> !slice.isEmpty());
     }
 
     void setSparkBatchJob(@Nullable ISparkBatchJob sparkBatchJob) {
@@ -109,8 +95,6 @@ public class SparkJobLogInputStream extends InputStream {
 
                         return buffer.length;
                     }).orElseGet(() -> {
-//                        getAttachedJob().ifPresent(this::refreshLogUrl);
-
                         try {
                             sleep(3000);
                         } catch (InterruptedException ignore) { }
@@ -121,16 +105,6 @@ public class SparkJobLogInputStream extends InputStream {
             return buffer.length - bufferPos;
         }
     }
-
-//    protected void refreshLogUrl(SparkBatchJob sparkJob) {
-//        String currentLogUrl = sparkJob.getSparkJobDriverLogUrlObservable().toBlocking().singleOrDefault(this.logUrl);
-//
-//        if (!StringUtils.equals(currentLogUrl, this.logUrl)) {
-//            // The driver log url's changed due to the job was rerun, read it from beginning
-//            setLogUrl(currentLogUrl);
-//            offset = 0;
-//        }
-//    }
 
     void setLogUrl(@Nullable String logUrl) {
         this.logUrl = logUrl;

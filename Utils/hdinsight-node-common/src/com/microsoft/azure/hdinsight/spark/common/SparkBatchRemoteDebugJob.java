@@ -79,14 +79,15 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      * @throws IOException exceptions for the driver debugging port not found
      */
     @Override
-    public int getSparkDriverDebuggingPort() throws IOException {
-        try {
-            String driverLogUrl = this.getSparkJobDriverLogUrlObservable().toBlocking().first();
-
-            return getYarnContainerJDBListenPort(driverLogUrl);
-        } catch (NoSuchElementException ignored) {
-            throw new UnknownServiceException("Can't get Spark job driver log URL.");
-        }
+    public Observable<Integer> getSparkDriverDebuggingPort() {
+        return this.getSparkJobDriverLogUrlObservable()
+                .flatMap(driverLogUrl -> {
+                    try {
+                        return Observable.just(getYarnContainerJDBListenPort(driverLogUrl));
+                    } catch (UnknownServiceException e) {
+                        return Observable.error(e);
+                    }
+                });
     }
 
     /**
@@ -212,10 +213,10 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
     }
 
     @Override
-    public boolean isStarted(@NotNull ISparkBatchJobStateRunning state) {
+    public boolean isRunning(@NotNull String state) {
         try {
-            return getSparkDriverDebuggingPort() > 0;
-        } catch (IOException e) {
+            return getSparkDriverDebuggingPort().toBlocking().singleOrDefault(-1) > 0;
+        } catch (Exception e) {
             return false;
         }
     }

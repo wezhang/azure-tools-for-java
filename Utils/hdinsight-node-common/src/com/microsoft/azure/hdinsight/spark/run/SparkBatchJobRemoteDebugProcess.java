@@ -32,10 +32,12 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import rx.Observable;
 import rx.Subscription;
+import rx.functions.Func2;
 import rx.subjects.PublishSubject;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.UnknownServiceException;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
 public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess {
@@ -64,43 +66,39 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
         return super.getTitle() + " driver";
     }
 
-//    @Override
-//    public SparkBatchJob createJobToSubmit(IClusterDetail cluster) {
-//        try {
-//            // Create the Spark Job with special debug enabling parameters
-//            return SparkBatchRemoteDebugJob.factory(
-//                    getSubmissionParameter(),
-//                    SparkBatchSubmission.getInstance());
-//        } catch (DebugParameterDefinedException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-
-
     @Override
-    Observable<SimpleImmutableEntry<ISparkBatchJobStateSuccess, String>> awaitForJobDone(ISparkBatchJob runningJob) {
+    Observable<SimpleImmutableEntry<String, String>> awaitForJobDone(ISparkBatchJob runningJob) {
         return createDebugSession((SparkBatchRemoteDebugJob) runningJob)
                 .subscribeOn(getSchedulers().processBarVisibleAsync("Create Spark batch job debug session"))
                 .flatMap(super::awaitForJobDone);
     }
 
     @NotNull
-    protected SparkBatchDebugJobJdbPortForwardedEvent createEventWithJdbPorForwarding(SparkBatchRemoteDebugJob job)
-            throws JSchException, IOException {
-        String remoteHost = job.getSparkDriverHost();
-        int remotePort = job.getSparkDriverDebuggingPort();
+    protected Observable<SparkBatchDebugJobJdbPortForwardedEvent> createEventWithJdbPorForwarding(
+            SparkBatchRemoteDebugJob job) {
+        return Observable.zip(job.getSparkDriverHost(), job.getSparkDriverDebuggingPort(), SimpleImmutableEntry::new)
+                .flatMap(remoteHostPortPair ->  {
+                    String remoteHost = remoteHostPortPair.getKey();
+                    int remotePort = remoteHostPortPair.getValue();
 
-        int localPort = debugSession
-                .forwardToRemotePort(remoteHost, remotePort)
-                .getForwardedLocalPort(remoteHost, remotePort);
+                    int localPort = 0;
+                    try {
+                        localPort = debugSession
+                                .forwardToRemotePort(remoteHost, remotePort)
+                                .getForwardedLocalPort(remoteHost, remotePort);
 
-        // Start to find executors
-        executorSubscription = job.getExecutorsObservable()
-                .map(hostContainerPair -> new SparkBatchJobExecutorCreatedEvent(
-                        job, debugSession, hostContainerPair.getKey(), hostContainerPair.getValue()))
-                .subscribe(getEventSubject()::onNext);
+                        // Start to find executors
+                        executorSubscription = job.getExecutorsObservable()
+                                .map(hostContainerPair -> new SparkBatchJobExecutorCreatedEvent(
+                                        job, debugSession, hostContainerPair.getKey(), hostContainerPair.getValue()))
+                                .subscribe(getEventSubject()::onNext);
 
-        return new SparkBatchDebugJobJdbPortForwardedEvent(job, debugSession, remoteHost, remotePort, localPort, true);
+                        return Observable.just(new SparkBatchDebugJobJdbPortForwardedEvent(
+                                job, debugSession, remoteHost, remotePort, localPort, true));
+                    } catch (JSchException | UnknownServiceException e) {
+                        return Observable.error(e);
+                    }
+                });
     }
 
     @Override
@@ -113,22 +111,18 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
     }
 
     private Observable<SparkBatchRemoteDebugJob> createDebugSession(SparkBatchRemoteDebugJob job) {
-        return Observable.fromCallable(() -> {
-            try {
-                SparkBatchDebugJobJdbPortForwardedEvent jdbReadyEvent = createEventWithJdbPorForwarding(job);
-
-                // Debug session created and SSH port forwarded
-                getEventSubject().onNext(jdbReadyEvent);
-
-                return job;
-            } catch (JSchException e) {
+        return createEventWithJdbPorForwarding(job)
                 // Rethrow it since JSch can't handle the certificate expired issue
-                throw new SparkJobException(
+                .doOnError(e -> Observable.error(new SparkJobException(
                         "Can't create Spark Job remote debug session, " +
                         "please check whether SSH password has expired or wrong, using Putty or other SSH tool.",
-                        e);
-            }
-        });
+                        e)))
+                .map(jdbReadyEvent -> {
+                    // Debug session created and SSH port forwarded
+                    getEventSubject().onNext(jdbReadyEvent);
+
+                    return job;
+                });
     }
 
     @NotNull
