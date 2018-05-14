@@ -1018,8 +1018,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         })
                         .delay(getDelaySeconds(), TimeUnit.SECONDS)
                 )
-                .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
-                .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || stateLogPair.getKey() == SparkBatchJobState.RUNNING)
+                .takeUntil(stateLogPair -> stateLogPair.getKey().isJobDone() || isStarted(stateLogPair.getKey()))
+                .filter(stateLogPair -> stateLogPair.getKey().isJobDone() || isStarted(stateLogPair.getKey()))
                 .flatMap(stateLogPair -> {
                     if (stateLogPair.getKey().isJobDone() && !stateLogPair.getKey().isSuccess()) {
                         return Observable.error(
@@ -1040,5 +1040,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     @Override
     public Observable<String> awaitPostDone() {
         return getJobLogAggregationDoneObservable();
+    }
+
+    public boolean isStarted(@NotNull ISparkBatchJobStateRunning state) {
+        return state.isRunning();
     }
 }

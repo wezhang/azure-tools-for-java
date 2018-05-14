@@ -210,4 +210,13 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
                 submissionParameter.getArgs(),
                 jobConfigWithDebug);
     }
+
+    @Override
+    public boolean isStarted(@NotNull ISparkBatchJobStateRunning state) {
+        try {
+            return getSparkDriverDebuggingPort() > 0;
+        } catch (IOException e) {
+            return false;
+        }
+    }
 }

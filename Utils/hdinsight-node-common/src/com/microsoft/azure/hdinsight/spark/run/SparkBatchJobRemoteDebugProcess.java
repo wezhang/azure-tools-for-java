@@ -131,15 +131,6 @@ public class SparkBatchJobRemoteDebugProcess extends SparkBatchJobRemoteProcess 
         });
     }
 
-    @Override
-    public boolean isJobStarted(@NotNull SparkBatchJob job, SparkBatchJobState state) {
-        try {
-            return ((SparkBatchRemoteDebugJob) job).getSparkDriverDebuggingPort() > 0;
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
     @NotNull
     public SparkBatchRemoteDebugJobSshAuth getAuthData() {
         return authData;
