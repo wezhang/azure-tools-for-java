@@ -140,7 +140,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     @Nullable
     private DriverLogConversionMode driverLogConversionMode = null;
 
-    SparkBatchJob(
+    public SparkBatchJob(
             SparkSubmissionParameter submissionParameter,
             SparkBatchSubmission sparkBatchSubmission,
             @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
@@ -960,7 +960,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         return Optional.empty();
     }
 
-    private Observable<URI> convertToPublicLogUri(@NotNull URI internalLogUri) {
+    public Observable<URI> convertToPublicLogUri(@NotNull URI internalLogUri) {
         // New version, without port info in log URL
         return convertToPublicLogUri(getLogUriConversionMode(), internalLogUri)
                 .map(Observable::just)
