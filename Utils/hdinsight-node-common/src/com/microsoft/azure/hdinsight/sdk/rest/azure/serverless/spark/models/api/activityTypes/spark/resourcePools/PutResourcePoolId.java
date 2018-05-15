@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -20,48 +20,38 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.api.activityTypes.spark.resourcePools;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.CreateSparkResourcePool;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 /**
- * Defines values for SparkNodeType.
+ * Submits a resource pool creation request to the specified Data Lake Analytics account
  */
-public enum SparkNodeType {
-    /** Enum value SparkMaster. */
-    SPARK_MASTER("SparkMaster"),
+public class PutResourcePoolId {
+    /**
+     * The parameters to submit a spark resource pool creation request
+     */
+    @NotNull
+    @JsonProperty(value = "parameters", required = true)
+    private CreateSparkResourcePool parameters;
 
-    /** Enum value SparkWorker. */
-    SPARK_WORKER("SparkWorker");
-
-    /** The actual serialized value for a SparkNodeType instance. */
-    private String value;
-
-    SparkNodeType(String value) {
-        this.value = value;
+    /**
+     * get the parameters value
+     * @return the parameters value
+     */
+    @NotNull
+    public CreateSparkResourcePool getParameters() {
+        return parameters;
     }
 
     /**
-     * Parses a serialized value to a SparkNodeType instance.
-     *
-     * @param value the serialized value to parse.
-     * @return the parsed SparkNodeType object, or null if unable to parse.
+     * set the parameters value
+     * @param parameters the parameters value to set
      */
-    @JsonCreator
-    public static SparkNodeType fromString(String value) {
-        SparkNodeType[] items = SparkNodeType.values();
-        for (SparkNodeType item : items) {
-            if (item.toString().equalsIgnoreCase(value)) {
-                return item;
-            }
-        }
-        return null;
-    }
-
-    @JsonValue
-    @Override
-    public String toString() {
-        return this.value;
+    public PutResourcePoolId withParameters(@NotNull CreateSparkResourcePool parameters) {
+        this.parameters = parameters;
+        return this;
     }
 }

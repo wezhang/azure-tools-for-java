@@ -20,48 +20,33 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.api;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkResourcePoolList;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+
+import java.util.Map;
 
 /**
- * Defines values for SparkNodeType.
+ * response of 'get /activityTypes/spark/resourcePools'
  */
-public enum SparkNodeType {
-    /** Enum value SparkMaster. */
-    SPARK_MASTER("SparkMaster"),
+public class GetSparkResourcePoolsListResponse {
+    public static final Map<Integer, String> successfulResponses = ImmutableMap.of(
+            200, "Successfully retrieved list of resource pools");
 
-    /** Enum value SparkWorker. */
-    SPARK_WORKER("SparkWorker");
-
-    /** The actual serialized value for a SparkNodeType instance. */
-    private String value;
-
-    SparkNodeType(String value) {
-        this.value = value;
-    }
+    @NotNull
+    @JsonProperty(value = "sparkResourcePoolList")
+    private SparkResourcePoolList sparkResourcePoolList;
 
     /**
-     * Parses a serialized value to a SparkNodeType instance.
+     * Get the sparkResourcePoolList value.
      *
-     * @param value the serialized value to parse.
-     * @return the parsed SparkNodeType object, or null if unable to parse.
+     * @return the sparkResourcePoolList value
      */
-    @JsonCreator
-    public static SparkNodeType fromString(String value) {
-        SparkNodeType[] items = SparkNodeType.values();
-        for (SparkNodeType item : items) {
-            if (item.toString().equalsIgnoreCase(value)) {
-                return item;
-            }
-        }
-        return null;
-    }
-
-    @JsonValue
-    @Override
-    public String toString() {
-        return this.value;
+    @NotNull
+    public SparkResourcePoolList sparkResourcePoolList() {
+        return sparkResourcePoolList;
     }
 }

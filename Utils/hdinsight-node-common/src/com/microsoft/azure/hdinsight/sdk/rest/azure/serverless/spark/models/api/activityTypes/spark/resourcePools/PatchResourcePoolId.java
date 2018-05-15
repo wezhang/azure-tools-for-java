@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -20,48 +20,30 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.api.activityTypes.spark.resourcePools;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.UpdateSparkResourcePool;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 /**
- * Defines values for SparkNodeType.
+ * Updates the resource pool for the specified resource pool ID
  */
-public enum SparkNodeType {
-    /** Enum value SparkMaster. */
-    SPARK_MASTER("SparkMaster"),
-
-    /** Enum value SparkWorker. */
-    SPARK_WORKER("SparkWorker");
-
-    /** The actual serialized value for a SparkNodeType instance. */
-    private String value;
-
-    SparkNodeType(String value) {
-        this.value = value;
-    }
+public class PatchResourcePoolId {
 
     /**
-     * Parses a serialized value to a SparkNodeType instance.
-     *
-     * @param value the serialized value to parse.
-     * @return the parsed SparkNodeType object, or null if unable to parse.
+     * The parameters to update a spark resource pool
      */
-    @JsonCreator
-    public static SparkNodeType fromString(String value) {
-        SparkNodeType[] items = SparkNodeType.values();
-        for (SparkNodeType item : items) {
-            if (item.toString().equalsIgnoreCase(value)) {
-                return item;
-            }
-        }
-        return null;
-    }
+    @NotNull
+    @JsonProperty(value = "updateSparkResourcePool")
+    private UpdateSparkResourcePool parameters;
 
-    @JsonValue
-    @Override
-    public String toString() {
-        return this.value;
+    /**
+     * set the parameters value
+     * @param parameters the parameters value to set
+     */
+    public PatchResourcePoolId withParameters(@NotNull UpdateSparkResourcePool parameters) {
+        this.parameters = parameters;
+        return this;
     }
 }
