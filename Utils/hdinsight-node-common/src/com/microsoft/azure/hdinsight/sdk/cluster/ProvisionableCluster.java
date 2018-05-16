@@ -27,5 +27,5 @@ import rx.Observable;
 
 public interface ProvisionableCluster {
     @NotNull
-    Observable<ProvisionableCluster> provision();
+    Observable<? extends ProvisionableCluster> provision();
 }

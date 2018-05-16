@@ -23,13 +23,14 @@
 package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.api.activityTypes.spark.resourcePools;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.CreateSparkResourcePool;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 /**
  * Submits a resource pool creation request to the specified Data Lake Analytics account
  */
-public class PutResourcePoolId {
+public class PutResourcePoolId implements IConvertible {
     /**
      * The parameters to submit a spark resource pool creation request
      */

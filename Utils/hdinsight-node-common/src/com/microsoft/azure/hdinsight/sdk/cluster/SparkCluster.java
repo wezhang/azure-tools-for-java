@@ -22,43 +22,15 @@
 
 package com.microsoft.azure.hdinsight.sdk.cluster;
 
-import com.google.common.collect.ImmutableList;
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
-import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
-import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
-import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-
-import java.util.List;
-
 public abstract class SparkCluster implements IClusterDetail {
     @Override
-    public String getName() {
-        return null;
+    public boolean isEmulator() {
+        return false;
     }
 
     @Override
-    public String getTitle() {
-        return null;
-    }
-
-    @Override
-    public String getState() {
-        return null;
-    }
-
-    @Override
-    public String getLocation() {
-        return null;
-    }
-
-    @Override
-    public String getConnectionUrl() {
-        return null;
-    }
-
-    @Override
-    public String getCreateDate() {
-        return null;
+    public boolean isConfigInfoAvailable() {
+        return false;
     }
 
     @Override
@@ -66,39 +38,4 @@ public abstract class SparkCluster implements IClusterDetail {
         return ClusterType.spark;
     }
 
-    @Override
-    public String getVersion() {
-        return null;
-    }
-
-    @Override
-    public int getDataNodes() {
-        return 0;
-    }
-
-    @Override
-    public String getOSType() {
-        return null;
-    }
-
-    @Override
-    public String getResourceGroup() {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public IHDIStorageAccount getStorageAccount() throws HDIException {
-        return null;
-    }
-
-    @Override
-    public List<HDStorageAccount> getAdditionalStorageAccounts() {
-        return ImmutableList.of();
-    }
-
-    @Override
-    public String getSparkVersion() {
-        return null;
-    }
 }

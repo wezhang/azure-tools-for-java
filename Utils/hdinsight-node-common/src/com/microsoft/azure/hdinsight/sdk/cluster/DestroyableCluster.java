@@ -25,7 +25,7 @@ package com.microsoft.azure.hdinsight.sdk.cluster;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import rx.Observable;
 
-public interface DestoryableCluster {
+public interface DestroyableCluster {
     @NotNull
-    Observable<DestoryableCluster> destory();
+    Observable<? extends DestroyableCluster> destroy();
 }
