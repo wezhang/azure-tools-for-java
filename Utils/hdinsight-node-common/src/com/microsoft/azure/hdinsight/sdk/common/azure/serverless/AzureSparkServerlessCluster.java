@@ -22,8 +22,6 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 
-import com.microsoft.azure.hdinsight.common.HDInsightLoader;
-import com.microsoft.azure.hdinsight.common.appinsight.AppInsightsHttpRequestInstallIdMapRecord;
 import com.microsoft.azure.hdinsight.sdk.cluster.DestroyableCluster;
 import com.microsoft.azure.hdinsight.sdk.cluster.ProvisionableCluster;
 import com.microsoft.azure.hdinsight.sdk.cluster.SparkCluster;

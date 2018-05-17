@@ -24,9 +24,6 @@ package com.microsoft.azure.hdinsight.sdk.cluster;
 
 import com.google.common.collect.ImmutableSortedSet;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import rx.Observable;
-
-import java.util.Collection;
 
 public interface ServerlessClusterManager {
     @NotNull

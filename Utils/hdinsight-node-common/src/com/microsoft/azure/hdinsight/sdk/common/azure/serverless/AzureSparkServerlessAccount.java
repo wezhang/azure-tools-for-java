@@ -30,15 +30,10 @@ import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.Spar
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import jdk.nashorn.internal.objects.NativeArray;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
 
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 public class AzureSparkServerlessAccount {
     private static final String REST_SEGMENT_SPARK_RESOURCEPOOLS = "activityTypes/spark/resourcePools";
