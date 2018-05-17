@@ -50,7 +50,8 @@ import java.util.UUID;
 public class AzureSparkServerlessCluster extends SparkCluster
                                          implements ProvisionableCluster,
                                                     ServerlessCluster,
-        DestroyableCluster {
+                                                    DestroyableCluster,
+                                                    Comparable<AzureSparkServerlessCluster> {
     public static class SparkResource {
         int instances;
         int coresPerInstance;
@@ -77,9 +78,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
     public static class Builder {
         @NotNull
-        private final SubscriptionDetail subscription;
-        @NotNull
-        private final URI accountUri;
+        private AzureSparkServerlessAccount acount;
         @NotNull
         private String name = "unnamed";
         @NotNull
@@ -97,9 +96,8 @@ public class AzureSparkServerlessCluster extends SparkCluster
         private int workerPerInstanceCores = 2;
         private int workerPerInstanceMemory = 16;
 
-        public Builder(@NotNull SubscriptionDetail subscription, @NotNull URI accountUri) {
-            this.subscription = subscription;
-            this.accountUri = accountUri;
+        public Builder( @NotNull AzureSparkServerlessAccount acount) {
+            this.acount = acount;
         }
 
 
@@ -170,8 +168,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
         }
 
         public AzureSparkServerlessCluster build() {
-            AzureSparkServerlessCluster cluster = new AzureSparkServerlessCluster(
-                    this.subscription, this.accountUri, UUID.randomUUID().toString());
+            AzureSparkServerlessCluster cluster = new AzureSparkServerlessCluster(this.acount, UUID.randomUUID().toString());
 
             cluster.name = this.name;
             cluster.resourcePoolVersion = this.resourcePoolVersion;
@@ -179,6 +176,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
             cluster.userStorageAccount = this.userStorageAccount;
             cluster.sparkEventsPath = this.sparkEventsPath;
             cluster.state = "unprovisioned";
+            cluster.isConfigInfoAvailable = true;
 
             cluster.master = new SparkResource()
                     .setInstances(this.masterInstances)
@@ -197,25 +195,13 @@ public class AzureSparkServerlessCluster extends SparkCluster
     private static final String REST_SEGMENT = "activityTypes/spark/resourcePools/";
 
     @NotNull
-    private final SubscriptionDetail subscription;
-
-    @NotNull
-    private final AzureHttpObservable http;
-
-    @NotNull
-    private final String apiVersion = "2018-02-01-preview"; // Preview version
-
-    @NotNull
-    private final URI accountUri;
-
-    @NotNull
     private final String guid;
 
     @Nullable
     private String name;
     @Nullable
     private String sparkVersion;
-    @Nullable
+    @NotNull
     private String state;
     @Nullable
     private String connectionUrl;
@@ -234,13 +220,14 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @Nullable
     private SparkResource worker;
 
-    private boolean isConfigInfoAvailable;
+    private boolean isConfigInfoAvailable = false;
 
-    public AzureSparkServerlessCluster(@NotNull SubscriptionDetail subscription, @NotNull URI accountUri, @NotNull String guid) {
-        this.subscription = subscription;
-        this.http = new AzureHttpObservable(subscription, this.apiVersion);
-        this.accountUri = accountUri;
+    public AzureSparkServerlessCluster(@NotNull AzureSparkServerlessAccount azureSparkServerlessAccount, @NotNull String guid) {
+        this.account = azureSparkServerlessAccount;
         this.guid = guid;
+
+        // FIXME with Enum type
+        this.state = "unknown";
     }
 
     @Override
@@ -261,10 +248,10 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
     @Override
     public String getTitle() {
-        return name + "[" + (state != null ? state.toUpperCase() : "UNKNOWN") + "]";
+        return name + "[" + state.toUpperCase() + "]";
     }
 
-    @Nullable
+    @NotNull
     @Override
     public String getState() {
         return state;
@@ -295,7 +282,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @NotNull
     @Override
     public SubscriptionDetail getSubscription() {
-        return subscription;
+        return account.getSubscription();
     }
 
     @Override
@@ -337,11 +324,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @Override
     public synchronized void getConfigurationInfo() throws IOException, HDIException, AzureCmdException {
         // Get the information from the server, block.
-        isConfigInfoAvailable = false;
-
         get().toBlocking().subscribe();
-
-        isConfigInfoAvailable = true;
     }
 
     @Nullable
@@ -352,12 +335,12 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
     @NotNull
     public URI getAccountUri() {
-        return accountUri;
+        return account.getUri();
     }
 
     @NotNull
     public AzureHttpObservable getHttp() {
-        return http;
+        return account.getHttp();
     }
 
     public Observable<AzureSparkServerlessCluster> get() {
@@ -370,7 +353,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
         URI uri = getUri();
 
         return getHttp()
-                .setUserAgent(getUserAgent(false))
+                .withUuidUserAgent(false)
                 .get(uri.toString(), null, null, SparkResourcePool.class);
     }
 
@@ -379,40 +362,45 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return getAccountUri().resolve(REST_SEGMENT + guid);
     }
 
-    @Nullable
-    public String getUserAgent(boolean isMapToInstallID) {
-        String originUa = getHttp().getUserAgent();
-
-        if (originUa == null) {
-            return null;
-        }
-
-        String requestId = UUID.randomUUID().toString();
-
-        if (isMapToInstallID) {
-            new AppInsightsHttpRequestInstallIdMapRecord(requestId, getInstallationID()).post();
-        }
-
-        return String.format("%s %s", originUa.trim(), requestId);
-    }
-
-    @NotNull
-    private String getInstallationID() {
-        if (HDInsightLoader.getHDInsightHelper() == null) {
-            return "";
-        }
-
-        return HDInsightLoader.getHDInsightHelper().getInstallationId();
-    }
-
-    private AzureSparkServerlessCluster updateWithResponse(@NotNull SparkResourcePool resourcePoolResp) {
-        this.state = resourcePoolResp.state().toString();
-        this.createDate = resourcePoolResp.startTime().toString();
-
-        // FIXME!!! sparkUriCollection field is missing
-        // set connectionUrl
+    AzureSparkServerlessCluster updateWithAnalyticsActivity(@NotNull AnalyticsActivity analyticsActivity) {
+        this.state = analyticsActivity.state().toString();
+        this.createDate = analyticsActivity.startTime().toString();
 
         return this;
+    }
+
+    AzureSparkServerlessCluster updateWithResponse(@NotNull SparkResourcePool resourcePoolResp) {
+        SparkResourcePoolProperties respProp = resourcePoolResp.properties();
+        if (respProp != null) {
+            this.resourcePoolVersion = respProp.resourcePoolVersion();
+            this.sparkVersion = respProp.sparkVersion();
+            this.sparkEventsPath = respProp.sparkEventsDirectoryPath();
+
+            this.master = mapToSparkResource(respProp, SparkNodeType.SPARK_MASTER);
+            this.worker = mapToSparkResource(respProp, SparkNodeType.SPARK_WORKER);
+
+            this.isConfigInfoAvailable = true;
+
+            // FIXME!!! sparkUriCollection field is missing
+            // set connectionUrl
+
+        }
+
+        return this;
+    }
+
+    @Nullable
+    private SparkResource mapToSparkResource(@NotNull SparkResourcePoolProperties respProp,
+                                             @NotNull SparkNodeType sparkNodeType) {
+        // TODO: update the running/outstanding/failed instance count later
+        return respProp.sparkResourceCollection().stream()
+                .filter(item -> item.name() == sparkNodeType)
+                .map(item -> new SparkResource()
+                        .setInstances(item.targetInstanceCount())
+                        .setCoresPerInstance(item.perInstanceCoreCount())
+                        .setMemoryGBSizePerInstance(item.perInstanceMemoryInGB()))
+                .findFirst()
+                .orElse(null);
     }
 
     @NotNull
@@ -438,7 +426,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
         entity.setContentType("application/json");
 
         return getHttp()
-                .setUserAgent(getUserAgent(true))
+                .withUuidUserAgent(true)
                 // FIXME!! Need to confirm the response type PutResourcePoolIdResponse or SparkResourcePool
                 .put(uri.toString(), entity, null, null, SparkResourcePool.class);
     }
@@ -490,7 +478,16 @@ public class AzureSparkServerlessCluster extends SparkCluster
         URI uri = getUri();
 
         return getHttp()
-                .setUserAgent(getUserAgent(true))
+                .withUuidUserAgent(true)
                 .delete(uri.toString(), null, null);
     }
+
+    @NotNull
+    private final AzureSparkServerlessAccount account;
+
+    @Override
+    public int compareTo(@NotNull AzureSparkServerlessCluster other) {
+        return this.getTitle().compareTo(other.getTitle());
+    }
+
 }
