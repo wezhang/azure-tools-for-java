@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.common;
 
+import com.microsoft.azure.hdinsight.common.HDInsightLoader;
+import com.microsoft.azure.hdinsight.common.appinsight.AppInsightsHttpRequestInstallIdMapRecord;
 import com.microsoft.azuretools.adauth.AuthException;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
@@ -32,18 +34,29 @@ import org.apache.http.impl.client.HttpClients;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 public class AzureHttpObservable extends OAuthTokenHttpObservable {
     @NotNull
-    private final SubscriptionDetail subscription;
+    private String tenantId;
     @NotNull
     private final String apiVersion;
     @NotNull
     private final List<NameValuePair> azureDefaultParameters;
 
+
     public AzureHttpObservable(@NotNull SubscriptionDetail subscription, @NotNull String apiVersion) {
+        this(subscription.getTenantId(), apiVersion);
+    }
+
+    public AzureHttpObservable(@NotNull String apiVersion) {
+        this("common", apiVersion);
+    }
+
+    public AzureHttpObservable(@NotNull String tenantId, @NotNull String apiVersion) {
         super();
-        this.subscription = subscription;
+
+        this.tenantId = tenantId;
         this.apiVersion = apiVersion;
 
         setHttpClient(HttpClients.custom()
@@ -58,8 +71,15 @@ public class AzureHttpObservable extends OAuthTokenHttpObservable {
     }
 
     @NotNull
-    public SubscriptionDetail getSubscription() {
-        return subscription;
+    public AzureHttpObservable setTenantId(@NotNull String tenantId) {
+        this.tenantId = tenantId;
+
+        return this;
+    }
+
+    @NotNull
+    public String getTenantId() {
+        return tenantId;
     }
 
     @NotNull
@@ -71,7 +91,7 @@ public class AzureHttpObservable extends OAuthTokenHttpObservable {
             throw new AuthException("Not signed in. Can't send out the request.");
         }
 
-        return azureManager.getAccessToken(getSubscription().getTenantId());
+        return azureManager.getAccessToken(getTenantId());
     }
 
     @NotNull
@@ -83,5 +103,33 @@ public class AzureHttpObservable extends OAuthTokenHttpObservable {
     @Override
     public List<NameValuePair> getDefaultParameters() {
         return azureDefaultParameters;
+    }
+
+    @NotNull
+    public AzureHttpObservable withUuidUserAgent(boolean isMapToInstallID) {
+        String originUa = getUserAgent();
+
+        if (originUa == null) {
+            return null;
+        }
+
+        String requestId = UUID.randomUUID().toString();
+
+        if (isMapToInstallID) {
+            new AppInsightsHttpRequestInstallIdMapRecord(requestId, getInstallationID()).post();
+        }
+
+        setUserAgent(String.format("%s %s", originUa.trim(), requestId));
+
+        return this;
+    }
+
+    @NotNull
+    private String getInstallationID() {
+        if (HDInsightLoader.getHDInsightHelper() == null) {
+            return "";
+        }
+
+        return HDInsightLoader.getHDInsightHelper().getInstallationId();
     }
 }
