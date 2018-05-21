@@ -28,6 +28,7 @@ import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.ServerlessClusterManager;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.ApiVersion;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -68,8 +69,7 @@ public class AzureSparkServerlessClusterManager implements ServerlessClusterMana
     private ImmutableSortedSet<? extends AzureSparkServerlessAccount> accounts= ImmutableSortedSet.of();
 
     public AzureSparkServerlessClusterManager() {
-        // TODO: Use ApiVersion.VERSION to replace the api-version string
-        this.http = new AzureHttpObservable("2016-11-01");
+        this.http = new AzureHttpObservable(ApiVersion.VERSION);
     }
 
     //
