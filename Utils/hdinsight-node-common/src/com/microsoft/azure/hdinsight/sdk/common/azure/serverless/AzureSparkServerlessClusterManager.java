@@ -22,18 +22,23 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.ServerlessClusterManager;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
+import com.microsoft.azure.hdinsight.sdk.common.ODataParam;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.ApiVersion;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
+import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
+import org.apache.commons.lang3.tuple.Pair;
 import rx.Observable;
 
 import java.io.IOException;
@@ -58,6 +63,9 @@ public class AzureSparkServerlessClusterManager implements ServerlessClusterMana
     //
     private static final String REST_SEGMENT_SUBSCRIPTION = "/subscriptions/";
     private static final String REST_SEGMENT_ADL_ACCOUNT = "providers/Microsoft.DataLakeAnalytics/accounts";
+
+    // FIXME!!!
+    private static final String ACCOUNT_FILTER = "name eq 'genericonkobo03'";
 
     @NotNull
     private final AzureHttpObservable http;
@@ -125,29 +133,35 @@ public class AzureSparkServerlessClusterManager implements ServerlessClusterMana
                 .defaultIfEmpty(this);
     }
 
-    private Observable<Set<Object>> getAzureDataLakeAccountsRequest() {
+    private Observable<Set<Pair<SubscriptionDetail, DataLakeAnalyticsAccountBasic>>> getAzureDataLakeAccountsRequest() {
         if (getAzureManager() == null) {
             return Observable.empty();
         }
 
         // Loop subscriptions to get all accounts
         return Observable
-                .fromCallable(() -> getAzureManager().getSubscriptions()
+                .fromCallable(() -> getAzureManager().getSubscriptionManager().getSubscriptionDetails()
                         .stream()
-                        .map(subscription -> getSubscriptionsUri(subscription.subscriptionId())
-                                .resolve(REST_SEGMENT_ADL_ACCOUNT))
-                        .collect(Collectors.toSet()))  // Output ADL account URI list
+                        .map(sub -> Pair.of(
+                                sub,
+                                getSubscriptionsUri(sub.getSubscriptionId()).resolve(REST_SEGMENT_ADL_ACCOUNT)))
+                        .collect(Collectors.toSet()))  // Output pair list of Subscription detail and ADL account URI
                 .flatMap(Observable::from)             // Send URI to next one by one
-                .map(uri -> getHttp()
-                        .withUuidUserAgent(false)
-                        // TODO:: handle Azure DataLake account list request, map it to account
-                        .get(uri.toString(), null, null, Object.class))
+                .map(subUriPair -> Pair.of(
+                        subUriPair.getLeft(),
+                        getHttp().withUuidUserAgent(false)
+                                // TODO:: handle Azure DataLake account list request, map it to account
+                                .get(subUriPair.getRight().toString(),
+                                        Collections.singletonList(ODataParam.filter(ACCOUNT_FILTER)),
+                                        null,
+                                        DataLakeAnalyticsAccountBasic.class)))
                 .toList()
                 .map(adlAccountsSet -> adlAccountsSet.stream()
-                        .flatMap(adlAccounts -> {
+                        .flatMap(subAccountPair -> {
                             try {
                                 // May produce NoElementException
-                                return Stream.of(adlAccounts.toBlocking().single());
+                                return Stream.of(Pair.of(subAccountPair.getLeft(),
+                                                         subAccountPair.getRight().toBlocking().single()));
                             } catch (Exception e) {
                                 log().warn("Can't get Azure Spark Serverless Account " + e);
                                 return Stream.empty();
@@ -164,8 +178,17 @@ public class AzureSparkServerlessClusterManager implements ServerlessClusterMana
     }
 
     @NotNull
-    private AzureSparkServerlessClusterManager updateWithResponse(Set<Object> accountsResponse) {
-        // TODO: update self with accounts response
+    private AzureSparkServerlessClusterManager updateWithResponse(Set<Pair<SubscriptionDetail, DataLakeAnalyticsAccountBasic>> accountsResponse) {
+        accounts = ImmutableSortedSet.copyOf(accountsResponse
+                .stream()
+                .map(subAccountMapPair ->
+                        new AzureSparkServerlessAccount(subAccountMapPair.getLeft(),
+                                                        // endpoint property is account base URI
+                                                        URI.create("https://" + subAccountMapPair.getRight().endpoint()),
+                                                        subAccountMapPair.getRight().name())
+                                .setBasicResponse(subAccountMapPair.getRight()))
+                .iterator());
+
         return this;
     }
 

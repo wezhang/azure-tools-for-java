@@ -25,6 +25,7 @@ package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 import com.google.common.collect.ImmutableSortedSet;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ApiVersion;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkResourcePoolList;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
@@ -51,15 +52,22 @@ public class AzureSparkServerlessAccount {
     private final URI uri;
 
     @Nullable
+    private DataLakeAnalyticsAccountBasic basicResponse;
+
+    @Nullable
     private String id;
 
     @NotNull
     private ImmutableSortedSet<? extends IClusterDetail> clusters = ImmutableSortedSet.of();
 
-    public AzureSparkServerlessAccount(@NotNull SubscriptionDetail subscription, @NotNull URI uri) {
+    @NotNull
+    private String name;
+
+    public AzureSparkServerlessAccount(@NotNull SubscriptionDetail subscription, @NotNull URI uri, @NotNull String name) {
         this.subscription = subscription;
         this.http = new AzureHttpObservable(subscription, this.apiVersion);
         this.uri = uri;
+        this.name = name;
     }
 
     //
@@ -121,5 +129,21 @@ public class AzureSparkServerlessAccount {
         }
 
         return obj != null && StringUtils.equalsIgnoreCase(id, ((AzureSparkServerlessAccount) obj).id);
+    }
+
+    @Nullable
+    public DataLakeAnalyticsAccountBasic getBasicResponse() {
+        return basicResponse;
+    }
+
+    public AzureSparkServerlessAccount setBasicResponse(@Nullable DataLakeAnalyticsAccountBasic basicResponse) {
+        this.basicResponse = basicResponse;
+
+        return this;
+    }
+
+    @NotNull
+    public String getName() {
+        return name;
     }
 }
