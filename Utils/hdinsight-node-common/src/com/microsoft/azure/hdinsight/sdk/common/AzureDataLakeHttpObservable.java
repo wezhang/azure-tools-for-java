@@ -23,19 +23,18 @@
 package com.microsoft.azure.hdinsight.sdk.common;
 
 import com.microsoft.azuretools.authmanage.CommonSettings;
-import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
-public class AzureManagementHttpObservable extends AzureHttpObservable {
-    public AzureManagementHttpObservable(@NotNull SubscriptionDetail subscription, @NotNull String apiVersion) {
-        super(subscription, apiVersion);
+public class AzureDataLakeHttpObservable extends AzureHttpObservable {
+    public AzureDataLakeHttpObservable(@NotNull String tenantId, @NotNull String apiVersion) {
+        super(tenantId, apiVersion);
     }
 
     @NotNull
     @Override
     public String getResourceEndpoint() {
-        String endpoint = CommonSettings.getAdEnvironment().managementEndpoint();
+        String endpoint = CommonSettings.getAdEnvironment().dataLakeEndpointResourceId();
 
-        return endpoint != null ? endpoint : "https://management.core.windows.net/";
+        return endpoint != null ? endpoint : "https://datalake.azure.net/";
     }
 }
