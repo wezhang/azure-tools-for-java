@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class OAuthTokenHttpObservable extends HttpObservable {
     public static final String TOKEN_HEADER_NAME = "Authorization";
@@ -69,9 +70,12 @@ public class OAuthTokenHttpObservable extends HttpObservable {
     @Override
     public Header[] getDefaultHeaders() throws IOException {
         Header[] defaultHeaders = super.getDefaultHeaders();
-        List<Header> headers = defaultHeaders == null ? new ArrayList<>() : Arrays.asList(defaultHeaders);
+        List<Header> headers = defaultHeaders == null ?
+                new ArrayList<>() :
+                Arrays.stream(defaultHeaders)
+                      .filter(header -> !header.getName().equals(TOKEN_HEADER_NAME))
+                      .collect(Collectors.toList());
 
-        headers.removeIf(header -> !header.getName().equals(TOKEN_HEADER_NAME));
         headers.add(new BasicHeader(TOKEN_HEADER_NAME, "Bearer " + getAccessToken()));
 
         return headers.toArray(new Header[0]);

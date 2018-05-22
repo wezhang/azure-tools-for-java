@@ -22,8 +22,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.common;
 
-import com.microsoft.applicationinsights.core.dependencies.http.message.BasicNameValuePair;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import org.apache.http.message.BasicNameValuePair;
 
 public class ODataParam extends BasicNameValuePair {
     public static ODataParam filter(@NotNull String value) {
