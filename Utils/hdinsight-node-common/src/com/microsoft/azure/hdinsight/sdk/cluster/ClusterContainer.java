@@ -25,10 +25,10 @@ package com.microsoft.azure.hdinsight.sdk.cluster;
 import com.google.common.collect.ImmutableSortedSet;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
-public interface ServerlessClusterManager {
+public interface ClusterContainer {
     @NotNull
     ImmutableSortedSet<? extends IClusterDetail> getClusters();
 
     @NotNull
-    ServerlessClusterManager refresh();
+    ClusterContainer refresh();
 }
