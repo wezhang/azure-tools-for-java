@@ -23,6 +23,8 @@
 package com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models;
 
 import java.util.UUID;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.joda.time.DateTime;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.rest.serializer.JsonFlatten;
@@ -35,6 +37,8 @@ import com.microsoft.azure.Resource;
  */
 @JsonFlatten
 @SkipParentValidation
+//@JsonIgnoreProperties(value = "properties", ignoreUnknown = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DataLakeAnalyticsAccountBasic extends Resource {
     /**
      * The unique identifier associated with this Data Lake Analytics account.
