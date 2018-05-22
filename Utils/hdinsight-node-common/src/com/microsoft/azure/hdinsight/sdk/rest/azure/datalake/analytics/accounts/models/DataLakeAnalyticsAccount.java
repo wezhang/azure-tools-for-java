@@ -22,8 +22,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models;
 
+import java.util.Date;
 import java.util.UUID;
-import org.joda.time.DateTime;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.rest.serializer.JsonFlatten;
@@ -63,13 +63,13 @@ public class DataLakeAnalyticsAccount extends Resource {
      * The account creation time.
      */
     @JsonProperty(value = "properties.creationTime", access = JsonProperty.Access.WRITE_ONLY)
-    private DateTime creationTime;
+    private Date creationTime;
 
     /**
      * The account last modified time.
      */
     @JsonProperty(value = "properties.lastModifiedTime", access = JsonProperty.Access.WRITE_ONLY)
-    private DateTime lastModifiedTime;
+    private Date lastModifiedTime;
 
     /**
      * The full CName endpoint for this account.
@@ -221,7 +221,7 @@ public class DataLakeAnalyticsAccount extends Resource {
      *
      * @return the creationTime value
      */
-    public DateTime creationTime() {
+    public Date creationTime() {
         return this.creationTime;
     }
 
@@ -230,7 +230,7 @@ public class DataLakeAnalyticsAccount extends Resource {
      *
      * @return the lastModifiedTime value
      */
-    public DateTime lastModifiedTime() {
+    public Date lastModifiedTime() {
         return this.lastModifiedTime;
     }
 

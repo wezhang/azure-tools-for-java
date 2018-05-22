@@ -23,8 +23,8 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
 
+import java.util.Date;
 import java.util.UUID;
-import org.joda.time.DateTime;
 import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -74,19 +74,19 @@ public class AnalyticsActivity {
      * the time the activity was submitted to the service.
      */
     @JsonProperty(value = "submitTime", access = JsonProperty.Access.WRITE_ONLY)
-    private DateTime submitTime;
+    private Date submitTime;
 
     /**
      * the start time of the activity.
      */
     @JsonProperty(value = "startTime", access = JsonProperty.Access.WRITE_ONLY)
-    private DateTime startTime;
+    private Date startTime;
 
     /**
      * the completion time of the activity.
      */
     @JsonProperty(value = "endTime", access = JsonProperty.Access.WRITE_ONLY)
-    private DateTime endTime;
+    private Date endTime;
 
     /**
      * the specific identifier for the type of error encountered in the
@@ -171,7 +171,7 @@ public class AnalyticsActivity {
      *
      * @return the submitTime value
      */
-    public DateTime submitTime() {
+    public Date submitTime() {
         return this.submitTime;
     }
 
@@ -180,7 +180,7 @@ public class AnalyticsActivity {
      *
      * @return the startTime value
      */
-    public DateTime startTime() {
+    public Date startTime() {
         return this.startTime;
     }
 
@@ -189,7 +189,7 @@ public class AnalyticsActivity {
      *
      * @return the endTime value
      */
-    public DateTime endTime() {
+    public Date endTime() {
         return this.endTime;
     }
 
