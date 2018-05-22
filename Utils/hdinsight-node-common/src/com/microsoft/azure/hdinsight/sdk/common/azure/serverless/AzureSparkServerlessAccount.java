@@ -23,7 +23,9 @@
 package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 
 import com.google.common.collect.ImmutableSortedSet;
+import com.microsoft.azure.hdinsight.sdk.cluster.ClusterContainer;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.sdk.common.AzureDataLakeHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ApiVersion;
@@ -36,7 +38,7 @@ import rx.Observable;
 
 import java.net.URI;
 
-public class AzureSparkServerlessAccount {
+public class AzureSparkServerlessAccount implements ClusterContainer {
     private static final String REST_SEGMENT_SPARK_RESOURCEPOOLS = "activityTypes/spark/resourcePools";
 
     @NotNull
@@ -65,7 +67,7 @@ public class AzureSparkServerlessAccount {
 
     public AzureSparkServerlessAccount(@NotNull SubscriptionDetail subscription, @NotNull URI uri, @NotNull String name) {
         this.subscription = subscription;
-        this.http = new AzureHttpObservable(subscription, this.apiVersion);
+        this.http = new AzureDataLakeHttpObservable(subscription.getTenantId(), this.apiVersion);
         this.uri = uri;
         this.name = name;
     }
@@ -118,8 +120,15 @@ public class AzureSparkServerlessAccount {
     }
 
     @NotNull
+    @Override
     public ImmutableSortedSet<? extends IClusterDetail> getClusters() {
         return clusters;
+    }
+
+    @NotNull
+    @Override
+    public ClusterContainer refresh() {
+        return get().toBlocking().singleOrDefault(this);
     }
 
     @Override

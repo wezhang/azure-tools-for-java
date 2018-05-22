@@ -190,7 +190,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
         }
     }
 
-    private static final String REST_SEGMENT = "activityTypes/spark/resourcePools/";
+    private static final String REST_SEGMENT = "/activityTypes/spark/resourcePools/";
 
     @NotNull
     private final String guid;
@@ -361,23 +361,41 @@ public class AzureSparkServerlessCluster extends SparkCluster
     }
 
     AzureSparkServerlessCluster updateWithAnalyticsActivity(@NotNull AnalyticsActivity analyticsActivity) {
-        this.state = analyticsActivity.state().toString();
-        this.createDate = analyticsActivity.startTime().toString();
+        if (analyticsActivity.state() != null) {
+            this.state = analyticsActivity.state().toString();
+        }
+
+        if (analyticsActivity.startTime() != null) {
+            this.createDate = analyticsActivity.startTime().toString();
+        }
 
         return this;
     }
 
     AzureSparkServerlessCluster updateWithResponse(@NotNull SparkResourcePool resourcePoolResp) {
+        this.updateWithAnalyticsActivity(resourcePoolResp);
+
         SparkResourcePoolProperties respProp = resourcePoolResp.properties();
         if (respProp != null) {
-            this.resourcePoolVersion = respProp.resourcePoolVersion();
-            this.sparkVersion = respProp.sparkVersion();
-            this.sparkEventsPath = respProp.sparkEventsDirectoryPath();
+            if (respProp.resourcePoolVersion() != null) {
+                this.resourcePoolVersion = respProp.resourcePoolVersion();
+            }
 
-            this.master = mapToSparkResource(respProp, SparkNodeType.SPARK_MASTER);
-            this.worker = mapToSparkResource(respProp, SparkNodeType.SPARK_WORKER);
+            if (respProp.sparkVersion() != null) {
+                this.sparkVersion = respProp.sparkVersion();
+            }
 
-            this.isConfigInfoAvailable = true;
+            if (respProp.sparkEventsDirectoryPath() != null) {
+                this.sparkEventsPath = respProp.sparkEventsDirectoryPath();
+            }
+
+            if (respProp.sparkResourceCollection() != null) {
+                this.master = mapToSparkResource(respProp, SparkNodeType.SPARK_MASTER);
+                this.worker = mapToSparkResource(respProp, SparkNodeType.SPARK_WORKER);
+
+                this.isConfigInfoAvailable = true;
+            }
+
 
             // FIXME!!! sparkUriCollection field is missing
             // set connectionUrl
