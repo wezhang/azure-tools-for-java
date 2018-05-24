@@ -49,7 +49,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @NotNull
     private final Project myProject;
 
-    private SparkSubmissionDebuggableContentPanel submissionPanel;
+    private SparkSubmissionContentPanel submissionPanel;
     private JPanel myWholePanel;
 
     private CallBack updateCallback;
@@ -57,14 +57,14 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @NotNull
     private SparkSubmitModel submitModel;
 
-    public SparkSubmissionContentPanelConfigurable(@NotNull Project project, @Nullable CallBack callBack) {
+    public SparkSubmissionContentPanelConfigurable(@NotNull Project project,
+                                                   @Nullable CallBack callBack,
+                                                   @NotNull SparkSubmissionContentPanel submissionPanel) {
         this.myProject = project;
         this.updateCallback = callBack;
-    }
 
-    private void createUIComponents() {
         this.submitModel = new SparkSubmitModel(myProject);
-        this.submissionPanel = new SparkSubmissionDebuggableContentPanel(updateCallback);
+        this.submissionPanel = submissionPanel;
         this.submissionPanel.getClustersListComboBox().getComboBox().setModel(submitModel.getClusterComboBoxModel());
 
         ManifestFileUtil.setupMainClassField(myProject, submissionPanel.getMainClassTextField());
@@ -91,22 +91,20 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         this.submissionPanel.getSelectedArtifactComboBox().setModel(submitModel.getArtifactComboBoxModel());
         this.submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
 
-        final SparkSubmissionAdvancedConfigDialog advConfDialog = this.submissionPanel.getAdvancedConfigDialog();
-        advConfDialog.addCallbackOnOk(() -> advConfDialog.getData(submitModel.getAdvancedConfigModel()));
-
-        this.submissionPanel.addAdvancedConfigurationButtonActionListener(e -> {
-            // Read the current panel setting into current model
-
-            advConfDialog.setAuthenticationAutoVerify(submitModel.getSelectedClusterDetail().map(IClusterDetail::getName)
-                                                                                            .orElse(null));
-            advConfDialog.setModal(true);
-            advConfDialog.setVisible(true);
-        });
-
         this.submissionPanel.updateTableColumn();
 
         refreshClusterListAsync();
     }
+
+    private void createUIComponents() {
+        // Customized UI creation
+    }
+
+    @NotNull
+    public SparkSubmitModel getSubmitModel() {
+        return submitModel;
+    }
+
     @NotNull
     public JComponent getComponent() {
         return submissionPanel;
@@ -228,9 +226,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         // update job configuration table
         submitModel.getTableModel().loadJobConfigMap(data.getTableModel().getJobConfigMap());
 
-        // Advanced Configuration Dialog
-        submissionPanel.getAdvancedConfigDialog().setData(data.getAdvancedConfigModel());
-
         if (updateCallback != null) {
             updateCallback.run();
         }
@@ -289,12 +284,9 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 .boxed()
                 .map(componentArtifactsModel::getElementAt)
                 .forEach(artifact -> data.getArtifactComboBoxModel().addElement(artifact));
-
-        // Advanced Configuration Dialog
-        submissionPanel.getAdvancedConfigDialog().getData(data.getAdvancedConfigModel());
     }
 
-    public SparkSubmissionDebuggableContentPanel getSubmissionPanel() {
+    public SparkSubmissionContentPanel getSubmissionPanel() {
         return submissionPanel;
     }
 }
