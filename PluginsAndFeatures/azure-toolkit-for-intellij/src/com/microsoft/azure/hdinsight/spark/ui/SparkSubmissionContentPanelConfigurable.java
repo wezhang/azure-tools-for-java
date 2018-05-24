@@ -49,7 +49,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @NotNull
     private final Project myProject;
 
-    private SparkSubmissionContentPanel submissionPanel;
+    private SparkSubmissionDebuggableContentPanel submissionPanel;
     private JPanel myWholePanel;
 
     private CallBack updateCallback;
@@ -64,7 +64,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     private void createUIComponents() {
         this.submitModel = new SparkSubmitModel(myProject);
-        this.submissionPanel = new SparkSubmissionContentPanel(updateCallback);
+        this.submissionPanel = new SparkSubmissionDebuggableContentPanel(updateCallback);
         this.submissionPanel.getClustersListComboBox().getComboBox().setModel(submitModel.getClusterComboBoxModel());
 
         ManifestFileUtil.setupMainClassField(myProject, submissionPanel.getMainClassTextField());
@@ -294,4 +294,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         submissionPanel.getAdvancedConfigDialog().getData(data.getAdvancedConfigModel());
     }
 
+    public SparkSubmissionDebuggableContentPanel getSubmissionPanel() {
+        return submissionPanel;
+    }
 }
