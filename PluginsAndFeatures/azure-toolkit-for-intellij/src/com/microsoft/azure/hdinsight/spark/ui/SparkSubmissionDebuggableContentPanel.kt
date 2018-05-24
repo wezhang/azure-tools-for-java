@@ -32,6 +32,7 @@ import javax.swing.JButton
 class SparkSubmissionDebuggableContentPanel(updateCallBack: CallBack?) : SparkSubmissionContentPanel(updateCallBack) {
 
     private val advancedConfigButton = JButton("Advanced configuration")
+    val advancedConfigDialog = SparkSubmissionAdvancedConfigDialog()
 
     init {
         addAdvancedConfigLineItem()
@@ -52,10 +53,6 @@ class SparkSubmissionDebuggableContentPanel(updateCallBack: CallBack?) : SparkSu
                         GridBagConstraints.SOUTHEAST, GridBagConstraints.NONE,
                         Insets(margin, margin, 0, 0), 0, 0))
 
-    }
-
-    fun getAdvancedConfigDialog(): SparkSubmissionAdvancedConfigDialog {
-        return SparkSubmissionAdvancedConfigDialog()
     }
 
     fun addAdvancedConfigurationButtonActionListener(actionListener: ActionListener) {
