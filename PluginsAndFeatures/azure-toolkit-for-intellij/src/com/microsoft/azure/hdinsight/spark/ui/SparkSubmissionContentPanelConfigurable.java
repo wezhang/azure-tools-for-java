@@ -21,6 +21,7 @@
 
 package com.microsoft.azure.hdinsight.spark.ui;
 
+import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.project.Project;
@@ -35,9 +36,9 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.io.IOException;
@@ -62,15 +63,23 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                                                    @NotNull SparkSubmissionContentPanel submissionPanel) {
         this.myProject = project;
         this.updateCallback = callBack;
-
-        this.submitModel = new SparkSubmitModel(myProject);
         this.submissionPanel = submissionPanel;
+
+    }
+
+    @NotNull
+    protected ImmutableList<IClusterDetail> getClusterDetails() {
+        return ClusterManagerEx.getInstance().getClusterDetails();
+    }
+
+    protected void createUIComponents() {
+        // Customized UI creation
+        this.submitModel = new SparkSubmitModel(myProject);
         this.submissionPanel.getClustersListComboBox().getComboBox().setModel(submitModel.getClusterComboBoxModel());
 
         ManifestFileUtil.setupMainClassField(myProject, submissionPanel.getMainClassTextField());
 
-        this.submissionPanel.addClusterListRefreshActionListener(e ->
-                refreshClusterSelection(ClusterManagerEx.getInstance().getClusterDetails()));
+        this.submissionPanel.addClusterListRefreshActionListener(e -> refreshClusterListAsync());
 
         this.submissionPanel.addJobConfigurationLoadButtonActionListener(e -> {
             FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(
@@ -96,10 +105,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         refreshClusterListAsync();
     }
 
-    private void createUIComponents() {
-        // Customized UI creation
-    }
-
     @NotNull
     public SparkSubmitModel getSubmitModel() {
         return submitModel;
@@ -110,7 +115,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         return submissionPanel;
     }
 
-    private void refreshClusterSelection(List<IClusterDetail> clusters) {
+    protected void refreshClusterSelection(@NotNull List<IClusterDetail> clusters) {
         Optional<String> selectedClusterTitle = submitModel.getSelectedClusterDetail()
                 .map(IClusterDetail::getTitle);
         resetClusterDetailsToComboBoxModel(submitModel, clusters);
@@ -121,7 +126,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         }
     }
 
-    private void refreshClusterListAsync() {
+    protected void refreshClusterListAsync() {
         submissionPanel.setClustersListRefreshEnabled(false);
 
         DefaultLoader.getIdeHelper().executeOnPooledThread(() -> {
@@ -150,7 +155,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     }
 
-    private void resetClusterDetailsToComboBoxModel(SparkSubmitModel destSubmitModel, List<IClusterDetail> cachedClusterDetails) {
+    protected void resetClusterDetailsToComboBoxModel(@NotNull SparkSubmitModel destSubmitModel, @NotNull List<IClusterDetail> cachedClusterDetails) {
         List<IClusterDetail> clusterDetails = new ArrayList<>();
 
         try {

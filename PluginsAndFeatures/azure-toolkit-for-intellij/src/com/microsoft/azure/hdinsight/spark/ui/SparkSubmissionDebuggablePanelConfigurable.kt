@@ -30,9 +30,13 @@ import java.awt.event.ActionListener
 
 class SparkSubmissionDebuggablePanelConfigurable(project: Project,
                                                  callBack: CallBack?,
-                                                 private val submissionDebuggablePanel: SparkSubmissionDebuggableContentPanel)
-    : SparkSubmissionContentPanelConfigurable(project, callBack, submissionDebuggablePanel) {
-    init {
+                                                 submissionPanel: SparkSubmissionDebuggableContentPanel)
+    : SparkSubmissionContentPanelConfigurable(project, callBack, submissionPanel) {
+    private val submissionDebuggablePanel
+        get() = submissionPanel as SparkSubmissionDebuggableContentPanel
+
+    override fun createUIComponents() {
+        super.createUIComponents()
 
         val advConfDialog = this.submissionDebuggablePanel.advancedConfigDialog
         advConfDialog.addCallbackOnOk {
