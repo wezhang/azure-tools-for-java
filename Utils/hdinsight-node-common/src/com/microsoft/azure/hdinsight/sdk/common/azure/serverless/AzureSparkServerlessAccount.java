@@ -39,7 +39,7 @@ import rx.Observable;
 import java.net.URI;
 
 public class AzureSparkServerlessAccount implements ClusterContainer {
-    private static final String REST_SEGMENT_SPARK_RESOURCEPOOLS = "activityTypes/spark/resourcePools";
+    private static final String REST_SEGMENT_SPARK_RESOURCEPOOLS = "/activityTypes/spark/resourcePools";
 
     @NotNull
     private final SubscriptionDetail subscription;
@@ -103,7 +103,7 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
     }
 
     private Observable<SparkResourcePoolList> getResourcePoolsRequest() {
-        URI uri = getUri();
+        URI uri = getUri().resolve(REST_SEGMENT_SPARK_RESOURCEPOOLS);
 
         return getHttp()
                 .withUuidUserAgent(false)

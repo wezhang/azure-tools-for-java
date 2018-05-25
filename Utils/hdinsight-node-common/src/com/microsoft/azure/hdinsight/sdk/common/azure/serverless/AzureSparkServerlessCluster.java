@@ -246,7 +246,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
     @Override
     public String getTitle() {
-        return name + "[" + state.toUpperCase() + "]";
+        return name + " [" + state.toUpperCase() + "]";
     }
 
     @NotNull
@@ -367,6 +367,10 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
         if (analyticsActivity.startTime() != null) {
             this.createDate = analyticsActivity.startTime().toString();
+        }
+
+        if (analyticsActivity.name() != null) {
+            this.name = analyticsActivity.name();
         }
 
         return this;

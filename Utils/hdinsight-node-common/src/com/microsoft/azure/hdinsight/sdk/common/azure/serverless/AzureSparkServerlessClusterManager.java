@@ -134,6 +134,16 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 .defaultIfEmpty(this);
     }
 
+    public Observable<AzureSparkServerlessClusterManager> fetchClusters() {
+        return get()
+                .map(AzureSparkServerlessClusterManager::getAccounts)
+                .flatMap(Observable::from)
+                .flatMap(AzureSparkServerlessAccount::get)
+                .toSortedList()
+                .map(accounts -> this)
+                .defaultIfEmpty(this);
+    }
+
     private Observable<Set<Pair<SubscriptionDetail, List<DataLakeAnalyticsAccountBasic>>>> getAzureDataLakeAccountsRequest() {
         if (getAzureManager() == null) {
             return Observable.empty();
