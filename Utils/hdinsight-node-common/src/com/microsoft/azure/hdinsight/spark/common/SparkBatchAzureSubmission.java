@@ -69,8 +69,8 @@ public class SparkBatchAzureSubmission extends SparkBatchSubmission {
     }
 
     @Override
-    public void setCredentialsProvider(String username, String password) {
-        getCredentialsProvider().clear();
+    public void setUsernamePasswordCredential(String username, String password) {
+        throw new UnsupportedOperationException("Azure does not support UserName/Password credential");
     }
 
     @NotNull

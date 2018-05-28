@@ -184,7 +184,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
             if (cluster.isPresent()) {
                 try {
                     SparkBatchSubmission.getInstance()
-                            .setCredentialsProvider(cluster.get().getHttpUserName(), cluster.get().getHttpPassword());
+                            .setUsernamePasswordCredential(cluster.get().getHttpUserName(), cluster.get().getHttpPassword());
                 } catch (HDIException e) {
                     log().warn("No credential provided for Spark batch job.");
                 }

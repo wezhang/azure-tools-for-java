@@ -82,7 +82,7 @@ public class SparkBatchSubmission {
      * @param username : username
      * @param password : password
      */
-    public void setCredentialsProvider(String username, String password){
+    public void setUsernamePasswordCredential(String username, String password) {
         credentialsProvider.setCredentials(new AuthScope(AuthScope.ANY), new UsernamePasswordCredentials(username, password));
     }
 

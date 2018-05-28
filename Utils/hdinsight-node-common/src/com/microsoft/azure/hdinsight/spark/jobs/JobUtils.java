@@ -45,9 +45,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.yarn.rm.ApplicationMasterLogs;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivyBatchesInformation;
 import com.microsoft.azure.hdinsight.spark.jobs.livy.LivySession;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
@@ -649,7 +647,7 @@ public class JobUtils {
     public static AbstractMap.SimpleImmutableEntry<Integer, Map<String, List<String>>>
     authenticate(IClusterDetail clusterDetail) throws HDIException, IOException {
         SparkBatchSubmission submission = SparkBatchSubmission.getInstance();
-        submission.setCredentialsProvider(clusterDetail.getHttpUserName(), clusterDetail.getHttpPassword());
+        submission.setUsernamePasswordCredential(clusterDetail.getHttpUserName(), clusterDetail.getHttpPassword());
         String livyUrl = URI.create(ClusterManagerEx.getInstance().getClusterConnectionString(clusterDetail.getName()))
                 .resolve("/livy/batches")
                 .toString();
