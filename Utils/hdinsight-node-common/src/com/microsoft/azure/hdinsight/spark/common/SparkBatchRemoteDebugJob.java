@@ -215,7 +215,10 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
     @Override
     public boolean isRunning(@NotNull String state) {
         try {
-            return getSparkDriverDebuggingPort().toBlocking().singleOrDefault(-1) > 0;
+            // The Debugging enabled job will wait for the JDB to connect in STARTING state to run
+            return (SparkBatchJobState.valueOf(state.toUpperCase()) == SparkBatchJobState.STARTING &&
+                            getSparkDriverDebuggingPort().toBlocking().singleOrDefault(-1) > 0) ||
+                    super.isRunning(state);
         } catch (Exception e) {
             return false;
         }
