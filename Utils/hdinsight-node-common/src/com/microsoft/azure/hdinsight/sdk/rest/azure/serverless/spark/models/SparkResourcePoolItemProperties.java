@@ -69,12 +69,6 @@ public class SparkResourcePoolItemProperties {
     private String status;
 
     /**
-     * Url which can be used by clients to track the resource pool.
-     */
-    @JsonProperty(value = "trackingUrl", access = JsonProperty.Access.WRITE_ONLY)
-    private String trackingUrl;
-
-    /**
      * Number of instances running.
      */
     @JsonProperty(value = "runningInstanceCount", access = JsonProperty.Access.WRITE_ONLY)
@@ -155,15 +149,6 @@ public class SparkResourcePoolItemProperties {
      */
     public String status() {
         return this.status;
-    }
-
-    /**
-     * Get the trackingUrl value.
-     *
-     * @return the trackingUrl value
-     */
-    public String trackingUrl() {
-        return this.trackingUrl;
     }
 
     /**
