@@ -264,7 +264,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     private SparkBatchJob createBatchJob()
             throws IOException {
         if (getConnectUri() == null) {
-            throw new IOException("Spark job is not set up");
+            throw new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted.");
         }
 
         // Submit the batch job
@@ -297,7 +298,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     public Observable<ISparkBatchJob> killBatchJob() {
         return Observable.fromCallable(() -> {
             if (getConnectUri() == null) {
-                throw new IOException("Spark job is not set up");
+                throw new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                        "please configure Spark cluster which the Spark job will be submitted.");
             }
 
             HttpResponse deleteResponse = this.getSubmission().killBatchJob(
@@ -363,7 +365,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      */
     public String getState() throws IOException {
         if (getConnectUri() == null) {
-            throw new IOException("Spark job is not set up");
+            throw new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted.");
         }
 
         int retries = 0;
@@ -487,7 +490,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      */
     Observable<String> getSparkJobApplicationIdObservable() {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         return Observable.create(ob -> {
@@ -521,7 +525,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      */
     Observable<AppAttempt> getSparkJobYarnCurrentAppAttempt() {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         return getSparkJobApplicationIdObservable()
@@ -564,7 +569,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      */
     Observable<SimpleImmutableEntry<URI, String>> getSparkJobYarnContainersObservable(@NotNull AppAttempt appAttempt) {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         return loadPageByBrowserObservable(getConnectUri().resolve("/yarnui/hn/cluster/appattempt/")
@@ -724,7 +730,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     public Observable<String> getSparkDriverHost() {
         return Observable.fromCallable(() -> {
             if (getConnectUri() == null) {
-                throw new IOException("Spark job is not set up");
+                throw new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                        "please configure Spark cluster which the Spark job will be submitted.");
             }
 
             String applicationId = this.getSparkJobApplicationId(this.getConnectUri(), this.getBatchId());
@@ -758,7 +765,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     @NotNull
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         // Those lines are carried per response,
@@ -813,7 +821,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
     public boolean isActive() throws IOException {
         if (getConnectUri() == null) {
-            throw new IOException("Spark job is not set up");
+            throw new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted.");
         }
 
         int retries = 0;
@@ -848,7 +857,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
     private Observable<SimpleImmutableEntry<String, String>> getJobDoneObservable() {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         return Observable.create((Subscriber<? super SimpleImmutableEntry<String, String>> ob) -> {
@@ -1027,7 +1037,9 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     public Observable<? extends ISparkBatchJob> submit() {
         return Observable.fromCallable(() -> {
             if (getConnectUri() == null) {
-                throw new SparkJobException("Can't get cluster " + getSubmissionParameter().getClusterName() + " to submit.");
+                throw new SparkJobNotConfiguredException("Can't get cluster " +
+                        getSubmissionParameter().getClusterName() + " to submit, " +
+                        "please configure Spark cluster which the Spark job will be submitted.");
             }
 
             return createBatchJob();
@@ -1074,7 +1086,8 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
     @NotNull
     private Observable<SparkSubmitResponse> getStatus() {
         if (getConnectUri() == null) {
-            return Observable.error(new IOException("Spark job is not set up"));
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
         }
 
         return Observable.fromCallable(() -> {
