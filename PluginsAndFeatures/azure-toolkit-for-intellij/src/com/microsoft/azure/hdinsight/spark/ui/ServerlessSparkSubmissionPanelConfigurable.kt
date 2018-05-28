@@ -47,8 +47,10 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
                 .subscribe(
                         { clusters ->
                             refreshClusterSelection(clusters.asList())
-                            submissionPanel.clusterSelectedSubject.onNext(
-                                    submissionPanel.clustersListComboBox.comboBox.selectedItem as String)
+                            if (submissionPanel.clustersListComboBox.comboBox.selectedItem != null) {
+                                submissionPanel.clusterSelectedSubject.onNext(
+                                        submissionPanel.clustersListComboBox.comboBox.selectedItem as String)
+                            }
                         },
                         { err -> HDInsightUtil.showErrorMessageOnSubmissionMessageWindow(project, getRootCauseMessage(err)) }
                 )
@@ -63,7 +65,7 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
         // Reset submit model
         destSubmitModel.setCachedClusterDetailsWithTitleMapping(cachedClusterDetails)
 
-        // Reset cluster combobox model
+        // Reset cluster combo box model
         destSubmitModel.clusterComboBoxModel.removeAllElements()
         cachedClusterDetails.forEach { destSubmitModel.clusterComboBoxModel.addElement(it.title) }
     }

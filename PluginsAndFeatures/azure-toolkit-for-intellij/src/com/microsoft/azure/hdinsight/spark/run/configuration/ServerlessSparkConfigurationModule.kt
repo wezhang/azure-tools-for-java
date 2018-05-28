@@ -20,11 +20,12 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.common
+package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.execution.configurations.RunConfigurationModule
 import com.intellij.openapi.project.Project
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel
 
-class ServerlessSparkConfigurationModel(project: Project) : RunConfigurationModule(project) {
+class ServerlessSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
     val model = SparkBatchJobConfigurableModel(project)
 }

@@ -26,23 +26,30 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.configurations.RunProfileState
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkConfigurationModel
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalDebugState
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
 
-class ServerlessSparkConfiguration (project: Project,
-                                    name: String,
-                                    val module: ServerlessSparkConfigurationModel,
-                                    factory: ConfigurationFactory) :
-        RemoteDebugRunConfiguration(project, factory, module, name) {
+class ServerlessSparkConfiguration (name: String,
+                                    val module: ServerlessSparkConfigurationModule,
+                                    factory: ConfigurationFactory)
+    : RemoteDebugRunConfiguration(module.model, factory, module, name) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
         return ServerlessSparkSettingsEditor(module.project)
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
-        TODO("not implemented state for Serverless Spark job")
+        val state = when(executor) {
+            is DefaultRunExecutor -> SparkBatchLocalRunState(project, module.model.localRunConfigurableModel)
+            is DefaultDebugExecutor -> SparkBatchLocalDebugState(project, module.model.localRunConfigurableModel)
+            else -> null
+        }
+
+        return state?.createAppInsightEvent(executor, actionProperties.map({ it.key.toString() to it.value.toString()}).toMap())
     }
 
     // Validation

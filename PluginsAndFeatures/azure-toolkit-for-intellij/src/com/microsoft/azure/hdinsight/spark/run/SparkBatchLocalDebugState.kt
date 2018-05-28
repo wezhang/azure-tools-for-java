@@ -20,24 +20,27 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.configuration.ConfigurationFactoryEx
-import com.intellij.execution.configurations.ConfigurationType
-import com.intellij.execution.configurations.RunConfiguration
+import com.intellij.execution.configurations.JavaParameters
+import com.intellij.execution.configurations.RemoteConnection
+import com.intellij.execution.configurations.RemoteState
 import com.intellij.openapi.project.Project
+import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel
+import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 
-class ServerlessSparkConfigurationFactory (type: ConfigurationType) :
-        ConfigurationFactoryEx<ServerlessSparkConfiguration>(type) {
-    companion object {
-        @JvmStatic val NAME = "Serverless Spark"
-    }
+class SparkBatchLocalDebugState(myProject: Project, model: SparkLocalRunConfigurableModel)
+    : SparkBatchLocalRunState(myProject, model), RemoteState {
+    private val remoteConnection = RemoteConnection(true, "127.0.0.1", "0", true)
 
-    override fun createTemplateConfiguration(project: Project): RunConfiguration {
-        return ServerlessSparkConfiguration(NAME, ServerlessSparkConfigurationModule(project), this)
-    }
+    override val appInsightsMessage = HDInsightBundle.message("SparkRunConfigLocalDebugButtonClick")
 
-    override fun getName(): String {
-        return NAME
+    override fun getRemoteConnection(): RemoteConnection = remoteConnection
+
+    override fun getCommandLineVmParameters(params: JavaParameters): List<String> {
+        // TODO: Add onthrow and onuncaught with Breakpoint UI settings later
+        val debugConnection = "-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${remoteConnection.address},suspend=y"
+
+        return super.getCommandLineVmParameters(params).plus(debugConnection)
     }
 }
