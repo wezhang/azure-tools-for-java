@@ -22,25 +22,30 @@
 
 package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.configurations.JavaParameters
-import com.intellij.execution.configurations.RemoteConnection
-import com.intellij.execution.configurations.RemoteState
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel
-import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
+import com.intellij.execution.ExecutionException
+import com.intellij.execution.configurations.RunProfile
+import com.microsoft.azure.hdinsight.common.MessageInfoType
+import com.microsoft.azure.hdinsight.spark.common.*
+import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfiguration
+import rx.Observer
+import java.util.AbstractMap.SimpleImmutableEntry
 
-class SparkBatchLocalDebugState(myProject: Project, model: SparkLocalRunConfigurableModel)
-    : SparkBatchLocalRunState(myProject, model), RemoteState {
-    private val remoteConnection = RemoteConnection(true, "127.0.0.1", "0", true)
+class ServerlessSparkBatchRunner : SparkBatchJobRunner() {
+    override fun canRun(executorId: String, profile: RunProfile): Boolean {
+        return SparkBatchJobRunExecutor.EXECUTOR_ID == executorId && profile is ServerlessSparkConfiguration
+    }
 
-    override val appInsightsMessage = HDInsightBundle.message("SparkRunConfigLocalDebugButtonClick")!!
+    override fun getRunnerId(): String {
+        return "ServerlessSparkBatchRun"
+    }
 
-    override fun getRemoteConnection(): RemoteConnection = remoteConnection
+    @Throws(ExecutionException::class)
+    override fun buildSparkBatchJob(submitModel: SparkSubmitModel, ctrlSubject: Observer<SimpleImmutableEntry<MessageInfoType, String>>): ISparkBatchJob {
+        val tenantId = (submitModel as ServerlessSparkSubmitModel).tenantId
 
-    override fun getCommandLineVmParameters(params: JavaParameters): List<String> {
-        // TODO: Add onthrow and onuncaught with Breakpoint UI settings later
-        val debugConnection = "-agentlib:jdwp=transport=dt_socket,server=n,address=127.0.0.1:${remoteConnection.address},suspend=y"
-
-        return super.getCommandLineVmParameters(params).plus(debugConnection)
+        return ServerlessSparkBatchJob(
+                submitModel.submissionParameter,
+                SparkBatchAzureSubmission.getInstance().setTenantId(tenantId),
+                ctrlSubject)
     }
 }

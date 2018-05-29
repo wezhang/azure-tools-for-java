@@ -31,8 +31,11 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
+import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkSubmitModel
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalDebugState
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
+import com.microsoft.azure.hdinsight.spark.run.SparkBatchRemoteRunState
 
 class ServerlessSparkConfiguration (name: String,
                                     val module: ServerlessSparkConfigurationModule,
@@ -44,6 +47,7 @@ class ServerlessSparkConfiguration (name: String,
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
         val state = when(executor) {
+            is SparkBatchJobRunExecutor -> SparkBatchRemoteRunState(module.model.serverlessSparkSubmitModel)
             is DefaultRunExecutor -> SparkBatchLocalRunState(project, module.model.localRunConfigurableModel)
             is DefaultDebugExecutor -> SparkBatchLocalDebugState(project, module.model.localRunConfigurableModel)
             else -> null

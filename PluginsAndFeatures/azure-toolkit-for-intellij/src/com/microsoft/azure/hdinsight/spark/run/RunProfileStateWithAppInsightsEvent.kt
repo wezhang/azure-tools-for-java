@@ -20,12 +20,24 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.configurations.RunConfigurationModule
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkBatchConfigurableModel
+import com.intellij.execution.Executor
+import com.intellij.execution.configurations.RunProfileState
+import com.microsoft.azuretools.telemetry.AppInsightsClient
 
-class ServerlessSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
-    val model = ServerlessSparkBatchConfigurableModel(project)
+interface RunProfileStateWithAppInsightsEvent : RunProfileState {
+    val uuid: String
+
+    val appInsightsMessage: String
+
+    fun createAppInsightEvent(executor: Executor, addedEventProps: Map<String, String>?): RunProfileState {
+        val postEventProps = mapOf(
+                "Executor" to executor.id,
+                "ActionUuid" to uuid).plus(addedEventProps ?: emptyMap())
+
+        AppInsightsClient.create(appInsightsMessage, null, postEventProps)
+
+        return this
+    }
 }

@@ -28,7 +28,6 @@ import com.intellij.execution.ExecutionResult
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.JavaParameters
-import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
@@ -41,16 +40,16 @@ import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
 import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable
-import com.microsoft.azuretools.telemetry.AppInsightsClient
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 import org.apache.commons.lang3.SystemUtils
 import java.io.File
 import java.nio.file.Paths
 import java.util.*
 
-open class SparkBatchLocalRunState(val myProject: Project, val model: SparkLocalRunConfigurableModel) : RunProfileState {
-    private val uuid = UUID.randomUUID().toString()
-    open val appInsightsMessage = HDInsightBundle.message("SparkRunConfigLocalRunButtonClick")!!
+open class SparkBatchLocalRunState(val myProject: Project, val model: SparkLocalRunConfigurableModel)
+    : RunProfileStateWithAppInsightsEvent {
+    override val uuid = UUID.randomUUID().toString()
+    override val appInsightsMessage = HDInsightBundle.message("SparkRunConfigLocalRunButtonClick")!!
 
     @Throws(ExecutionException::class)
     override fun execute(executor: Executor?, runner: ProgramRunner<*>): ExecutionResult? {
@@ -69,7 +68,7 @@ open class SparkBatchLocalRunState(val myProject: Project, val model: SparkLocal
 
             consoleView.attachToProcess(processHandler)
 
-            return DefaultExecutionResult(consoleView, processHandler)
+            DefaultExecutionResult(consoleView, processHandler)
         }
     }
 
@@ -127,15 +126,4 @@ open class SparkBatchLocalRunState(val myProject: Project, val model: SparkLocal
         params.mainClass = SparkLocalRunner::class.java.canonicalName
         return params.toCommandLine()
     }
-
-    fun createAppInsightEvent(executor: Executor, addedEventProps: Map<String, String>?): RunProfileState {
-        val postEventProps = mapOf(
-                "Executor" to executor.id,
-                "ActionUuid" to uuid).plus(addedEventProps ?: emptyMap())
-
-        AppInsightsClient.create(appInsightsMessage, null, postEventProps)
-
-        return this
-    }
-
 }

@@ -20,12 +20,20 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.execution.configurations.RunConfigurationModule
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkBatchConfigurableModel
+import com.intellij.execution.ExecutionException
+import com.intellij.execution.ExecutionResult
+import com.intellij.execution.ui.ConsoleView
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 
-class ServerlessSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
-    val model = ServerlessSparkBatchConfigurableModel(project)
+interface SparkBatchRemoteRunProfileState {
+    var executionResult: ExecutionResult?
+    var consoleView: ConsoleView?
+    var remoteProcessCtrlLogHandler: SparkBatchJobProcessCtrlLogOut?
+
+    @Throws(ExecutionException::class)
+    fun checkSubmissionParameter()
+
+    fun getSubmitModel(): SparkSubmitModel
 }

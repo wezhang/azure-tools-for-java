@@ -20,12 +20,26 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.common;
 
-import com.intellij.execution.configurations.RunConfigurationModule
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkBatchConfigurableModel
+import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import rx.Observable;
+import rx.Observer;
 
-class ServerlessSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
-    val model = ServerlessSparkBatchConfigurableModel(project)
+import java.util.AbstractMap.SimpleImmutableEntry;
+
+public class ServerlessSparkBatchJob extends SparkBatchJob {
+    public ServerlessSparkBatchJob(@NotNull SparkSubmissionParameter submissionParameter,
+                                   @NotNull SparkBatchAzureSubmission azureSubmission,
+                                   @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
+        super(submissionParameter, azureSubmission, ctrlSubject);
+    }
+
+    @NotNull
+    @Override
+    public Observable<? extends ISparkBatchJob> deploy(@NotNull String artifactPath) {
+        // TODO: need to deploy the jar file into ADLS
+        return Observable.just(this);
+    }
 }

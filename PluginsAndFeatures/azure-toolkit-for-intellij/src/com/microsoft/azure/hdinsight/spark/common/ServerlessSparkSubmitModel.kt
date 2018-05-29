@@ -20,12 +20,31 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.common
 
-import com.intellij.execution.configurations.RunConfigurationModule
 import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkBatchConfigurableModel
+import org.jdom.Element
 
-class ServerlessSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
-    val model = ServerlessSparkBatchConfigurableModel(project)
+class ServerlessSparkSubmitModel(project: Project) : SparkSubmitModel(project) {
+    var tenantId: String = "common"
+
+    companion object {
+        @JvmStatic val SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID = "tenant_id"
+    }
+
+    override fun exportToElement(): Element {
+        return super.exportToElement()
+                .setAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID, tenantId)
+
+    }
+
+    override fun applyFromElement(rootElement: Element): SparkSubmitModel {
+        super.applyFromElement(rootElement)
+
+        if (rootElement.name == SUBMISSION_CONTENT_NAME) {
+            tenantId = rootElement.getAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID)?.value ?: "common"
+        }
+
+        return this
+    }
 }
