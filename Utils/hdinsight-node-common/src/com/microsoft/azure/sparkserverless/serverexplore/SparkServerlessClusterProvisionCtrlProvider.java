@@ -23,7 +23,6 @@ package com.microsoft.azure.sparkserverless.serverexplore;
 
 import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
-import com.microsoft.azure.hdinsight.sdk.cluster.ProvisionableCluster;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessAccount;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -32,6 +31,9 @@ import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import rx.Observable;
+
+import java.util.HashSet;
+import java.util.Set;
 
 public class SparkServerlessClusterProvisionCtrlProvider {
 
@@ -95,86 +97,128 @@ public class SparkServerlessClusterProvisionCtrlProvider {
                 .subscribe();
     }
 
+    @NotNull
+    public SparkServerlessClusterProvisionSettingsModel validateClusterNameUniqueness(
+            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
+        if (!StringUtils.isEmpty(toUpdate.getErrorMessage())) {
+            return toUpdate;
+        }
+
+        Set<String> names = new HashSet<>();
+        account.refresh().getClusters().forEach(cluster -> names.add(cluster.getName()));
+        if (names.contains(toUpdate.getClusterName())) {
+            return toUpdate.setErrorMessage("Cluster name already exists.");
+        }
+        return toUpdate;
+
+    }
+
+    @NotNull
+    private static SparkServerlessClusterProvisionSettingsModel validateDataCompleteness(
+            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
+        if (!StringUtils.isEmpty(toUpdate.getErrorMessage())) {
+            return toUpdate;
+        }
+
+        // TODO: Check all of the necessary fields
+        String clusterName = toUpdate.getClusterName();
+        String adlAccount = toUpdate.getAdlAccount();
+        String userStorageAccount = toUpdate.getUserStorageAccount();
+        String previousSparkEvents = toUpdate.getPreviousSparkEvents();
+        int workerNumberOfContainers = toUpdate.getWorkerNumberOfContainers();
+
+        if (StringHelper.isNullOrWhiteSpace(clusterName) ||
+                StringHelper.isNullOrWhiteSpace(adlAccount) ||
+                StringHelper.isNullOrWhiteSpace(userStorageAccount) ||
+                StringHelper.isNullOrWhiteSpace(previousSparkEvents) ||
+                StringHelper.isNullOrWhiteSpace(String.valueOf(workerNumberOfContainers))) {
+            String highlightPrefix = "* ";
+            if (!toUpdate.getAdlAccountLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setAdlAccountLabelTitle(highlightPrefix + toUpdate.getAdlAccountLabelTitle());
+            }
+            if (!toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setClusterNameLabelTitle(highlightPrefix + toUpdate.getClusterNameLabelTitle());
+            }
+            if (!toUpdate.getUserStorageAccountLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setUserStorageAccountLabelTitle(
+                        highlightPrefix + toUpdate.getUserStorageAccountLabelTitle());
+            }
+            if (!toUpdate.getPreviousSparkEventsLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setPreviousSparkEventsLabelTitle(
+                        highlightPrefix + toUpdate.getPreviousSparkEventsLabelTitle());
+            }
+            if (!toUpdate.getWorkerNumberOfContainersLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setWorkerNumberOfContainersLabelTitle(
+                        highlightPrefix + toUpdate.getWorkerNumberOfContainersLabelTitle());
+            }
+            return toUpdate.setErrorMessage("All (*) fields are required.");
+        }
+
+        return toUpdate.setErrorMessage(null);
+    }
+
+    @NotNull
+    private static SparkServerlessClusterProvisionSettingsModel validateNumericField(
+            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
+        if (!StringUtils.isEmpty(toUpdate.getErrorMessage())) {
+            return toUpdate;
+        }
+
+        int masterCores = toUpdate.getMasterCores();
+        int masterMemory = toUpdate.getMasterMemory();
+        int workerCores = toUpdate.getWorkerCores();
+        int workerMemory = toUpdate.getWorkerMemory();
+        int workerNumberOfContainers = toUpdate.getWorkerNumberOfContainers();
+
+        // TODO: Only workerNumberOfContainers field numeric check will be reserved finally
+        // TODO: Determine whether workerNumberOfContainers is in legal range
+        if (masterCores <= 0 ||
+                masterMemory <= 0 ||
+                workerCores <= 0 ||
+                workerMemory <= 0 ||
+                workerNumberOfContainers <= 0) {
+            return toUpdate.setErrorMessage(
+                    "These fields should be positive numbers: Master cores, master memory, " +
+                            "worker cores, worker memory and worker number of containers.");
+        }
+        return toUpdate.setErrorMessage(null);
+    }
+
+    @NotNull
+    private SparkServerlessClusterProvisionSettingsModel provisionCluster(
+            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
+        if (!StringUtils.isEmpty(toUpdate.getErrorMessage())) {
+            return toUpdate;
+        }
+
+        try {
+            AzureSparkServerlessCluster cluster =
+                    (AzureSparkServerlessCluster) new AzureSparkServerlessCluster.Builder(account)
+                            .name(toUpdate.getClusterName())
+                            .masterPerInstanceCores(toUpdate.getMasterCores())
+                            .masterPerInstanceMemory(toUpdate.getMasterMemory())
+                            .workerPerInstanceCores(toUpdate.getWorkerCores())
+                            .workerPerInstanceMemory(toUpdate.getWorkerMemory())
+                            .workerInstances(toUpdate.getWorkerNumberOfContainers())
+                            .sparkEventsPath(toUpdate.getPreviousSparkEvents())
+                            .userStorageAccount(toUpdate.getUserStorageAccount())
+                            .build().provision().toBlocking().single();
+        } catch (Exception e) {
+            return toUpdate.setErrorMessage("Provision failed: " + e.getMessage());
+        }
+        return toUpdate;
+    }
+
     public Observable<SparkServerlessClusterProvisionSettingsModel> validateAndProvision() {
+        // TODO: AU adequation check
         return Observable.just(new SparkServerlessClusterProvisionSettingsModel())
                 .doOnNext(controllableView::getData)
                 .observeOn(ideSchedulers.processBarVisibleAsync("Validating the cluster settings..."))
-                .map(toUpdate -> {
-                    //  TODO: split the anonymous function into small ones.
-                    String clusterName = toUpdate.getClusterName();
-                    String adlAccount = toUpdate.getAdlAccount();
-                    String userStorageAccount = toUpdate.getUserStorageAccount();
-                    String previousSparkEvents = toUpdate.getPreviousSparkEvents();
-
-                    int masterCores = toUpdate.getMasterCores();
-                    int masterMemory = toUpdate.getMasterMemory();
-                    int workerCores = toUpdate.getWorkerCores();
-                    int workerMemory = toUpdate.getWorkerMemory();
-                    int workerNumberOfContainers = toUpdate.getWorkerNumberOfContainers();
-
-                    // Incomplete data check
-                    // TODO: Check all of the necessary fields
-                    if (StringHelper.isNullOrWhiteSpace(clusterName) ||
-                            StringHelper.isNullOrWhiteSpace(adlAccount) ||
-                            StringHelper.isNullOrWhiteSpace(userStorageAccount) ||
-                            StringHelper.isNullOrWhiteSpace(previousSparkEvents) ||
-                            StringHelper.isNullOrWhiteSpace(String.valueOf(workerNumberOfContainers))) {
-                        String highlightPrefix = "* ";
-                        if (!toUpdate.getAdlAccountLabelTitle().startsWith(highlightPrefix)) {
-                            toUpdate.setAdlAccountLabelTitle(highlightPrefix + toUpdate.getAdlAccountLabelTitle());
-                        }
-                        if (!toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
-                            toUpdate.setClusterNameLabelTitle(highlightPrefix + toUpdate.getClusterNameLabelTitle());
-                        }
-                        if (!toUpdate.getUserStorageAccountLabelTitle().startsWith(highlightPrefix)) {
-                            toUpdate.setUserStorageAccountLabelTitle(
-                                    highlightPrefix + toUpdate.getUserStorageAccountLabelTitle());
-                        }
-                        if (!toUpdate.getPreviousSparkEventsLabelTitle().startsWith(highlightPrefix)) {
-                            toUpdate.setPreviousSparkEventsLabelTitle(
-                                    highlightPrefix + toUpdate.getPreviousSparkEventsLabelTitle());
-                        }
-                        if (!toUpdate.getWorkerNumberOfContainersLabelTitle().startsWith(highlightPrefix)) {
-                            toUpdate.setWorkerNumberOfContainersLabelTitle(
-                                    highlightPrefix + toUpdate.getWorkerNumberOfContainersLabelTitle());
-                        }
-                        return toUpdate.setErrorMessage("All (*) fields are required.");
-                    }
-
-                    // Numeric field check
-                    // TODO: Only workerNumberOfContainers field numeric check will be reserved finally
-                    // TODO: Determine whether workerNumberOfContainers is in legal range
-                    if (masterCores <= 0 ||
-                            masterMemory <= 0 ||
-                            workerCores <= 0 ||
-                            workerMemory <= 0 ||
-                            workerNumberOfContainers <= 0) {
-                        return toUpdate.setErrorMessage(
-                                "These fields should be positive numbers: Master cores, master memory, " +
-                                        "worker cores, worker memory and worker number of containers.");
-                    }
-
-                    // TODO: Cluster name uniqueness check, AU adequation check
-
-                    try {
-                        // create a spark serverless cluster
-                        AzureSparkServerlessCluster cluster =
-                                (AzureSparkServerlessCluster) new AzureSparkServerlessCluster.Builder(account)
-                                .name(clusterName)
-                                .masterPerInstanceCores(masterCores)
-                                .masterPerInstanceMemory(masterMemory)
-                                .workerPerInstanceCores(workerCores)
-                                .workerPerInstanceMemory(workerMemory)
-                                .workerInstances(workerNumberOfContainers)
-                                .sparkEventsPath(previousSparkEvents)
-                                .userStorageAccount(userStorageAccount)
-                                .build().provision().toBlocking().single();
-                    } catch (Exception e) {
-                        return toUpdate.setErrorMessage("Provision failed: " + e.getMessage());
-                    }
-
-                    return toUpdate.setErrorMessage(null);
-                })
+                .map(toUpdate -> toUpdate.setErrorMessage(null))
+                .map(SparkServerlessClusterProvisionCtrlProvider::validateDataCompleteness)
+                .map(toUpdate -> validateClusterNameUniqueness(toUpdate))
+                .map(SparkServerlessClusterProvisionCtrlProvider::validateNumericField)
+                .map(toUpdate -> provisionCluster(toUpdate))
                 .observeOn(ideSchedulers.dispatchUIThread())
                 .doOnNext(controllableView::setData)
                 .filter(data -> StringUtils.isEmpty(data.getErrorMessage()));
