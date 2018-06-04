@@ -51,4 +51,5 @@ public class CommonConst {
     public static final String SPARK_FAILURE_TASK_CONTEXT_EXTENSION = "ftd";
 
     public static final String AZURE_SERVERLESS_SPARK_ROOT_ICON_PATH = "AzureServerlessSparkRoot.png";
+    public static final String AZURE_SERVERLESS_SPARK_ACCOUNT_ICON_PATH = "AzureServerlessSparkAccount.png";
 }
