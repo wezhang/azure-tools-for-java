@@ -28,14 +28,15 @@ import com.intellij.execution.Executor
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.ide.BrowserUtil
 import com.microsoft.azure.hdinsight.common.HDInsightUtil
 import com.microsoft.azure.hdinsight.common.MessageInfoType
 import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkSubmitModel
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.net.URI
 import java.util.*
 
 class SparkBatchRemoteRunState(val serverlessSparkSubmitModel: ServerlessSparkSubmitModel)
@@ -60,6 +61,8 @@ class SparkBatchRemoteRunState(val serverlessSparkSubmitModel: ServerlessSparkSu
                                 consoleView!!.print("INFO: ${messageWithType.value}\n", ConsoleViewContentType.SYSTEM_OUTPUT)
                             MessageInfoType.Warning, MessageInfoType.Log ->
                                 consoleView!!.print("LOG: ${messageWithType.value}\n", ConsoleViewContentType.SYSTEM_OUTPUT)
+                            MessageInfoType.Hyperlink ->
+                                BrowserUtil.browse(URI.create(messageWithType.value))
                             else ->
                                 consoleView!!.print("ERROR: ${messageWithType.value}\n", ConsoleViewContentType.ERROR_OUTPUT)
                         }
