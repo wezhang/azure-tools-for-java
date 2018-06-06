@@ -51,7 +51,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
 
     private JTextField clusterNameField;
     private JTextField adlAccountField;
-    private JTextField userStorageAccountField;
     private JTextField previousSparkEventsField;
     private JTextField masterCoresField;
     private JTextField masterMemoryField;
@@ -74,7 +73,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
     private JTextField errorMessageField;
     private JPanel provisionDialogPanel;
     private JButton refreshButton;
-    private JLabel userStorageAccountLabel;
 
     public SparkServerlessProvisionDialog(@NotNull SparkServerlessADLAccountNode adlAccountNode,
                                           @NotNull AzureSparkServerlessAccount account) {
@@ -123,7 +121,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
     public void setData(@NotNull SparkServerlessClusterProvisionSettingsModel data) {
         clusterNameField.setText(data.getClusterName());
         adlAccountField.setText(data.getAdlAccount());
-        userStorageAccountField.setText(data.getUserStorageAccount());
         previousSparkEventsField.setText(data.getPreviousSparkEvents());
         availableAUField.setText(String.valueOf(data.getAvailableAU()));
         totalAUField.setText(String.valueOf(data.getTotalAU()));
@@ -136,7 +133,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
 
         clusterNameLabel.setText(data.getClusterNameLabelTitle());
         adlAccountLabel.setText(data.getAdlAccountLabelTitle());
-        userStorageAccountLabel.setText(data.getUserStorageAccountLabelTitle());
         previousSparkEventsLabel.setText(data.getPreviousSparkEventsLabelTitle());
         workerNumberOfContainersLabel.setText(data.getWorkerNumberOfContainersLabelTitle());
 
@@ -149,7 +145,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
     public void getData(@NotNull SparkServerlessClusterProvisionSettingsModel data) {
         data.setClusterName(clusterNameField.getText())
                 .setAdlAccount(adlAccountField.getText())
-                .setUserStorageAccount(userStorageAccountField.getText())
                 .setPreviousSparkEvents(previousSparkEventsField.getText())
                 .setAvailableAU(NumberUtils.toInt(availableAUField.getText()))
                 .setTotalAU(NumberUtils.toInt(totalAUField.getText()))
@@ -161,7 +156,6 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
                 .setWorkerNumberOfContainers(NumberUtils.toInt(workerNumberOfContainersField.getText()))
                 .setClusterNameLabelTitle(clusterNameLabel.getText())
                 .setAdlAccountLabelTitle(adlAccountLabel.getText())
-                .setUserStorageAccountLabelTitle(userStorageAccountLabel.getText())
                 .setPreviousSparkEventsLabelTitle(previousSparkEventsLabel.getText())
                 .setWorkerNumberOfContainersLabelTitle(workerNumberOfContainersLabel.getText())
                 .setErrorMessage(errorMessageField.getText());

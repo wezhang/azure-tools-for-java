@@ -30,8 +30,6 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
     @NotNull
     private String adlAccount;
     @NotNull
-    private String userStorageAccount;
-    @NotNull
     private String previousSparkEvents;
     @NotNull
     private int masterCores;
@@ -57,8 +55,6 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
     @NotNull
     private String adlAccountLabelTitle;
     @NotNull
-    private String userStorageAccountLabelTitle;
-    @NotNull
     private String previousSparkEventsLabelTitle;
     @NotNull
     private String workerNumberOfContainersLabelTitle;
@@ -83,16 +79,6 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
 
     public SparkServerlessClusterProvisionSettingsModel setAdlAccount(@NotNull String adlAccount) {
         this.adlAccount = adlAccount;
-        return this;
-    }
-
-    @NotNull
-    public String getUserStorageAccount() {
-        return userStorageAccount;
-    }
-
-    public SparkServerlessClusterProvisionSettingsModel setUserStorageAccount(@NotNull String userStorageAccount) {
-        this.userStorageAccount = userStorageAccount;
         return this;
     }
 
@@ -204,17 +190,6 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
 
     public SparkServerlessClusterProvisionSettingsModel setAdlAccountLabelTitle(@NotNull String adlAccountLabelTitle) {
         this.adlAccountLabelTitle = adlAccountLabelTitle;
-        return this;
-    }
-
-    @NotNull
-    public String getUserStorageAccountLabelTitle() {
-        return userStorageAccountLabelTitle;
-    }
-
-    public SparkServerlessClusterProvisionSettingsModel setUserStorageAccountLabelTitle(
-            @NotNull String userStorageAccountLabelTitle) {
-        this.userStorageAccountLabelTitle = userStorageAccountLabelTitle;
         return this;
     }
 

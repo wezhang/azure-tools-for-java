@@ -123,13 +123,11 @@ public class SparkServerlessClusterProvisionCtrlProvider {
         // TODO: Check all of the necessary fields
         String clusterName = toUpdate.getClusterName();
         String adlAccount = toUpdate.getAdlAccount();
-        String userStorageAccount = toUpdate.getUserStorageAccount();
         String previousSparkEvents = toUpdate.getPreviousSparkEvents();
         int workerNumberOfContainers = toUpdate.getWorkerNumberOfContainers();
 
         if (StringHelper.isNullOrWhiteSpace(clusterName) ||
                 StringHelper.isNullOrWhiteSpace(adlAccount) ||
-                StringHelper.isNullOrWhiteSpace(userStorageAccount) ||
                 StringHelper.isNullOrWhiteSpace(previousSparkEvents) ||
                 StringHelper.isNullOrWhiteSpace(String.valueOf(workerNumberOfContainers))) {
             String highlightPrefix = "* ";
@@ -138,10 +136,6 @@ public class SparkServerlessClusterProvisionCtrlProvider {
             }
             if (!toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
                 toUpdate.setClusterNameLabelTitle(highlightPrefix + toUpdate.getClusterNameLabelTitle());
-            }
-            if (!toUpdate.getUserStorageAccountLabelTitle().startsWith(highlightPrefix)) {
-                toUpdate.setUserStorageAccountLabelTitle(
-                        highlightPrefix + toUpdate.getUserStorageAccountLabelTitle());
             }
             if (!toUpdate.getPreviousSparkEventsLabelTitle().startsWith(highlightPrefix)) {
                 toUpdate.setPreviousSparkEventsLabelTitle(
@@ -204,7 +198,7 @@ public class SparkServerlessClusterProvisionCtrlProvider {
                             .workerPerInstanceMemory(toUpdate.getWorkerMemory())
                             .workerInstances(toUpdate.getWorkerNumberOfContainers())
                             .sparkEventsPath(toUpdate.getPreviousSparkEvents())
-                            .userStorageAccount(toUpdate.getUserStorageAccount())
+                            .userStorageAccount(account.getDetailResponse().defaultDataLakeStoreAccount())
                             .build().provision().toBlocking().single();
         } catch (Exception e) {
             return toUpdate.setErrorMessage("Provision failed: " + e.getMessage());
@@ -220,9 +214,6 @@ public class SparkServerlessClusterProvisionCtrlProvider {
         }
         if (toUpdate.getAdlAccountLabelTitle().startsWith(highlightPrefix)) {
             toUpdate.setAdlAccountLabelTitle(toUpdate.getAdlAccountLabelTitle().substring(2));
-        }
-        if (toUpdate.getUserStorageAccountLabelTitle().startsWith(highlightPrefix)) {
-            toUpdate.setUserStorageAccountLabelTitle(toUpdate.getUserStorageAccountLabelTitle().substring(2));
         }
         if (toUpdate.getPreviousSparkEventsLabelTitle().startsWith(highlightPrefix)) {
             toUpdate.setPreviousSparkEventsLabelTitle(toUpdate.getPreviousSparkEventsLabelTitle().substring(2));
