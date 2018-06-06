@@ -52,6 +52,9 @@ public class SparkServerlessClusterDestoryCtrlProvider {
                 .doOnNext(controllableView::getData)
                 .observeOn(ideSchedulers.processBarVisibleAsync("Validating the cluster name..."))
                 .map(toUpdate -> {
+                    if (StringUtils.isEmpty(toUpdate.getClusterName())) {
+                        return toUpdate.setErrorMessage("Error: Empty cluster name.");
+                    }
                     if (!clusterName.equals(toUpdate.getClusterName())) {
                         return toUpdate.setErrorMessage("Error: Wrong cluster name.");
                     }

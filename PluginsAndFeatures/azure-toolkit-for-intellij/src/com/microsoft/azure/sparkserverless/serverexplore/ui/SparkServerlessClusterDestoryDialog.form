@@ -16,12 +16,12 @@
         <properties/>
         <border type="none"/>
         <children>
-          <component id="58a03" class="javax.swing.JLabel">
+          <component id="58a03" class="javax.swing.JLabel" binding="confimMessageLabel">
             <constraints>
               <grid row="1" column="1" row-span="1" col-span="3" vsize-policy="0" hsize-policy="0" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
             </constraints>
             <properties>
-              <text value="Are you sure you want to delete the Spark Cluster?"/>
+              <text value="Are you sure you want to delete the Spark Cluster"/>
             </properties>
           </component>
           <component id="9b455" class="javax.swing.JTextField" binding="clusterNameField">
@@ -88,6 +88,7 @@
         </constraints>
         <properties>
           <foreground color="-5625047"/>
+          <horizontalAlignment value="0"/>
         </properties>
       </component>
     </children>

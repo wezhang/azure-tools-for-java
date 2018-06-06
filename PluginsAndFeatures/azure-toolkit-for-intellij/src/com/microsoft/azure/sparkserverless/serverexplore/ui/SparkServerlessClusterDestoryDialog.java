@@ -49,6 +49,7 @@ public class SparkServerlessClusterDestoryDialog extends DialogWrapper
     private JPanel destroyDialogPanel;
     private JTextField clusterNameField;
     private JTextField errorMessageField;
+    private JLabel confimMessageLabel;
 
     public SparkServerlessClusterDestoryDialog(@NotNull SparkServerlessClusterNode clusterNode,
                                                @NotNull DestroyableCluster cluster) {
@@ -60,6 +61,7 @@ public class SparkServerlessClusterDestoryDialog extends DialogWrapper
 
         init();
         this.setTitle("Delete Spark Cluster");
+        confimMessageLabel.setText(String.format("%s %s?", confimMessageLabel.getText(), clusterNode.getClusterName()));
         errorMessageField.setBackground(this.destroyDialogPanel.getBackground());
         errorMessageField.setBorder(BorderFactory.createEmptyBorder());
         this.setModal(true);
