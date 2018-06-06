@@ -25,6 +25,7 @@ package com.microsoft.azure.hdinsight.spark.run
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.RunProfile
 import com.microsoft.azure.hdinsight.common.MessageInfoType
+import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager
 import com.microsoft.azure.hdinsight.spark.common.*
 import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfiguration
 import rx.Observer
@@ -42,10 +43,27 @@ class ServerlessSparkBatchRunner : SparkBatchJobRunner() {
     @Throws(ExecutionException::class)
     override fun buildSparkBatchJob(submitModel: SparkSubmitModel, ctrlSubject: Observer<SimpleImmutableEntry<MessageInfoType, String>>): ISparkBatchJob {
         val tenantId = (submitModel as ServerlessSparkSubmitModel).tenantId
+        val accountName = submitModel.accountName
 
-        return ServerlessSparkBatchJob(
-                submitModel.submissionParameter,
-                SparkBatchAzureSubmission.getInstance().setTenantId(tenantId),
-                ctrlSubject)
+        if (submitModel.clusterId == null) {
+            throw ExecutionException("Can't get the Azure Serverless Spark cluster, please sign in and refresh.")
+        }
+
+        val clusterId = submitModel.clusterId
+        try {
+            val livyUri = submitModel.livyUri ?: AzureSparkServerlessClusterManager.getInstance()
+                    .findCluster(accountName, clusterId)
+                    .map { it.get().toBlocking().singleOrDefault(it).livyUri }
+                    .toBlocking()
+                    .first()
+
+            return ServerlessSparkBatchJob(
+                    submitModel.submissionParameter,
+                    SparkBatchAzureSubmission(tenantId, accountName, clusterId, livyUri),
+                    ctrlSubject)
+        } catch (e: Exception) {
+            throw ExecutionException("Can't get the Azure Serverless Spark cluster, please sign in and refresh.", e)
+        }
+
     }
 }

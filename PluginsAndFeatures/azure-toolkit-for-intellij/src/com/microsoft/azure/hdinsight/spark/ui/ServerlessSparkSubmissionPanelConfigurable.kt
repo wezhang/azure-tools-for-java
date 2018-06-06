@@ -74,10 +74,16 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
     override fun getData(data: SparkSubmitModel?) {
         // Component -> Data
         val serverlessData = data as ServerlessSparkSubmitModel
-        serverlessData.tenantId = submitModel.selectedClusterDetail
-                .map { it as AzureSparkServerlessCluster }
-                .map { it.subscription.tenantId }
-                .orElse("common")
+        val cluster = submitModel.selectedClusterDetail
+                        .map { it as AzureSparkServerlessCluster }
+                        .orElse(null)
+
+        if (cluster != null) {
+            serverlessData.tenantId = cluster.subscription.tenantId
+            serverlessData.accountName = cluster.account.name
+            serverlessData.clusterId = cluster.guid
+            serverlessData.livyUri = cluster.livyUri
+        }
 
         super.getData(data)
     }

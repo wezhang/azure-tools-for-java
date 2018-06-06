@@ -23,7 +23,10 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azuretools.adauth.AuthException;
+import com.microsoft.azuretools.adauth.PromptBehavior;
+import com.microsoft.azuretools.authmanage.AdAuthManager;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
@@ -32,45 +35,37 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.net.URI;
+import java.util.Arrays;
 
 public class SparkBatchAzureSubmission extends SparkBatchSubmission {
-    @Nullable
-    private String tenantId;
-
-    private SparkBatchAzureSubmission() {
-        super();
-    }
-
-    // Lazy Singleton Instance
-    private static SparkBatchAzureSubmission instance = null;
-
-    public static SparkBatchAzureSubmission getInstance() {
-        SparkBatchAzureSubmission localRef = instance;
-        if(localRef == null){
-            synchronized (SparkBatchAzureSubmission.class) {
-                localRef = instance;
-
-                if(localRef == null){
-                    localRef = new SparkBatchAzureSubmission();
-                    instance = localRef;
-                }
-            }
-        }
-
-        return localRef;
-    }
-
     @NotNull
-    public SparkBatchAzureSubmission setTenantId(String tid) {
-        this.tenantId = tid;
+    private final String tenantId;
+    @NotNull
+    private final String accountName;
+    @NotNull
+    private final String clusterId;
+    @Nullable
+    private URI livyUri;
 
-        return this;
+    public SparkBatchAzureSubmission(@NotNull String tenantId, @NotNull String accountName, @NotNull String clusterId, @Nullable URI livyUri) {
+        super();
+        this.tenantId = tenantId;
+        this.accountName = accountName;
+        this.clusterId = clusterId;
+        this.livyUri = livyUri;
     }
 
     @Override
     public void setUsernamePasswordCredential(String username, String password) {
         throw new UnsupportedOperationException("Azure does not support UserName/Password credential");
+    }
+
+    @NotNull
+    private String getResourceEndpoint() {
+        String endpoint = CommonSettings.getAdEnvironment().dataLakeEndpointResourceId();
+
+        return endpoint != null ? endpoint : "https://datalake.azure.net/";
     }
 
     @NotNull
@@ -81,19 +76,36 @@ public class SparkBatchAzureSubmission extends SparkBatchSubmission {
             throw new AuthException("Not signed in. Can't send out the request.");
         }
 
-        return azureManager.getAccessToken(tenantId);
+        return AdAuthManager.getInstance().getAccessToken(getTenantId(), getResourceEndpoint(), PromptBehavior.Auto);
     }
 
     @NotNull
     @Override
     protected CloseableHttpClient getHttpClient() throws IOException {
         return HttpClients.custom()
-                .setDefaultHeaders(Collections.singletonList(new BasicHeader("Authorization", "Bearer " + getAccessToken())))
+                .setDefaultHeaders(Arrays.asList(
+                        new BasicHeader("Authorization", "Bearer " + getAccessToken()),
+                        new BasicHeader("x-ms-kobo-account-name", getAccountName())))
                 .build();
     }
 
-    @Nullable
+    @NotNull
+    public String getAccountName() {
+        return accountName;
+    }
+
+    @NotNull
     public String getTenantId() {
         return tenantId;
+    }
+
+    @Nullable
+    public URI getLivyUri() {
+        return livyUri;
+    }
+
+    @NotNull
+    public String getClusterId() {
+        return clusterId;
     }
 }
