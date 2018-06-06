@@ -25,13 +25,14 @@ package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 import com.google.common.collect.ImmutableSortedSet;
 import com.microsoft.azure.AzureEnvironment;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.ClusterContainer;
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.AzureManagementHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.ODataParam;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.api.GetAccountsListResponse;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.ApiVersion;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccount;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
@@ -40,13 +41,17 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import rx.Observable;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+
+import static rx.Observable.concat;
+import static rx.Observable.from;
 
 public class AzureSparkServerlessClusterManager implements ClusterContainer,
                                                            ILogger {
@@ -144,44 +149,47 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 .defaultIfEmpty(this);
     }
 
-    private Observable<Set<Pair<SubscriptionDetail, List<DataLakeAnalyticsAccountBasic>>>> getAzureDataLakeAccountsRequest() {
+    private Observable<List<Triple<SubscriptionDetail, DataLakeAnalyticsAccountBasic, DataLakeAnalyticsAccount>>>
+    getAzureDataLakeAccountsRequest() {
         if (getAzureManager() == null) {
             return Observable.empty();
         }
 
         // Loop subscriptions to get all accounts
         return Observable
-                .fromCallable(() -> getAzureManager().getSubscriptionManager().getSubscriptionDetails()
-                        .stream()
-                        .map(sub -> Pair.of(
-                                sub,
-                                URI.create(getSubscriptionsUri(sub.getSubscriptionId()).toString() + "/")
-                                        .resolve(REST_SEGMENT_ADL_ACCOUNT)))
-                        .collect(Collectors.toSet()))  // Output pair list of Subscription detail and ADL account URI
+                .fromCallable(() -> getAzureManager().getSubscriptionManager().getSubscriptionDetails())
+                .flatMap(Observable::from)             // Get Subscription details one by one
+                .map(sub -> Pair.of(
+                        sub,
+                        URI.create(getSubscriptionsUri(sub.getSubscriptionId()).toString() + "/")
+                           .resolve(REST_SEGMENT_ADL_ACCOUNT)))
                 .doOnNext(pair -> log().debug("Pair(Subscription, AccountsListUri): " + pair.toString()))
-                .flatMap(Observable::from)             // Send URI to next one by one
                 .map(subUriPair -> Pair.of(
                         subUriPair.getLeft(),
-                        getHttp(subUriPair.getLeft()).withUuidUserAgent(false)
+                        getHttp(subUriPair.getLeft())
+                                .withUuidUserAgent(false)
                                 .get(subUriPair.getRight().toString(),
                                         Collections.singletonList(ODataParam.filter(ACCOUNT_FILTER)),
                                         null,
                                         // FIXME!!! Needs to support paging
                                         GetAccountsListResponse.class)))
+                // account basic list -> account basic
+                .flatMap(subAccountsObPair -> subAccountsObPair.getRight()
+                                .flatMap(accountsResp -> Observable.from(accountsResp.items()))
+                                .map(accountBasic -> Pair.of(subAccountsObPair.getLeft(), accountBasic)))
+                .flatMap(subAccountBasicPair -> {
+                    // accountBasic.id is the account detail absolute URI path
+                    URI accountDetailUri = getResourceManagerEndpoint().resolve(subAccountBasicPair.getRight().id());
+
+                    // Get account details
+                    return getHttp(subAccountBasicPair.getLeft())
+                            .withUuidUserAgent(false)
+                            .get(accountDetailUri.toString(), null, null, DataLakeAnalyticsAccount.class)
+                            .map(accountDetail -> Triple.of(
+                                    subAccountBasicPair.getLeft(), subAccountBasicPair.getRight(), accountDetail));
+                })
                 .toList()
-                .map(adlAccountsSet -> adlAccountsSet.stream()
-                        .flatMap(subAccountPair -> {
-                            try {
-                                // May produce NoElementException
-                                return Stream.of(Pair.of(subAccountPair.getLeft(),
-                                                         subAccountPair.getRight().toBlocking().single().items()));
-                            } catch (Exception e) {
-                                log().warn("Can't get Azure Spark Serverless Account " + e);
-                                return Stream.empty();
-                            }
-                        })
-                        .collect(Collectors.toSet()))
-                .doOnNext(pairs -> log().debug("Pair(Subscription, AccountBasics) sets: " + pairs.toString()));
+                .doOnNext(triples -> log().debug("Triple(Subscription, AccountBasic, AccountDetails) list: " + triples.toString()));
     }
 
     @NotNull
@@ -197,28 +205,42 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
     }
 
     @NotNull
+    private URI getResourceManagerEndpoint() {
+        return URI.create(azureEnv.resourceManagerEndpoint());
+    }
+
+    @NotNull
     private URI getSubscriptionsUri(@NotNull String subscriptionId) {
-        return URI.create(azureEnv.resourceManagerEndpoint())
+        return getResourceManagerEndpoint()
                 .resolve(REST_SEGMENT_SUBSCRIPTION)
                 .resolve(subscriptionId);
     }
 
     @NotNull
-    private AzureSparkServerlessClusterManager updateWithResponse(Set<Pair<SubscriptionDetail, List<DataLakeAnalyticsAccountBasic>>> accountsResponse) {
+    private AzureSparkServerlessClusterManager updateWithResponse(
+            List<Triple<SubscriptionDetail, DataLakeAnalyticsAccountBasic, DataLakeAnalyticsAccount>> accountsResponse) {
         accounts = ImmutableSortedSet.copyOf(accountsResponse
                 .stream()
-                .flatMap(subAccountsMapPair ->
-                        subAccountsMapPair.getRight()   // accountBasic lists
-                                .stream()               // accountBasic stream
-                                .map(accountBasic ->    // collect to AzureSparkServerlessAccount stream
-                                        new AzureSparkServerlessAccount(subAccountsMapPair.getLeft(),
-                                                                        // endpoint property is account's base URI
-                                                                        URI.create("https://" + accountBasic.endpoint()),
-                                                                        accountBasic.name())
-                                                .setBasicResponse(accountBasic)))
+                .map(subAccountBasicDetailTriple ->     // Triple: subscription, accountBasic, accountDetail
+                        new AzureSparkServerlessAccount(
+                                subAccountBasicDetailTriple.getLeft(),
+                                // endpoint property is account's base URI
+                                URI.create("https://" + subAccountBasicDetailTriple.getMiddle().endpoint()),
+                                           subAccountBasicDetailTriple.getMiddle().name())
+                                   .setBasicResponse(subAccountBasicDetailTriple.getMiddle())
+                                   .setDetailResponse(subAccountBasicDetailTriple.getRight()))
                 .iterator());
 
         return this;
     }
 
+    public Observable<? extends AzureSparkServerlessCluster> findCluster(@NotNull String accountName, @NotNull String clusterGuid) {
+        return concat(from(getAccounts()), get().flatMap(manager -> from(manager.getAccounts())))
+                .filter(account -> account.getName().equals(accountName))
+                .first()
+                .flatMap(account -> concat(from(account.getClusters()), account.get().flatMap(acct -> from(acct.getClusters()))))
+                .map(AzureSparkServerlessCluster.class::cast)
+                .filter(cluster -> cluster.getGuid().equals(clusterGuid))
+                .first();
+    }
 }

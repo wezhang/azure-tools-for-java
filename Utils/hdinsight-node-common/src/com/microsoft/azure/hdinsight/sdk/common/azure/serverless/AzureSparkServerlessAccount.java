@@ -27,6 +27,7 @@ import com.microsoft.azure.hdinsight.sdk.cluster.ClusterContainer;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AzureDataLakeHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccount;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ApiVersion;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkResourcePoolList;
@@ -64,6 +65,9 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
 
     @NotNull
     private String name;
+
+    @Nullable
+    private DataLakeAnalyticsAccount detailResponse;
 
     public AzureSparkServerlessAccount(@NotNull SubscriptionDetail subscription, @NotNull URI uri, @NotNull String name) {
         this.subscription = subscription;
@@ -154,5 +158,16 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
     @NotNull
     public String getName() {
         return name;
+    }
+
+    public AzureSparkServerlessAccount setDetailResponse(@Nullable DataLakeAnalyticsAccount detailResponse) {
+        this.detailResponse = detailResponse;
+
+        return this;
+    }
+
+    @Nullable
+    public DataLakeAnalyticsAccount getDetailResponse() {
+        return detailResponse;
     }
 }

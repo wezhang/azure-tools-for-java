@@ -22,23 +22,33 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 
+import com.microsoft.azure.datalake.store.ADLStoreClient;
+import com.microsoft.azure.datalake.store.IfExists;
 import com.microsoft.azure.hdinsight.sdk.cluster.DestroyableCluster;
 import com.microsoft.azure.hdinsight.sdk.cluster.ProvisionableCluster;
 import com.microsoft.azure.hdinsight.sdk.cluster.SparkCluster;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccount;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeStoreAccountInformation;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.*;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount;
+import com.microsoft.azure.hdinsight.sdk.storage.StorageAccountTypeEnum;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.StringEntity;
 import rx.Observable;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -74,6 +84,44 @@ public class AzureSparkServerlessCluster extends SparkCluster
         }
     }
 
+    public static class StorageAccount implements IHDIStorageAccount {
+        @NotNull
+        private final String name;
+        @NotNull
+        private final String rootPath;
+        @NotNull
+        private final String subscriptionId;
+
+        public StorageAccount(@NotNull String name, @NotNull String rootPath, @NotNull String subscriptionId) {
+            this.name = name;
+            this.rootPath = rootPath;
+            this.subscriptionId = subscriptionId;
+        }
+
+        @NotNull
+        @Override
+        public String getName() {
+            return name;
+        }
+
+        @Override
+        public StorageAccountTypeEnum getAccountType() {
+            return StorageAccountTypeEnum.ADLS;
+        }
+
+        @NotNull
+        @Override
+        public String getDefaultContainerOrRootPath() {
+            return rootPath;
+        }
+
+        @NotNull
+        @Override
+        public String getSubscriptionId() {
+            return subscriptionId;
+        }
+    }
+
     public static class Builder {
         @NotNull
         private AzureSparkServerlessAccount acount;
@@ -82,7 +130,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
         @NotNull
         private String resourcePoolVersion = "";
         @NotNull
-        private String sparkVersion = "2.3.1";
+        private String sparkVersion = "2.3.0";
         @NotNull
         private String userStorageAccount = "";
         @NotNull
@@ -190,6 +238,19 @@ public class AzureSparkServerlessCluster extends SparkCluster
         }
     }
 
+    @Nullable
+    private final StorageAccount storageAccount;
+
+    @Nullable
+    private URI livyUri;
+    @Nullable
+    private URI livyUiUri;
+    @Nullable
+    private URI sparkMasterUiUri;
+    @Nullable
+    private URI sparkHistoryUiUri;
+
+
     private static final String REST_SEGMENT = "/activityTypes/spark/resourcePools/";
 
     @NotNull
@@ -224,6 +285,25 @@ public class AzureSparkServerlessCluster extends SparkCluster
         this.account = azureSparkServerlessAccount;
         this.guid = guid;
 
+        String storageRootPath = null;
+        DataLakeAnalyticsAccount accountDetail = azureSparkServerlessAccount.getDetailResponse();
+        if (accountDetail != null) {
+            // find default storage account name and suffix
+            String defaultStorageAccountName = accountDetail.defaultDataLakeStoreAccount();
+            storageRootPath = accountDetail.dataLakeStoreAccounts()
+                    .stream()
+                    .filter(info -> info.name().equals(defaultStorageAccountName))
+                    .findFirst()
+                    .map(DataLakeStoreAccountInformation::suffix)
+                    .map(suffix -> String.format("adl://%s.%s/", defaultStorageAccountName, suffix))
+                    .orElse(null);
+        }
+
+        this.storageAccount = storageRootPath == null ? null : new StorageAccount(
+                azureSparkServerlessAccount.getName(),
+                storageRootPath,
+                azureSparkServerlessAccount.getSubscription().getSubscriptionId());
+
         // FIXME with Enum type
         this.state = "unknown";
     }
@@ -236,6 +316,26 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @Override
     public boolean isConfigInfoAvailable() {
         return isConfigInfoAvailable;
+    }
+
+    @Nullable
+    public URI getLivyUri() {
+        return livyUri;
+    }
+
+    @Nullable
+    public URI getLivyUiUri() {
+        return livyUiUri;
+    }
+
+    @Nullable
+    public URI getSparkMasterUiUri() {
+        return sparkMasterUiUri;
+    }
+
+    @Nullable
+    public URI getSparkHistoryUiUri() {
+        return sparkHistoryUiUri;
     }
 
     @Nullable
@@ -311,12 +411,17 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @Nullable
     @Override
     public IHDIStorageAccount getStorageAccount() throws HDIException {
-        return null;
+        return storageAccount;
     }
 
     @Override
     public List<HDStorageAccount> getAdditionalStorageAccounts() {
         return null;
+    }
+
+    @NotNull
+    public AzureSparkServerlessAccount getAccount() {
+        return account;
     }
 
     @Override
@@ -329,6 +434,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
     @Override
     public String getSparkVersion() {
         return sparkVersion;
+    }
+
+    @NotNull
+    public String getSparkEventsPath() {
+        return sparkEventsPath;
     }
 
     @NotNull
@@ -353,6 +463,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return getHttp()
                 .withUuidUserAgent(false)
                 .get(uri.toString(), null, null, SparkResourcePool.class);
+    }
+
+    @NotNull
+    public String getGuid() {
+        return guid;
     }
 
     @NotNull
@@ -389,7 +504,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
                 this.sparkVersion = respProp.sparkVersion();
             }
 
-            if (respProp.sparkEventsDirectoryPath() != null) {
+            if (StringUtils.isNotBlank(respProp.sparkEventsDirectoryPath())) {
                 this.sparkEventsPath = respProp.sparkEventsDirectoryPath();
             }
 
@@ -398,6 +513,13 @@ public class AzureSparkServerlessCluster extends SparkCluster
                 this.worker = mapToSparkResource(respProp, SparkNodeType.SPARK_WORKER);
 
                 this.isConfigInfoAvailable = true;
+            }
+
+            if (respProp.sparkUriCollection() != null) {
+                this.livyUri = URI.create(respProp.sparkUriCollection().livyServerUrl());
+                this.livyUiUri = URI.create(respProp.sparkUriCollection().livyUiUrl());
+                this.sparkMasterUiUri = URI.create(respProp.sparkUriCollection().sparkMasterWebUiUrl());
+                this.sparkHistoryUiUri = URI.create(respProp.sparkUriCollection().sparkHistoryWebUiUrl());
             }
 
 
@@ -510,4 +632,24 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return this.getTitle().compareTo(other.getTitle());
     }
 
+    @Nullable
+    public String getTenantId() {
+        return getAccount().getSubscription().getTenantId();
+    }
+
+    // Have to catch IOException in subscribe
+    public Observable<Long> uploadToStorage(@NotNull File localFile, @NotNull URI remote) {
+        return Observable.fromCallable(() -> {
+            ADLStoreClient storeClient = ADLStoreClient.createClient(remote.getHost(), getHttp().getAccessToken());
+
+            try (OutputStream adlsOutputStream = storeClient.createFile(remote.getPath(), IfExists.OVERWRITE, "755", true)) {
+                long size = IOUtils.copyLarge(new FileInputStream(localFile), adlsOutputStream);
+
+                adlsOutputStream.flush();
+                adlsOutputStream.close();
+
+                return size;
+            }
+        });
+    }
 }
