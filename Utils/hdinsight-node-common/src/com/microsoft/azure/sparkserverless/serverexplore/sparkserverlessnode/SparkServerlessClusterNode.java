@@ -23,13 +23,21 @@
 package com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode;
 
 import com.microsoft.azure.hdinsight.common.CommonConst;
+import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessAccount;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.ui.embeddedbrowser.JxBrowserUtil;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureRefreshableNode;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
+import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
+import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import org.apache.log4j.Logger;
+
+import java.awt.*;
+import java.io.IOException;
+import java.net.URI;
 
 public class SparkServerlessClusterNode extends AzureRefreshableNode {
     @NotNull
@@ -47,7 +55,7 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
                                       @NotNull AzureSparkServerlessCluster cluster,
                                       @NotNull AzureSparkServerlessAccount adlAccount) {
         super(String.format("%s_%s", adlAccount.getName(), cluster.getName()),
-                String.format("%s [%s]", cluster.getName(), cluster.getState()),
+                String.format("%s [%s]", cluster.getName(), cluster.getMasterState()),
                 parent,
                 ICON_PATH,
                 true);
@@ -59,12 +67,9 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
 
     @Override
     protected void refreshItems() throws AzureCmdException {
-        try {
-            cluster.getConfigurationInfo();
-            name = String.format("%s [%s]", cluster.getName(), cluster.getState());
-        } catch (Exception e) {
-            LOG.error(e);
-        }
+        cluster.get().toBlocking().single();
+        // TODO: setName does not work since load() method will rewrite name to initital state in the callback.
+        // setName(String.format("%s [%s]", cluster.getName(), cluster.getMasterState()))
     }
 
     @Override

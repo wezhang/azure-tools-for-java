@@ -64,6 +64,12 @@ public class AzureSparkServerlessCluster extends SparkCluster
         int instances;
         int coresPerInstance;
         int memoryGBSizePerInstance;
+        String state;
+
+        SparkResource setState(String state) {
+            this.state = state;
+            return this;
+        }
 
         SparkResource setInstances(int instances) {
             this.instances = instances;
@@ -355,6 +361,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return state;
     }
 
+    @NotNull
+    public String getMasterState() {
+        return this.master == null ? "unknown" : this.master.state;
+    }
+
     @Override
     public String getLocation() {
         return null;
@@ -540,7 +551,8 @@ public class AzureSparkServerlessCluster extends SparkCluster
                 .map(item -> new SparkResource()
                         .setInstances(item.targetInstanceCount())
                         .setCoresPerInstance(item.perInstanceCoreCount())
-                        .setMemoryGBSizePerInstance(item.perInstanceMemoryInGB()))
+                        .setMemoryGBSizePerInstance(item.perInstanceMemoryInGB())
+                        .setState(item.status()))
                 .findFirst()
                 .orElse(null);
     }
@@ -554,6 +566,8 @@ public class AzureSparkServerlessCluster extends SparkCluster
     }
 
     private Observable<SparkResourcePool> createResourcePoolRequest() {
+        this.state = "provisioning";
+
         URI uri = getUri();
 
         CreateSparkResourcePool putBody = preparePutResourcePool();

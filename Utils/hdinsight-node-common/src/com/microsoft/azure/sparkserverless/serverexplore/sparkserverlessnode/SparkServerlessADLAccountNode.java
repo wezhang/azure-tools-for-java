@@ -53,11 +53,14 @@ public class SparkServerlessADLAccountNode extends AzureRefreshableNode {
          */
         adlAccount.get().doOnNext(account -> {
             account.getClusters().forEach(cluster -> {
-                String clusterStatus = cluster.getState();
+                AzureSparkServerlessCluster serverlessCluster = (AzureSparkServerlessCluster) cluster;
+                // refresh the cluster
+                serverlessCluster.get().toBlocking().single();
+                String clusterStatus = serverlessCluster.getState();
                 if (!clusterStatus.equals(ResourcePoolState.ENDED.toString()) &&
                         !clusterStatus.equals(ResourcePoolState.ENDING.toString())) {
                     addChildNode(new SparkServerlessClusterNode(
-                            this, (AzureSparkServerlessCluster) cluster, adlAccount));
+                            this, serverlessCluster, adlAccount));
                 }
             });
         }).subscribe();
