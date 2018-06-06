@@ -23,10 +23,12 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.tuple.Pair;
 import rx.Observable;
 import rx.Observer;
 
@@ -43,10 +45,16 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
     }
 
     @NotNull
+    private Observable<? extends AzureSparkServerlessCluster> getCluster() {
+        return AzureSparkServerlessClusterManager.getInstance()
+                .findCluster(getAzureSubmission().getAccountName(), getAzureSubmission().getClusterId());
+    }
+
+
+    @NotNull
     @Override
     public Observable<? extends ISparkBatchJob> deploy(@NotNull String artifactPath) {
-        return AzureSparkServerlessClusterManager.getInstance()
-                .findCluster(getAzureSubmission().getAccountName(), getAzureSubmission().getClusterId())
+        return getCluster()
                 .flatMap(cluster -> {
                     try {
                         if (cluster.getStorageAccount() == null) {
@@ -83,7 +91,22 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
     @NotNull
     @Override
     public Observable<String> awaitStarted() {
-        return super.awaitStarted();
+        return super.awaitStarted()
+                .flatMap(state -> Observable.zip(
+                        getCluster(), getSparkJobApplicationIdObservable(),
+                        (cluster, appId) -> Pair.of(
+                                state,
+                                cluster.getSparkHistoryUiUri() == null ?
+                                        null :
+                                        cluster.getSparkHistoryUiUri().resolve(String.format("/history/%s/", appId)))))
+                .map(stateJobUriPair -> {
+                    if (stateJobUriPair.getRight() != null) {
+                        getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Hyperlink,
+                                                                           stateJobUriPair.getRight().toString()));
+                    }
+
+                    return stateJobUriPair.getKey();
+                });
     }
 
     @NotNull
