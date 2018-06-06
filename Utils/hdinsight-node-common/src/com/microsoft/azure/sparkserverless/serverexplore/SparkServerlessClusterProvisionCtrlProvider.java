@@ -154,7 +154,7 @@ public class SparkServerlessClusterProvisionCtrlProvider {
             return toUpdate.setErrorMessage("All (*) fields are required.");
         }
 
-        return toUpdate.setErrorMessage(null);
+        return toUpdate;
     }
 
     @NotNull
@@ -177,11 +177,14 @@ public class SparkServerlessClusterProvisionCtrlProvider {
                 workerCores <= 0 ||
                 workerMemory <= 0 ||
                 workerNumberOfContainers <= 0) {
-            return toUpdate.setErrorMessage(
-                    "These fields should be positive numbers: Master cores, master memory, " +
-                            "worker cores, worker memory and worker number of containers.");
+            String highlightPrefix = "* ";
+            if (!toUpdate.getWorkerNumberOfContainersLabelTitle().startsWith(highlightPrefix)) {
+                toUpdate.setWorkerNumberOfContainersLabelTitle(
+                        highlightPrefix + toUpdate.getWorkerNumberOfContainersLabelTitle());
+            }
+            return toUpdate.setErrorMessage("All (*) fields should be positive numbers.");
         }
-        return toUpdate.setErrorMessage(null);
+        return toUpdate;
     }
 
     @NotNull
@@ -209,12 +212,37 @@ public class SparkServerlessClusterProvisionCtrlProvider {
         return toUpdate;
     }
 
-    public Observable<SparkServerlessClusterProvisionSettingsModel> validateAndProvision() {
+    private static SparkServerlessClusterProvisionSettingsModel resetLabels(
+            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
+        String highlightPrefix = "* ";
+        if (toUpdate.getClusterNameLabelTitle().startsWith(highlightPrefix)) {
+            toUpdate.setClusterNameLabelTitle(toUpdate.getClusterNameLabelTitle().substring(2));
+        }
+        if (toUpdate.getAdlAccountLabelTitle().startsWith(highlightPrefix)) {
+            toUpdate.setAdlAccountLabelTitle(toUpdate.getAdlAccountLabelTitle().substring(2));
+        }
+        if (toUpdate.getUserStorageAccountLabelTitle().startsWith(highlightPrefix)) {
+            toUpdate.setUserStorageAccountLabelTitle(toUpdate.getUserStorageAccountLabelTitle().substring(2));
+        }
+        if (toUpdate.getPreviousSparkEventsLabelTitle().startsWith(highlightPrefix)) {
+            toUpdate.setPreviousSparkEventsLabelTitle(toUpdate.getPreviousSparkEventsLabelTitle().substring(2));
+        }
+        if (toUpdate.getWorkerNumberOfContainersLabelTitle().startsWith(highlightPrefix)) {
+            toUpdate.setWorkerNumberOfContainersLabelTitle(
+                    toUpdate.getWorkerNumberOfContainersLabelTitle().substring(2));
+        }
+        return toUpdate;
+    }
+
+        public Observable<SparkServerlessClusterProvisionSettingsModel> validateAndProvision() {
         // TODO: AU adequation check
         return Observable.just(new SparkServerlessClusterProvisionSettingsModel())
                 .doOnNext(controllableView::getData)
                 .observeOn(ideSchedulers.processBarVisibleAsync("Validating the cluster settings..."))
+                // Validation check one by one. If one check failed, we will stop other checks in the entry
+                // of the validation function.
                 .map(toUpdate -> toUpdate.setErrorMessage(null))
+                .map(SparkServerlessClusterProvisionCtrlProvider::resetLabels)
                 .map(SparkServerlessClusterProvisionCtrlProvider::validateDataCompleteness)
                 .map(toUpdate -> validateClusterNameUniqueness(toUpdate))
                 .map(SparkServerlessClusterProvisionCtrlProvider::validateNumericField)
