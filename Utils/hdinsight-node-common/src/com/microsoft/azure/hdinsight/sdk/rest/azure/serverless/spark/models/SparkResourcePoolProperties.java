@@ -23,11 +23,14 @@
 package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
 
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Spark specific resource pool information.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SparkResourcePoolProperties {
     /**
      * Version of the template used while deploying the resource pool.

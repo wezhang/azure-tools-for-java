@@ -22,28 +22,36 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Data Lake Analytics Spark Resource Pool URI Collection.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SparkResourcePoolUriItemProperties {
     /**
      * Livy Server Url.
      */
-    @JsonProperty(value = "livyServerUrl", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonProperty(value = "livyAPI", access = JsonProperty.Access.WRITE_ONLY)
     private String livyServerUrl;
+
+    /**
+     * Livy Server Url.
+     */
+    @JsonProperty(value = "livyUI", access = JsonProperty.Access.WRITE_ONLY)
+    private String livyUiUrl;
 
     /**
      * Spark History server Web UI URL.
      */
-    @JsonProperty(value = "sparkHistoryWebUiUrl", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonProperty(value = "sparkHistoryUI", access = JsonProperty.Access.WRITE_ONLY)
     private String sparkHistoryWebUiUrl;
 
     /**
      * Spark Master Web UI URL.
      */
-    @JsonProperty(value = "sparkMasterWebUiUrl", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonProperty(value = "sparkMasterUI", access = JsonProperty.Access.WRITE_ONLY)
     private String sparkMasterWebUiUrl;
 
     /**
@@ -55,6 +63,14 @@ public class SparkResourcePoolUriItemProperties {
         return this.livyServerUrl;
     }
 
+    /**
+     * Get the livyUiUrl value.
+     *
+     * @return the livyUiUrl value
+     */
+    public String livyUiUrl() {
+        return this.livyUiUrl;
+    }
     /**
      * Get the sparkHistoryWebUiUrl value.
      *
