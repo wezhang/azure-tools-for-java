@@ -23,11 +23,17 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager;
+import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import rx.Observable;
 import rx.Observer;
 
+import java.io.File;
+import java.net.URI;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Objects;
 
 public class ServerlessSparkBatchJob extends SparkBatchJob {
     public ServerlessSparkBatchJob(@NotNull SparkSubmissionParameter submissionParameter,
@@ -39,7 +45,72 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
     @NotNull
     @Override
     public Observable<? extends ISparkBatchJob> deploy(@NotNull String artifactPath) {
-        // TODO: need to deploy the jar file into ADLS
-        return Observable.just(this);
+        return AzureSparkServerlessClusterManager.getInstance()
+                .findCluster(getAzureSubmission().getAccountName(), getAzureSubmission().getClusterId())
+                .flatMap(cluster -> {
+                    try {
+                        if (cluster.getStorageAccount() == null) {
+                            // TODO: May use interaction session to upload
+                            return Observable.empty();
+                        }
+
+                        File localFile = new File(artifactPath);
+
+                        URI remoteUri = URI.create(cluster.getStorageAccount().getDefaultContainerOrRootPath())
+                                .resolve("SparkSubmission/")
+                                .resolve(JobUtils.getFormatPathByDate() + "/")
+                                .resolve(localFile.getName());
+
+                        ctrlInfo(String.format("Begin uploading file %s to Azure Datalake store %s ...", artifactPath, remoteUri));
+
+                        getSubmissionParameter().setFilePath(remoteUri.toString());
+
+                        return cluster.uploadToStorage(localFile, remoteUri);
+                    } catch (Exception e) {
+                        return Observable.error(e);
+                    }
+                })
+                .doOnNext(size -> ctrlInfo(String.format("Upload to Azure Datalake store %d bytes successfully.", size)))
+                .map(path -> this);
+    }
+
+    @Nullable
+    @Override
+    public URI getConnectUri() {
+        return getAzureSubmission().getLivyUri() == null ? null : getAzureSubmission().getLivyUri().resolve("/batches");
+    }
+
+    @NotNull
+    @Override
+    public Observable<String> awaitStarted() {
+        return super.awaitStarted();
+    }
+
+    @NotNull
+    @Override
+    public Observable<SimpleImmutableEntry<String, Long>> getDriverLog(@NotNull String type, long logOffset, int size) {
+        if (getConnectUri() == null) {
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
+        }
+
+        // FIXME!!!
+//        return getStatus()
+//                .map(status -> new SimpleImmutableEntry<>(String.join("", status.getLog()), logOffset));
+        return Observable.empty();
+    }
+
+    @Override
+    Observable<String> getSparkJobDriverLogUrlObservable() {
+        return Observable.just(Objects.requireNonNull(getConnectUri()).toString() + "/" + getBatchId() + "/log");
+    }
+
+    @NotNull
+    private SparkBatchAzureSubmission getAzureSubmission() {
+        return (SparkBatchAzureSubmission) getSubmission();
+    }
+
+    private void ctrlInfo(@NotNull String message) {
+        getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Info, message));
     }
 }

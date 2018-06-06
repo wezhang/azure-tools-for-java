@@ -154,7 +154,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      *
      * @return the instance of Spark Batch Job submission parameter
      */
-    private SparkSubmissionParameter getSubmissionParameter() {
+    public SparkSubmissionParameter getSubmissionParameter() {
         return submissionParameter;
     }
 
@@ -1084,7 +1084,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
      * @return Spark Job observable
      */
     @NotNull
-    private Observable<SparkSubmitResponse> getStatus() {
+    public Observable<SparkSubmitResponse> getStatus() {
         if (getConnectUri() == null) {
             return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
                     "please configure Spark cluster which the Spark job will be submitted."));
