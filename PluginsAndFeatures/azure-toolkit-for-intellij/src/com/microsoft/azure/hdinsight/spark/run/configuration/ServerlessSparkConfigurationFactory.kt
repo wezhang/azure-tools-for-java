@@ -30,7 +30,7 @@ import com.intellij.openapi.project.Project
 class ServerlessSparkConfigurationFactory (type: ConfigurationType) :
         ConfigurationFactoryEx<ServerlessSparkConfiguration>(type) {
     companion object {
-        @JvmStatic val NAME = "Serverless Spark"
+        @JvmStatic val NAME = "Azure Data Lake Spark"
     }
 
     override fun createTemplateConfiguration(project: Project): RunConfiguration {

@@ -33,7 +33,7 @@ public class SparkServerlessClusterRootModuleImpl extends SparkServerlessCluster
     // TODO: Update icon path
     private static final String ICON_PATH = CommonConst.AZURE_SERVERLESS_SPARK_ROOT_ICON_PATH;
     // TODO: determine root node name
-    private static final String BASE_MODULE_NAME = "Azure Data Lake";
+    private static final String BASE_MODULE_NAME = "Azure Data Lake Spark";
 
     public SparkServerlessClusterRootModuleImpl(@NotNull Node parent) {
         super(SERVICE_MODULE_ID, BASE_MODULE_NAME, parent, ICON_PATH, true);
