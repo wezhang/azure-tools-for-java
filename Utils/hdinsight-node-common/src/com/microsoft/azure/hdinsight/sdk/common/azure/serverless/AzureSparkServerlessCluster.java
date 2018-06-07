@@ -527,10 +527,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
             }
 
             if (respProp.sparkUriCollection() != null) {
+                String suffix = "/?adlaAccountName=" + account.getName();
                 this.livyUri = URI.create(respProp.sparkUriCollection().livyServerUrl());
-                this.livyUiUri = URI.create(respProp.sparkUriCollection().livyUiUrl());
-                this.sparkMasterUiUri = URI.create(respProp.sparkUriCollection().sparkMasterWebUiUrl());
-                this.sparkHistoryUiUri = URI.create(respProp.sparkUriCollection().sparkHistoryWebUiUrl());
+                this.livyUiUri = URI.create(respProp.sparkUriCollection().livyUiUrl() + suffix);
+                this.sparkMasterUiUri = URI.create(respProp.sparkUriCollection().sparkMasterWebUiUrl() + suffix);
+                this.sparkHistoryUiUri = URI.create(respProp.sparkUriCollection().sparkHistoryWebUiUrl() + suffix);
             }
 
 

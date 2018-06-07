@@ -23,12 +23,10 @@
 package com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode;
 
 import com.microsoft.azure.hdinsight.common.CommonConst;
-import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessAccount;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.ui.embeddedbrowser.JxBrowserUtil;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureRefreshableNode;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
@@ -77,6 +75,33 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
         super.loadActions();
         addAction("Delete", new SparkServerlessDestroyAction(
                 this, cluster, adlAccount, SparkServerlessClusterOps.getInstance().getDestroyAction()));
+        addAction("Open Livy UI", new NodeActionListener() {
+            @Override
+            protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
+                try {
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getLivyUiUri())));
+                } catch (IOException ignore) {
+                }
+            }
+        });
+        addAction("Open Spark Master UI", new NodeActionListener() {
+            @Override
+            protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
+                try {
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkMasterUiUri())));
+                } catch (IOException ignore) {
+                }
+            }
+        });
+        addAction("Open Spark History UI", new NodeActionListener() {
+            @Override
+            protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
+                try {
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkHistoryUiUri())));
+                } catch (IOException ignore) {
+                }
+            }
+        });
     }
 
     @NotNull
