@@ -73,13 +73,14 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
     @Override
     protected void loadActions() {
         super.loadActions();
+        String suffix = "/?adlaAccountName=" + adlAccount.getName();
         addAction("Delete", new SparkServerlessDestroyAction(
                 this, cluster, adlAccount, SparkServerlessClusterOps.getInstance().getDestroyAction()));
         addAction("Open Livy UI", new NodeActionListener() {
             @Override
             protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
                 try {
-                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getLivyUiUri())));
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getLivyUiUri() + suffix)));
                 } catch (IOException ignore) {
                 }
             }
@@ -88,7 +89,7 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
             @Override
             protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
                 try {
-                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkMasterUiUri())));
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkMasterUiUri() + suffix)));
                 } catch (IOException ignore) {
                 }
             }
@@ -97,7 +98,7 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
             @Override
             protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
                 try {
-                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkHistoryUiUri())));
+                    Desktop.getDesktop().browse(URI.create(String.valueOf(cluster.getSparkHistoryUiUri() + suffix)));
                 } catch (IOException ignore) {
                 }
             }

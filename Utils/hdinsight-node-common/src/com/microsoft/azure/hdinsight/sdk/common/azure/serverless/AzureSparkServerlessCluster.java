@@ -64,9 +64,10 @@ public class AzureSparkServerlessCluster extends SparkCluster
         int instances;
         int coresPerInstance;
         int memoryGBSizePerInstance;
-        String state;
+        @NotNull
+        SparkItemGroupState state;
 
-        SparkResource setState(String state) {
+        SparkResource setState(@NotNull SparkItemGroupState state) {
             this.state = state;
             return this;
         }
@@ -350,7 +351,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
 
     @NotNull
     public String getMasterState() {
-        return this.master == null ? "unknown" : this.master.state;
+        return this.master == null ? "unknown" : this.master.state.toString();
     }
 
     @Override
@@ -514,11 +515,10 @@ public class AzureSparkServerlessCluster extends SparkCluster
             }
 
             if (respProp.sparkUriCollection() != null) {
-                String suffix = "/?adlaAccountName=" + account.getName();
                 this.livyUri = URI.create(respProp.sparkUriCollection().livyServerUrl());
-                this.livyUiUri = URI.create(respProp.sparkUriCollection().livyUiUrl() + suffix);
-                this.sparkMasterUiUri = URI.create(respProp.sparkUriCollection().sparkMasterWebUiUrl() + suffix);
-                this.sparkHistoryUiUri = URI.create(respProp.sparkUriCollection().sparkHistoryWebUiUrl() + suffix);
+                this.livyUiUri = URI.create(respProp.sparkUriCollection().livyUiUrl());
+                this.sparkMasterUiUri = URI.create(respProp.sparkUriCollection().sparkMasterWebUiUrl());
+                this.sparkHistoryUiUri = URI.create(respProp.sparkUriCollection().sparkHistoryWebUiUrl());
             }
 
 
