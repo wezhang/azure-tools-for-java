@@ -27,12 +27,12 @@ import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServe
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
-import com.microsoft.tooling.msservices.serviceexplorer.azure.AzureNodeActionListener;
+import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Triple;
 import rx.subjects.PublishSubject;
 
-public class SparkServerlessDestroyAction extends AzureNodeActionListener {
+public class SparkServerlessDestroyAction extends NodeActionListener {
     // TODO: Update clusterName type
     @NotNull
     private final DestroyableCluster cluster;
@@ -52,7 +52,7 @@ public class SparkServerlessDestroyAction extends AzureNodeActionListener {
                                                 AzureSparkServerlessAccount,
                                                 DestroyableCluster,
                                                 SparkServerlessClusterNode>> destroyAction) {
-        super(clusterNode, "Deleting Spark Cluster");
+        super(clusterNode);
         this.clusterNode = clusterNode;
         this.adlAccount = adlAccount;
         this.cluster = cluster;
@@ -60,12 +60,7 @@ public class SparkServerlessDestroyAction extends AzureNodeActionListener {
     }
 
     @Override
-    protected void azureNodeAction(NodeActionEvent e) throws AzureCmdException {
+    protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
         destroyAction.onNext(ImmutableTriple.of(adlAccount, cluster, clusterNode));
-    }
-
-    @Override
-    protected void onSubscriptionsChanged(NodeActionEvent e) throws AzureCmdException {
-        // TODO: Do nothing. Refer to class DeleteQueue
     }
 }

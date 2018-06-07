@@ -26,11 +26,11 @@ import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServe
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
-import com.microsoft.tooling.msservices.serviceexplorer.azure.AzureNodeActionListener;
+import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import org.apache.commons.lang3.tuple.Pair;
 import rx.subjects.PublishSubject;
 
-public class SparkServerlessProvisionAction extends AzureNodeActionListener {
+public class SparkServerlessProvisionAction extends NodeActionListener {
     // TODO: Update adlAccount type
     @NotNull
     private final AzureSparkServerlessAccount adlAccount;
@@ -44,19 +44,14 @@ public class SparkServerlessProvisionAction extends AzureNodeActionListener {
                                           @NotNull PublishSubject<Pair<
                                                   AzureSparkServerlessAccount,
                                                   SparkServerlessADLAccountNode>> provisionAction) {
-        super(adlAccountNode, "Provision Spark Cluster");
+        super(adlAccountNode);
         this.adlAccount = adlAccount;
         this.provisionAction = provisionAction;
         this.adlAccountNode = adlAccountNode;
     }
 
     @Override
-    protected void azureNodeAction(NodeActionEvent e) throws AzureCmdException {
+    protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
         provisionAction.onNext(Pair.of(adlAccount, adlAccountNode));
-    }
-
-    @Override
-    protected void onSubscriptionsChanged(NodeActionEvent e) throws AzureCmdException {
-
     }
 }
