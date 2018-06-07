@@ -84,6 +84,8 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
 
     public AzureSparkServerlessClusterManager() {
         this.httpMap.put("common", new AzureHttpObservable(ApiVersion.VERSION));
+
+        AuthMethodManager.getInstance().addSignOutEventListener(() -> accounts = ImmutableSortedSet.of());
     }
 
     //
