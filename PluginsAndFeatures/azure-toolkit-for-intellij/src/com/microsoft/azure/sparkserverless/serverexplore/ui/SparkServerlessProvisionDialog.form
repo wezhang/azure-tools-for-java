@@ -94,7 +94,7 @@
               </grid>
             </constraints>
             <properties>
-              <text value="2"/>
+              <text value="4"/>
             </properties>
           </component>
           <component id="d9b5" class="javax.swing.JLabel" binding="masterMemoryLabel">
@@ -112,7 +112,7 @@
               </grid>
             </constraints>
             <properties>
-              <text value="16"/>
+              <text value="12"/>
             </properties>
           </component>
         </children>
@@ -158,7 +158,7 @@
               </grid>
             </constraints>
             <properties>
-              <text value="8"/>
+              <text value="6"/>
             </properties>
           </component>
           <component id="70474" class="javax.swing.JLabel" binding="workerNumberOfContainersLabel">
@@ -237,7 +237,7 @@
         </constraints>
         <properties>
           <editable value="false"/>
-          <text value="4"/>
+          <text value="3"/>
         </properties>
       </component>
       <component id="757d7" class="javax.swing.JSeparator">

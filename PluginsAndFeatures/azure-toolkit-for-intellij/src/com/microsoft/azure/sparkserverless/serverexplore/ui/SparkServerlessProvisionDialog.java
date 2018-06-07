@@ -103,15 +103,16 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
 
         refreshButton.addActionListener(e -> ctrlProvider.updateAvailableAU());
 
-        Arrays.asList(masterCoresField, workerCoresField).forEach(comp ->
-            comp.addFocusListener(new FocusAdapter() {
-                @Override
-                public void focusLost(FocusEvent e) {
-                    ctrlProvider.updateCalculatedAU();
-                    super.focusLost(e);
-                }
-            })
-        );
+        Arrays.asList(masterCoresField, workerCoresField, masterMemoryField, workerMemoryField)
+                .forEach(comp ->
+                        comp.addFocusListener(new FocusAdapter() {
+                            @Override
+                            public void focusLost(FocusEvent e) {
+                                ctrlProvider.updateCalculatedAU();
+                                super.focusLost(e);
+                            }
+                        })
+                );
 
         // We can determine the ADL account since we provision on a specific ADL account Node
         // TODO: will be removed in the final version
