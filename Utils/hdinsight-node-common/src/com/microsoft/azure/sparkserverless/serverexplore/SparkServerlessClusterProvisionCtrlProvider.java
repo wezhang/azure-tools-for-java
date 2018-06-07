@@ -197,7 +197,7 @@ public class SparkServerlessClusterProvisionCtrlProvider {
                             .workerPerInstanceCores(toUpdate.getWorkerCores())
                             .workerPerInstanceMemory(toUpdate.getWorkerMemory())
                             .workerInstances(toUpdate.getWorkerNumberOfContainers())
-                            .sparkEventsPath(toUpdate.getPreviousSparkEvents())
+                            .sparkEventsPath(toUpdate.getStorageRootPathLabelTitle() + toUpdate.getPreviousSparkEvents())
                             .userStorageAccount(account.getDetailResponse().defaultDataLakeStoreAccount())
                             .build().provision().toBlocking().single();
         } catch (Exception e) {

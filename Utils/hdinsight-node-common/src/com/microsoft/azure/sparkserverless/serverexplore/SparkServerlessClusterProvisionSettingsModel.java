@@ -51,6 +51,8 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
     // TODO: Asterisk(*) will be set before titles to warn user there are errors.
     // TODO: Currently only the following titles are added to this class, do we need to add other titles?
     @NotNull
+    private String storageRootPathLabelTitle;
+    @NotNull
     private String clusterNameLabelTitle;
     @NotNull
     private String adlAccountLabelTitle;
@@ -212,6 +214,18 @@ public class SparkServerlessClusterProvisionSettingsModel implements Cloneable {
     public SparkServerlessClusterProvisionSettingsModel setWorkerNumberOfContainersLabelTitle(
             @NotNull String workerNumberOfContainersLabelTitle) {
         this.workerNumberOfContainersLabelTitle = workerNumberOfContainersLabelTitle;
+        return this;
+    }
+
+    @NotNull
+    public String getStorageRootPathLabelTitle() {
+        return storageRootPathLabelTitle;
+    }
+
+    @NotNull
+    public SparkServerlessClusterProvisionSettingsModel setStorageRootPathLabelTitle(
+            @NotNull String storageRootPathLabelTitle) {
+        this.storageRootPathLabelTitle = storageRootPathLabelTitle;
         return this;
     }
 

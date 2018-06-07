@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.sdk.common.AzureDataLakeHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.AzureHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccount;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeStoreAccountInformation;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ApiVersion;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkResourcePoolList;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
@@ -169,5 +170,23 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
     @Nullable
     public DataLakeAnalyticsAccount getDetailResponse() {
         return detailResponse;
+    }
+
+    @Nullable
+    public String getStorageRootPath() {
+        String storageRootPath = null;
+        DataLakeAnalyticsAccount accountDetail = this.getDetailResponse();
+        if (accountDetail != null) {
+            // find default storage account name and suffix
+            String defaultStorageAccountName = accountDetail.defaultDataLakeStoreAccount();
+            storageRootPath = accountDetail.dataLakeStoreAccounts()
+                    .stream()
+                    .filter(info -> info.name().equals(defaultStorageAccountName))
+                    .findFirst()
+                    .map(DataLakeStoreAccountInformation::suffix)
+                    .map(suffix -> String.format("adl://%s.%s/", defaultStorageAccountName, suffix))
+                    .orElse(null);
+        }
+        return storageRootPath;
     }
 }

@@ -290,20 +290,7 @@ public class AzureSparkServerlessCluster extends SparkCluster
     public AzureSparkServerlessCluster(@NotNull AzureSparkServerlessAccount azureSparkServerlessAccount, @NotNull String guid) {
         this.account = azureSparkServerlessAccount;
         this.guid = guid;
-
-        String storageRootPath = null;
-        DataLakeAnalyticsAccount accountDetail = azureSparkServerlessAccount.getDetailResponse();
-        if (accountDetail != null) {
-            // find default storage account name and suffix
-            String defaultStorageAccountName = accountDetail.defaultDataLakeStoreAccount();
-            storageRootPath = accountDetail.dataLakeStoreAccounts()
-                    .stream()
-                    .filter(info -> info.name().equals(defaultStorageAccountName))
-                    .findFirst()
-                    .map(DataLakeStoreAccountInformation::suffix)
-                    .map(suffix -> String.format("adl://%s.%s/", defaultStorageAccountName, suffix))
-                    .orElse(null);
-        }
+        String storageRootPath = azureSparkServerlessAccount.getStorageRootPath();
 
         this.storageAccount = storageRootPath == null ? null : new StorageAccount(
                 azureSparkServerlessAccount.getName(),

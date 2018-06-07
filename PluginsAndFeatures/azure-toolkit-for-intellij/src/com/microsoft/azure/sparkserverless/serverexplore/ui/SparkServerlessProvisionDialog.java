@@ -37,6 +37,7 @@ import javax.swing.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class SparkServerlessProvisionDialog extends DialogWrapper
         implements SettableControl<SparkServerlessClusterProvisionSettingsModel> {
@@ -73,6 +74,7 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
     private JTextField errorMessageField;
     private JPanel provisionDialogPanel;
     private JButton refreshButton;
+    private JLabel storageRootPathLabel;
 
     public SparkServerlessProvisionDialog(@NotNull SparkServerlessADLAccountNode adlAccountNode,
                                           @NotNull AzureSparkServerlessAccount account) {
@@ -114,6 +116,7 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
         // We can determine the ADL account since we provision on a specific ADL account Node
         // TODO: will be removed in the final version
         this.adlAccountField.setText(adlAccountNode.getAdlAccount().getName());
+        this.storageRootPathLabel.setText(Optional.of(account.getStorageRootPath()).orElse(""));
     }
 
     // Data -> Components
@@ -134,6 +137,7 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
         clusterNameLabel.setText(data.getClusterNameLabelTitle());
         adlAccountLabel.setText(data.getAdlAccountLabelTitle());
         previousSparkEventsLabel.setText(data.getPreviousSparkEventsLabelTitle());
+        storageRootPathLabel.setText(data.getStorageRootPathLabelTitle());
         workerNumberOfContainersLabel.setText(data.getWorkerNumberOfContainersLabelTitle());
 
         errorMessageField.setText(data.getErrorMessage());
@@ -157,6 +161,7 @@ public class SparkServerlessProvisionDialog extends DialogWrapper
                 .setClusterNameLabelTitle(clusterNameLabel.getText())
                 .setAdlAccountLabelTitle(adlAccountLabel.getText())
                 .setPreviousSparkEventsLabelTitle(previousSparkEventsLabel.getText())
+                .setStorageRootPathLabelTitle(storageRootPathLabel.getText())
                 .setWorkerNumberOfContainersLabelTitle(workerNumberOfContainersLabel.getText())
                 .setErrorMessage(errorMessageField.getText());
     }
