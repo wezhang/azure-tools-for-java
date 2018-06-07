@@ -213,7 +213,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         submitModel.setSubmissionParameters(parameter);
 
-        resetClusterDetailsToComboBoxModel(submitModel, data.getCachedClusterDetails());
+        resetClusterDetailsToComboBoxModel(submitModel, getClusterDetails());
         data.getSelectedClusterDetail()
             .map(IClusterDetail::getTitle)
             .ifPresent(selectedTitle -> setSelectedClusterByTitle(submitModel, selectedTitle));
