@@ -93,12 +93,14 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
     public Observable<String> awaitStarted() {
         return super.awaitStarted()
                 .flatMap(state -> Observable.zip(
-                        getCluster(), getSparkJobApplicationIdObservable(),
+                        getCluster(), getSparkJobApplicationIdObservable().defaultIfEmpty(null),
                         (cluster, appId) -> Pair.of(
                                 state,
                                 cluster.getSparkHistoryUiUri() == null ?
                                         null :
-                                        cluster.getSparkHistoryUiUri().resolve(String.format("/history/%s/", appId)))))
+                                        cluster.getSparkHistoryUiUri().resolve(appId == null ?
+                                                "/" :
+                                                String.format("/history/%s/", appId)))))
                 .map(stateJobUriPair -> {
                     if (stateJobUriPair.getRight() != null) {
                         getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Hyperlink,
