@@ -245,4 +245,10 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 .filter(cluster -> cluster.getGuid().equals(clusterGuid))
                 .first();
     }
+
+    public Observable<Boolean> isFeatureEnabled() {
+        return concat(from(getAccounts()), get().flatMap(manager -> from(manager.getAccounts())))
+                .isEmpty()
+                .map(isEmpty -> !isEmpty);
+    }
 }
