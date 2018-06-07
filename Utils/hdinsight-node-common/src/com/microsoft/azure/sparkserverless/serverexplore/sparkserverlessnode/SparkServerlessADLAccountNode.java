@@ -23,6 +23,7 @@
 package com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode;
 
 import com.microsoft.azure.hdinsight.common.CommonConst;
+import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessAccount;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ResourcePoolState;
@@ -30,6 +31,8 @@ import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.serviceexplorer.AzureRefreshableNode;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
+
+import java.io.IOException;
 
 public class SparkServerlessADLAccountNode extends AzureRefreshableNode {
     // TODO: Update icon path
@@ -51,19 +54,18 @@ public class SparkServerlessADLAccountNode extends AzureRefreshableNode {
          *  b) We have to add the cluster to adlAccount when we provision a cluster
          * But It seems that class AzureSparkServerlessAccount does not support these operations.
          */
-        adlAccount.get().doOnNext(account -> {
+        adlAccount.get().subscribe(account -> {
             account.getClusters().forEach(cluster -> {
-                AzureSparkServerlessCluster serverlessCluster = (AzureSparkServerlessCluster) cluster;
-                // refresh the cluster
-                serverlessCluster.get().toBlocking().single();
-                String clusterStatus = serverlessCluster.getState();
-                if (!clusterStatus.equals(ResourcePoolState.ENDED.toString()) &&
-                        !clusterStatus.equals(ResourcePoolState.ENDING.toString())) {
-                    addChildNode(new SparkServerlessClusterNode(
-                            this, serverlessCluster, adlAccount));
+                try {
+                    AzureSparkServerlessCluster serverlessCluster = (AzureSparkServerlessCluster) cluster;
+                    // refresh the cluster
+                    serverlessCluster.getConfigurationInfo();
+                    addChildNode(new SparkServerlessClusterNode(this, serverlessCluster, adlAccount));
+                } catch (Exception ignore) {
+                    // FIXME: Do we need to log this exception?
                 }
             });
-        }).subscribe();
+        });
     }
 
     @Override

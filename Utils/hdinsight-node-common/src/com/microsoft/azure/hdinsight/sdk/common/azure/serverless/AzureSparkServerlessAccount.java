@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.sdk.common.azure.serverless;
 
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
 import com.microsoft.azure.hdinsight.sdk.cluster.ClusterContainer;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.AzureDataLakeHttpObservable;
@@ -31,6 +32,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeStoreAccountInformation;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ApiVersion;
+import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.ResourcePoolState;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkResourcePoolList;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -124,9 +126,27 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
         return this;
     }
 
+    /**
+     * Get clusters with "Ended" and "Ending" state filtered
+     * @return cluster set with "Ended" and "Ending" state filtered 
+     */
     @NotNull
     @Override
     public ImmutableSortedSet<? extends IClusterDetail> getClusters() {
+        return ImmutableSortedSet.copyOf(
+                Sets.newHashSet(getRawClusters()).stream().filter(cluster -> {
+                    String clusterState = cluster.getState();
+                    return !clusterState.equals(ResourcePoolState.ENDED.toString()) &&
+                            !clusterState.equals(ResourcePoolState.ENDING.toString());
+                }).iterator());
+    }
+
+    /**
+     * Get raw clusters without filtering
+     * @return raw cluster set without filtering
+     */
+    @NotNull
+    public ImmutableSortedSet<? extends IClusterDetail> getRawClusters() {
         return clusters;
     }
 
