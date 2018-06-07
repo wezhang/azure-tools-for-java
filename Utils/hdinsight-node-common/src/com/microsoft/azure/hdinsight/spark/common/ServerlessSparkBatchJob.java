@@ -98,13 +98,15 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
                                 state,
                                 cluster.getSparkHistoryUiUri() == null ?
                                         null :
-                                        cluster.getSparkHistoryUiUri().resolve(appId == null ?
-                                                "/" :
-                                                String.format("/history/%s/", appId)))))
+                                        cluster.getSparkHistoryUiUri()
+                                               .resolve(appId == null ?
+                                                        "/" :
+                                                        String.format("/history/%s/", appId))
+                                               .toString() + "?adlaAccountName=" + cluster.getAccount().getName())))
                 .map(stateJobUriPair -> {
                     if (stateJobUriPair.getRight() != null) {
                         getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Hyperlink,
-                                                                           stateJobUriPair.getRight().toString()));
+                                                                           stateJobUriPair.getRight()));
                     }
 
                     return stateJobUriPair.getKey();
