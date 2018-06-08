@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.run;
 
 import com.google.common.net.HostAndPort;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.spark.common.ISparkBatchJob;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -41,7 +42,7 @@ import java.util.Optional;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
 
-public class SparkBatchJobRemoteProcess extends Process {
+public class SparkBatchJobRemoteProcess extends Process implements ILogger {
     @NotNull
     private IdeSchedulers schedulers;
     @NotNull
@@ -129,7 +130,11 @@ public class SparkBatchJobRemoteProcess extends Process {
 
     @Override
     public void destroy() {
-        getSparkJob().killBatchJob().subscribe();
+        getSparkJob().killBatchJob().subscribe(
+                job -> log().trace("Killed Spark batch job " + job.getBatchId()),
+                err -> log().warn("Got error when killing Spark batch job", err),
+                () -> {}
+        );
 
         this.isDestroyed = true;
 
@@ -209,8 +214,8 @@ public class SparkBatchJobRemoteProcess extends Process {
         return job.getSubmissionLog()
                 .doOnNext(ctrlSubject::onNext)
                 .doOnError(ctrlSubject::onError)
-                .last()
-                .map(messageTypeText -> job);
+                .lastOrDefault(null)
+                .map((@Nullable SimpleImmutableEntry<MessageInfoType, String> messageTypeText) -> job);
     }
 
     // Build and deploy artifact
