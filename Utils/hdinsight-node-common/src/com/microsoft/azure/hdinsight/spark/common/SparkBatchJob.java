@@ -285,7 +285,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         }
 
         throw new UnknownServiceException(String.format(
-                "Failed to submit Spark remove debug job. error code: %d, type: %s, reason: %s.",
+                "Failed to submit Spark batch job. error code: %d, type: %s, reason: %s.",
                 httpResponse.getCode(), httpResponse.getContent(), httpResponse.getMessage()));
     }
 
@@ -307,7 +307,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
 
             if (deleteResponse.getCode() > 300) {
                 throw new UnknownServiceException(String.format(
-                        "Failed to stop spark remote debug job. error code: %d, reason: %s.",
+                        "Failed to stop spark job. error code: %d, reason: %s.",
                         deleteResponse.getCode(), deleteResponse.getContent()));
             }
 
