@@ -54,23 +54,23 @@ public class SparkServerlessClusterProvisionCtrlProvider {
         this.account = account;
     }
 
-    @NotNull
-    public static SparkServerlessClusterProvisionSettingsModel updateCalculatedAU(
-            @NotNull SparkServerlessClusterProvisionSettingsModel toUpdate) {
-        int masterCores = toUpdate.getMasterCores();
-        int workerCores = toUpdate.getWorkerCores();
-        int masterMemory = toUpdate.getMasterMemory();
-        int workerMemory = toUpdate.getWorkerMemory();
-        int calculatedAU = (int) Math.max(
+    public int getCalculatedAU(int masterCores,
+                               int workerCores,
+                               int masterMemory,
+                               int workerMemory) {
+        return (int) Math.max(
                 Math.ceil((masterCores + workerCores) / 2.0),
                 Math.ceil((masterMemory + workerMemory) / 6.0));
-        return toUpdate.setCalculatedAU(calculatedAU);
     }
 
     public void updateCalculatedAU() {
         Observable.just(new SparkServerlessClusterProvisionSettingsModel())
                 .doOnNext(controllableView::getData)
-                .map(SparkServerlessClusterProvisionCtrlProvider::updateCalculatedAU)
+                .map(toUpdate -> toUpdate.setCalculatedAU(getCalculatedAU(
+                        toUpdate.getMasterCores(),
+                        toUpdate.getWorkerCores(),
+                        toUpdate.getMasterMemory(),
+                        toUpdate.getWorkerMemory())))
                 .observeOn(ideSchedulers.dispatchUIThread())
                 .doOnNext(controllableView::setData)
                 .subscribe();
