@@ -43,6 +43,7 @@ import com.microsoft.azuretools.sdkmanage.AzureManager;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import rx.Observable;
+import rx.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.net.URI;
@@ -178,6 +179,7 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 // account basic list -> account basic
                 .flatMap(subAccountsObPair -> subAccountsObPair.getRight()
                                 .flatMap(accountsResp -> Observable.from(accountsResp.items()))
+                                .subscribeOn(Schedulers.io())
                                 .map(accountBasic -> Pair.of(subAccountsObPair.getLeft(), accountBasic)))
                 .flatMap(subAccountBasicPair -> {
                     // accountBasic.id is the account detail absolute URI path
