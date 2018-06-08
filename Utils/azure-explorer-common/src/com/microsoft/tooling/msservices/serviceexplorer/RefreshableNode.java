@@ -102,6 +102,10 @@ public abstract class RefreshableNode extends Node {
     protected void refreshFromAzure() throws Exception {
     }
 
+    // Add update node name support after refresh the node
+    protected void updateNodeNameAfterLoading() {
+    }
+
     public ListenableFuture<List<Node>> load(boolean forceRefresh) {
         initialized = true;
         final RefreshableNode node = this;
@@ -120,11 +124,13 @@ public abstract class RefreshableNode extends Node {
                                 @Override
                                 public void onSuccess(List<Node> nodes) {
                                     updateName(nodeName, null);
+                                    updateNodeNameAfterLoading();
                                 }
 
                                 @Override
                                 public void onFailure(Throwable throwable) {
                                     updateName(nodeName, throwable);
+                                    updateNodeNameAfterLoading();
                                 }
                             });
                             node.refreshItems(future, forceRefresh);

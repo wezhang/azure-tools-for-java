@@ -66,8 +66,11 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode {
     @Override
     protected void refreshItems() throws AzureCmdException {
         cluster.get().toBlocking().singleOrDefault(cluster);
-        // TODO: setName does not work since load() method will rewrite name to initital state in the callback.
-        // setName(String.format("%s [%s]", cluster.getName(), cluster.getMasterState()))
+    }
+
+    @Override
+    protected void updateNodeNameAfterLoading() {
+        setName(String.format("%s [%s]", cluster.getName(), cluster.getMasterState()));
     }
 
     @Override
