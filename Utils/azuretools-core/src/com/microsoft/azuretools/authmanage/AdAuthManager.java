@@ -283,14 +283,16 @@ public class AdAuthManager {
     }
 
     private void saveToSecureStore(@Nullable AuthResult authResult) {
-        if (secureStore == null || authResult == null) {
+        if (secureStore == null) {
             return;
         }
 
         try {
+            @Nullable
             String authJson = JsonHelper.serialize(authResult);
 
-            String tenantId = StringUtils.isNullOrWhiteSpace(authResult.getUserInfo().getTenantId()) ? COMMON_TID :
+            String tenantId = (authResult == null || StringUtils.isNullOrWhiteSpace(authResult.getUserInfo().getTenantId())) ?
+                    COMMON_TID :
                     authResult.getUserInfo().getTenantId();
             // Update common tenantId after token acquired successfully
             setCommonTenantId(tenantId);
