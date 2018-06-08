@@ -24,11 +24,12 @@ package com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode;
 
 import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager;
+import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 
-public class SparkServerlessClusterRootModuleImpl extends SparkServerlessClusterRootModule{
+public class SparkServerlessClusterRootModuleImpl extends HDInsightRootModule {
     private static final String SERVICE_MODULE_ID = SparkServerlessClusterRootModuleImpl.class.getName();
     // TODO: Update icon path
     private static final String ICON_PATH = CommonConst.AZURE_SERVERLESS_SPARK_ROOT_ICON_PATH;
@@ -47,6 +48,21 @@ public class SparkServerlessClusterRootModuleImpl extends SparkServerlessCluster
                 addChildNode(new SparkServerlessADLAccountNode(this, account));
             });
         });
+    }
+
+    @Override
+    public boolean isFeatureEnabled() {
+        return AzureSparkServerlessClusterManager.getInstance().isFeatureEnabled().toBlocking().singleOrDefault(false);
+    }
+
+    @Override
+    public HDInsightRootModule getNewNode(Node parent) {
+        return new SparkServerlessClusterRootModuleImpl(parent);
+    }
+
+    @Override
+    public void refreshWithoutAsync() {
+
     }
 
     // TODO: refreshWithoutAsync() is called when unlink an HDInsight cluster. Maybe we also need to implement this method here?

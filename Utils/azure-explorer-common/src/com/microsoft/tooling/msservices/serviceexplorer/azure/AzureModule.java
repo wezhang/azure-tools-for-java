@@ -23,7 +23,6 @@
 package com.microsoft.tooling.msservices.serviceexplorer.azure;
 
 import com.microsoft.azure.hdinsight.serverexplore.hdinsightnode.HDInsightRootModule;
-import com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode.SparkServerlessClusterRootModule;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
@@ -39,25 +38,22 @@ import com.microsoft.tooling.msservices.serviceexplorer.azure.docker.DockerHostM
 import com.microsoft.tooling.msservices.serviceexplorer.azure.rediscache.RedisCacheModule;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.storage.StorageModule;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.vmarm.VMArmModule;
-import com.microsoft.tooling.msservices.serviceexplorer.azure.rediscache.RedisCacheModule;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.WebAppModule;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class AzureModule extends AzureRefreshableNode {
     private static final String AZURE_SERVICE_MODULE_ID = AzureModule.class.getName();
     private static final String ICON_PATH = "AzureExplorer_16.png";
     private static final String BASE_MODULE_NAME = "Azure";
-    private static boolean isSparkServerlessEnabled = false;
     private Object project;
     private VMArmModule vmArmServiceModule;
     private RedisCacheModule redisCacheModule;
     private StorageModule storageModule;
     private WebAppModule webAppModule;
     private HDInsightRootModule hdInsightModule;
-    private SparkServerlessClusterRootModule sparkServerlessClusterRootModule;
+    private HDInsightRootModule sparkServerlessClusterRootModule;
     private DockerHostModule dockerHostModule;
     private ContainerRegistryModule containerRegistryModule;
 
@@ -72,8 +68,6 @@ public class AzureModule extends AzureRefreshableNode {
         storageModule = new StorageModule(this);
         webAppModule = new WebAppModule(this);
         //hdInsightModule = new HDInsightRootModule(this);
-        isSparkServerlessEnabled =
-                Optional.ofNullable(System.getenv("AZURE_SPARKSERVERLESS_ENABLE")).orElse("").equals("true");
         vmArmServiceModule = new VMArmModule(this);
         redisCacheModule = new RedisCacheModule(this);
         dockerHostModule = new DockerHostModule(this);
@@ -122,7 +116,7 @@ public class AzureModule extends AzureRefreshableNode {
         this.hdInsightModule = rootModule;
     }
 
-    public void setSparkServerlessModule(@NotNull SparkServerlessClusterRootModule rootModule) {
+    public void setSparkServerlessModule(@NotNull HDInsightRootModule rootModule) {
         this.sparkServerlessClusterRootModule = rootModule;
     }
 
@@ -148,8 +142,9 @@ public class AzureModule extends AzureRefreshableNode {
             addChildNode(hdInsightModule);
         }
 
-        if (isSparkServerlessEnabled
-                && sparkServerlessClusterRootModule != null && !isDirectChild(sparkServerlessClusterRootModule)) {
+        if (sparkServerlessClusterRootModule != null &&
+                sparkServerlessClusterRootModule.isFeatureEnabled() &&
+                !isDirectChild(sparkServerlessClusterRootModule)) {
             addChildNode(sparkServerlessClusterRootModule);
         }
 
