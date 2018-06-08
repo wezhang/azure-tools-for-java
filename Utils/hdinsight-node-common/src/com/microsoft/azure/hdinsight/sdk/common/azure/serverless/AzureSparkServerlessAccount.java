@@ -133,12 +133,11 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
     @NotNull
     @Override
     public ImmutableSortedSet<? extends IClusterDetail> getClusters() {
-        return ImmutableSortedSet.copyOf(
-                Sets.newHashSet(getRawClusters()).stream().filter(cluster -> {
-                    String clusterState = cluster.getState();
-                    return !clusterState.equals(ResourcePoolState.ENDED.toString()) &&
-                            !clusterState.equals(ResourcePoolState.ENDING.toString());
-                }).iterator());
+        return ImmutableSortedSet.copyOf(getRawClusters().stream().filter(cluster -> {
+            String clusterState = cluster.getState();
+            return !clusterState.equals(ResourcePoolState.ENDED.toString()) &&
+                    !clusterState.equals(ResourcePoolState.ENDING.toString());
+        }).iterator());
     }
 
     /**
