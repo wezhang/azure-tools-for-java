@@ -20,28 +20,34 @@
  * SOFTWARE.
  */
 
-package com.microsoft.intellij.secure
+package com.microsoft.intellij.secure;
 
-import com.intellij.credentialStore.CredentialAttributes
-import com.intellij.ide.passwordSafe.PasswordSafe
-import com.microsoft.azuretools.securestore.SecureStore
+import com.intellij.credentialStore.CredentialAttributes;
+import com.intellij.ide.passwordSafe.PasswordSafe;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.securestore.SecureStore;
 
-class IdeaSecureStore : SecureStore {
+public class IdeaSecureStore implements SecureStore {
     // Leverage IntelliJ PasswordSafe component
-    private val passwordSafe = PasswordSafe.getInstance()
+    private PasswordSafe passwordSafe = PasswordSafe.getInstance();
 
-    companion object {
-        @JvmStatic
-        val instance: IdeaSecureStore by lazy {
-            IdeaSecureStore()
-        }
+    private static class LazyHolder {
+        static final IdeaSecureStore INSTANCE = new IdeaSecureStore();
     }
 
-    override fun savePassword(serviceName: String, userName: String, password: String?) {
-        passwordSafe.setPassword(CredentialAttributes(serviceName, userName), password)
+    public static IdeaSecureStore getInstance() {
+        return LazyHolder.INSTANCE;
     }
 
-    override fun loadPassword(serviceName: String, userName: String): String? {
-        return passwordSafe.getPassword(CredentialAttributes(serviceName, userName))
+    @Override
+    public void savePassword(@NotNull String serviceName, @NotNull String userName, @Nullable String password) {
+        passwordSafe.setPassword(new CredentialAttributes(serviceName, userName), password);
+    }
+
+    @Override
+    @Nullable
+    public String loadPassword(@NotNull String serviceName, @NotNull String userName) {
+        return passwordSafe.getPassword(new CredentialAttributes(serviceName, userName));
     }
 }
