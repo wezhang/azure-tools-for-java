@@ -29,6 +29,8 @@ import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.securestore.SecureStore;
 
 public class IdeaSecureStore implements SecureStore {
+    private IdeaSecureStore() { }
+
     // Leverage IntelliJ PasswordSafe component
     private PasswordSafe passwordSafe = PasswordSafe.getInstance();
 
