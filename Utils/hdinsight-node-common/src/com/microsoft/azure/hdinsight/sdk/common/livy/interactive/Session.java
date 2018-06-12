@@ -207,11 +207,7 @@ public abstract class Session implements AutoCloseable, Closeable {
 
     @Nullable
     public String getUserAgent(boolean isMapToInstallID) {
-        String originUa = getHttp().getUserAgent();
-
-        if (originUa == null) {
-            return null;
-        }
+        String userAgentPrefix = getHttp().getUserAgentPrefix();
 
         String requestId = UUID.randomUUID().toString();
 
@@ -219,7 +215,7 @@ public abstract class Session implements AutoCloseable, Closeable {
             new AppInsightsHttpRequestInstallIdMapRecord(requestId, getInstallationID()).post();
         }
 
-        return String.format("%s %s", originUa.trim(), requestId);
+        return String.format("%s %s", userAgentPrefix.trim(), requestId);
     }
 
     /*
