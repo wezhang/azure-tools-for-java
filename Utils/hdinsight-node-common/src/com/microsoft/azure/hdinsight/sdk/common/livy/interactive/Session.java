@@ -208,7 +208,9 @@ public abstract class Session implements AutoCloseable, Closeable {
     @Nullable
     public String getUserAgent() {
         String userAgentPrefix = getHttp().getUserAgentPrefix();
-        String requestId = AppInsightsClient.getConfigurationSessionId();
+        String requestId = AppInsightsClient.getConfigurationSessionId() == null ?
+                UUID.randomUUID().toString() :
+                AppInsightsClient.getConfigurationSessionId();
 
         return String.format("%s %s", userAgentPrefix.trim(), requestId);
     }

@@ -112,7 +112,9 @@ public class AzureHttpObservable extends OAuthTokenHttpObservable {
     @NotNull
     public AzureHttpObservable withUuidUserAgent() {
         String originUa = getUserAgentPrefix();
-        String requestId = AppInsightsClient.getConfigurationSessionId();
+        String requestId = AppInsightsClient.getConfigurationSessionId() == null ?
+                UUID.randomUUID().toString() :
+                AppInsightsClient.getConfigurationSessionId();
 
         setUserAgent(String.format("%s %s", originUa.trim(), requestId));
 

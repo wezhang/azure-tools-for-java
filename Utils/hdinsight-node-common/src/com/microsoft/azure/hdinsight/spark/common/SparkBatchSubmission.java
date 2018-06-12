@@ -134,7 +134,9 @@ public class SparkBatchSubmission {
         String loadingClass = SparkBatchSubmission.class.getClassLoader().getClass().getName().toLowerCase();
         String userAgentSource = loadingClass.contains("intellij") ? "Azure Toolkit for IntelliJ " :
                 (loadingClass.contains("eclipse") ? "Azure Toolkit for Eclipse " : "Azure HDInsight Java SDK ");
-        String requestId = AppInsightsClient.getConfigurationSessionId();
+        String requestId = AppInsightsClient.getConfigurationSessionId() == null ?
+                UUID.randomUUID().toString() :
+                AppInsightsClient.getConfigurationSessionId();
 
         if (isMapToInstallID) {
             new AppInsightsHttpRequestInstallIdMapRecord(requestId, getInstallationID()).post();

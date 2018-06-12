@@ -53,13 +53,9 @@ public class AppInsightsClient {
         configuration = appInsightsConfiguration;
     }
 
+    @Nullable
     public static String getConfigurationSessionId() {
-        if (configuration == null) {
-            // To make the UT happy
-            return UUID.randomUUID().toString();
-        }
-
-        return configuration.sessionId();
+        return configuration == null ? null : configuration.sessionId();
     }
 
     public static void createByType(final EventType eventType, final String objectName, final String action) {
