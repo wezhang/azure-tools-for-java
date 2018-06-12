@@ -132,7 +132,7 @@ class SessionScenario {
 
     @Given("^get and set the session UserAgent$")
     fun getAndSetSessionUserAgent() {
-        userAgent = sessionMock?.getUserAgent(true)
+        userAgent = sessionMock?.getUserAgent()
         sessionMock!!.http.userAgent = userAgent!!
     }
 

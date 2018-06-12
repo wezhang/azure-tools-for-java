@@ -170,7 +170,7 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 .map(subUriPair -> Pair.of(
                         subUriPair.getLeft(),
                         getHttp(subUriPair.getLeft())
-                                .withUuidUserAgent(false)
+                                .withUuidUserAgent()
                                 .get(subUriPair.getRight().toString(),
                                         Collections.singletonList(ODataParam.filter(ACCOUNT_FILTER)),
                                         null,
@@ -187,7 +187,7 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
 
                     // Get account details
                     return getHttp(subAccountBasicPair.getLeft())
-                            .withUuidUserAgent(false)
+                            .withUuidUserAgent()
                             .get(accountDetailUri.toString(), null, null, DataLakeAnalyticsAccount.class)
                             .map(accountDetail -> Triple.of(
                                     subAccountBasicPair.getLeft(), subAccountBasicPair.getRight(), accountDetail));
