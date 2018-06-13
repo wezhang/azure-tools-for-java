@@ -141,11 +141,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
         @NotNull
         private String sparkEventsPath = "";
         private int masterInstances = 1;
-        private int masterPerInstanceCores = 2;
-        private int masterPerInstanceMemory = 16;
+        private int masterPerInstanceCores = 4;
+        private int masterPerInstanceMemory = 12;
         private int workerInstances = 2;
         private int workerPerInstanceCores = 2;
-        private int workerPerInstanceMemory = 16;
+        private int workerPerInstanceMemory = 6;
 
         public Builder( @NotNull AzureSparkServerlessAccount acount) {
             this.acount = acount;
@@ -336,9 +336,11 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return name;
     }
 
+    @NotNull
     @Override
     public String getTitle() {
-        return name + " [" + state.toUpperCase() + "]";
+        return String.format(
+                "%s [%s]", name, getMasterState() != null ? getMasterState().toUpperCase(): getState().toUpperCase());
     }
 
     @NotNull
@@ -347,9 +349,9 @@ public class AzureSparkServerlessCluster extends SparkCluster
         return state;
     }
 
-    @NotNull
+    @Nullable
     public String getMasterState() {
-        return this.master == null ? "unknown" : this.master.state.toString();
+        return this.master == null || this.master.state == null ? null : this.master.state.toString();
     }
 
     @Override
