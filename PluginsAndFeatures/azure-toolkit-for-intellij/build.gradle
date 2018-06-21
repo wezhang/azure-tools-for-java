@@ -125,7 +125,7 @@ dependencies {
     testCompile 'javax.servlet:javax.servlet-api:3.1.0'
 }
 
-println "[Wei] Intellij version: ${intellij.version}"
+logger.info "[Wei] Intellij version: ${intellij.version}"
 
 test {
     testLogging.showStandardStreams = true
