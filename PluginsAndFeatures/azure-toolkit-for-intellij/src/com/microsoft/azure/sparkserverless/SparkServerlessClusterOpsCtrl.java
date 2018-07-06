@@ -22,10 +22,11 @@
 
 package com.microsoft.azure.sparkserverless;
 
-import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
+import com.microsoft.azure.hdinsight.spark.run.ServerlessSparkRunConfigurationSubmitter;
 import com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode.SparkServerlessClusterOps;
 import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessClusterDestoryDialog;
 import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessClusterMonitorDialog;
@@ -84,6 +85,25 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
                             pair.getRight(), pair.getLeft());
                     updateDialog.show();
                 }, ex -> log().warn(ex.getMessage(), ex));
+
+        this.sparkServerlessClusterOps.getSubmitAction()
+                .observeOn(ideSchedulers.dispatchUIThread())
+                .subscribe(clusterNodePair -> {
+                    LOG.info(String.format("Submit message received. cluster: %s, node: %s",
+                            clusterNodePair.getLeft(), clusterNodePair.getRight()));
+
+                    try {
+                        ServerlessSparkRunConfigurationSubmitter submitter =
+                                new ServerlessSparkRunConfigurationSubmitter(
+                                        (Project) clusterNodePair.getRight().getProject(),
+                                        clusterNodePair.getLeft().getTitle());
+
+                        submitter.submit();
+
+                    } catch (Exception ex) {
+                        LOG.error(ex);
+                    }
+                }, ex -> LOG.error(ex.getMessage(), ex));
     }
 
 }

@@ -89,6 +89,8 @@ public class SparkServerlessClusterNode extends AzureRefreshableNode implements 
                 this, cluster, SparkServerlessClusterOps.getInstance().getUpdateAction()));
         updateAction.setEnabled(isClusterStable());
         
+        addAction("Submit Job", new SparkServerlessSubmitAction(
+                this, cluster, SparkServerlessClusterOps.getInstance().getSubmitAction()));
         addAction("Open Spark Master UI", new NodeActionListener() {
             @Override
             protected void actionPerformed(NodeActionEvent e) throws AzureCmdException {
