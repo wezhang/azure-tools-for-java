@@ -31,8 +31,8 @@ import com.intellij.packaging.impl.elements.ManifestFileUtil;
 import com.intellij.psi.PsiClass;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.common.HDInsightUtil;
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
@@ -228,9 +228,11 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         submitModel.setSubmissionParameters(parameter);
 
         resetClusterDetailsToComboBoxModel(submitModel, getClusterDetails());
-        data.getSelectedClusterDetail()
-            .map(IClusterDetail::getTitle)
-            .ifPresent(selectedTitle -> setSelectedClusterByTitle(submitModel, selectedTitle));
+        if (data.getSelectedClusterDetail().isPresent()) {
+            setSelectedClusterByTitle(submitModel, data.getSelectedClusterDetail().get().getTitle());
+        } else {
+            setSelectedClusterByName(submitModel, parameter.getClusterName());
+        }
 
         if (parameter.isLocalArtifact()) {
             submissionPanel.getLocalArtifactRadioButton().setSelected(true);

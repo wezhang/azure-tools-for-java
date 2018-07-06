@@ -39,6 +39,8 @@ public class SparkBatchJobConfigurableModel {
     @Transient
     @NotNull
     private SparkSubmitModel submitModel;
+    @Tag("focused-tab-index")
+    private int focusedTabIndex = 0;
 
     public SparkBatchJobConfigurableModel() { }
 
@@ -87,5 +89,13 @@ public class SparkBatchJobConfigurableModel {
                     .map(elem -> getSubmitModel().applyFromElement(elem))
                     .ifPresent(this::setSubmitModel);
         }
+    }
+
+    public int getFocusedTabIndex() {
+        return focusedTabIndex;
+    }
+
+    public void setFocusedTabIndex(int focusedTabIndex) {
+        this.focusedTabIndex = focusedTabIndex;
     }
 }

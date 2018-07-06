@@ -96,7 +96,7 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
                         ServerlessSparkRunConfigurationSubmitter submitter =
                                 new ServerlessSparkRunConfigurationSubmitter(
                                         (Project) clusterNodePair.getRight().getProject(),
-                                        clusterNodePair.getLeft().getTitle());
+                                        clusterNodePair.getLeft().getName());
 
                         submitter.submit();
 

@@ -58,6 +58,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
         // Data -> Component
         myLocalRunConfigurable.setData(data.getLocalRunConfigurableModel());
         myClusterSubmissionConfigurable.setData(data.getSubmitModel());
+        executionTypeTabPane.setSelectedIndex(data.getFocusedTabIndex());
     }
 
     @Override
@@ -65,6 +66,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
         // Component -> Data
         myLocalRunConfigurable.getData(data.getLocalRunConfigurableModel());
         myClusterSubmissionConfigurable.getData(data.getSubmitModel());
+        data.setFocusedTabIndex(executionTypeTabPane.getSelectedIndex());
     }
 
     public SparkLocalRunConfigurable getMyLocalRunConfigurable() {
