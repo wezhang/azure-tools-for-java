@@ -509,11 +509,11 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
                         ob.onNext(jobResp.getAppId());
                     }
                 }
+
+                ob.onCompleted();
             } catch (IOException ex) {
                 log().warn("Got exception " + ex.toString());
                 ob.onError(ex);
-            } finally {
-                ob.onCompleted();
             }
         });
     }
@@ -761,6 +761,27 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         });
     }
 
+    protected Observable<List<String>> getBatchLogs(int start, int maxLinesPerGet) {
+        if (getConnectUri() == null) {
+            return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
+                    "please configure Spark cluster which the Spark job will be submitted."));
+        }
+
+        return Observable.fromCallable(() -> {
+            String logUrl = String.format("%s/%d/log?from=%d&size=%d",
+                    this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
+
+            HttpResponse httpResponse = this.getSubmission().getHttpResponseViaGet(logUrl);
+
+            SparkJobLog sparkJobLog = ObjectConvertUtils.convertJsonToObject(httpResponse.getMessage(),
+                    SparkJobLog.class)
+                    .orElseThrow(() -> new UnknownServiceException(
+                            "Bad spark log response: " + httpResponse.getMessage()));
+
+            return sparkJobLog.getLog();
+        });
+    }
+
     @Override
     @NotNull
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
@@ -855,7 +876,7 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         throw new UnknownServiceException("Failed to detect job activity: Unknown service error after " + --retries + " retries");
     }
 
-    private Observable<SimpleImmutableEntry<String, String>> getJobDoneObservable() {
+    protected Observable<SimpleImmutableEntry<String, String>> getJobDoneObservable() {
         if (getConnectUri() == null) {
             return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
                     "please configure Spark cluster which the Spark job will be submitted."));

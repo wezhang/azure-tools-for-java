@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.google.common.collect.Range;
+import com.google.common.collect.TreeRangeMap;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager;
@@ -29,15 +31,32 @@ import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import rx.Observable;
 import rx.Observer;
+import rx.schedulers.Schedulers;
 
 import java.io.File;
 import java.net.URI;
+import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 public class ServerlessSparkBatchJob extends SparkBatchJob {
+//    private final String STANDALONE_SPARK_APPID_REGEX = "Connected to Spark cluster with app ID (\\S+)";
+    private final String STANDALONE_SPARK_APPID_REGEX = "(app-[-\\d]+)";
+    private final Pattern appIdPattern = Pattern.compile(STANDALONE_SPARK_APPID_REGEX);
+    @Nullable
+    private String appId;
+    private int driverLogStart = 0;
+
+    private TreeRangeMap<Long, Integer> driverLogRangeLines = TreeRangeMap.create();
+
     public ServerlessSparkBatchJob(@NotNull SparkSubmissionParameter submissionParameter,
                                    @NotNull SparkBatchAzureSubmission azureSubmission,
                                    @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
@@ -115,21 +134,104 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
 
     @NotNull
     @Override
+    public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
+        return super.getSubmissionLog()
+                .scan(Pair.of(-1, (SimpleImmutableEntry<MessageInfoType, String>) null), (lastIndexedLog, typedLog) ->
+                        Pair.of(lastIndexedLog.getLeft() + 1, typedLog))
+                .filter(indexedTypeLog -> indexedTypeLog.getRight() != null)
+                .takeUntil(indexedTypeLog -> {
+                    Matcher m = appIdPattern.matcher(indexedTypeLog.getRight().getValue());
+
+                    if (m.find()) {
+                        appId = m.group(1);
+                        driverLogStart = indexedTypeLog.getLeft() + 1;
+
+                        return true;
+                    }
+
+                    return false;
+                })
+                .map(Pair::getRight);
+    }
+
+    @NotNull
+    @Override
     public Observable<SimpleImmutableEntry<String, Long>> getDriverLog(@NotNull String type, long logOffset, int size) {
         if (getConnectUri() == null) {
             return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
                     "please configure Spark cluster which the Spark job will be submitted."));
         }
 
-        // FIXME!!!
-//        return getStatus()
-//                .map(status -> new SimpleImmutableEntry<>(String.join("", status.getLog()), logOffset));
-        return Observable.empty();
+        Map.Entry<Range<Long>, Integer> prevLineEntry = driverLogRangeLines.getEntry(logOffset - 1);
+
+        // FIXME!!! logOffset is not the line header isn't handled
+
+        int nextLine;
+        Range<Long> lastRange;
+
+        if (prevLineEntry != null) {
+            lastRange = prevLineEntry.getKey();
+            nextLine = prevLineEntry.getValue();
+        } else {
+            Map.Entry<Range<Long>, Integer> startEntry = getLastLogRangeIndex();
+
+            if (startEntry != null) {
+                // Start from the last log index
+                nextLine = startEntry.getValue() + 1;
+                lastRange = startEntry.getKey();
+            } else {
+                // Start from the scratch
+                nextLine = driverLogStart;
+                lastRange = Range.closed(-1L, -1L);
+            }
+        }
+
+        return Observable.just(Pair.of(lastRange, nextLine))
+                .flatMap(prevRangeLinePair -> getBatchLogs(prevRangeLinePair.getValue() + 1, max(min(size / 128 + 1, 16), 16))
+                        .flatMap(Observable::from)
+                        .scan(Triple.of(prevRangeLinePair.getLeft(), prevRangeLinePair.getRight(), (String)null),
+                                (lastRangeLineLogTriple , log) -> {
+                                    Long currentStart = lastRangeLineLogTriple.getLeft().upperEndpoint() + 1;
+                                    int currentLine = lastRangeLineLogTriple.getMiddle() + 1;
+
+                                    // With line-break added
+                                    Range<Long> logRange = Range.closed(currentStart, currentStart + log.length());
+                                    driverLogRangeLines.put(logRange, currentLine);
+
+                                    return Triple.of(logRange, currentLine, log + "\n");
+                                })
+                        .filter(rangeLineLogTriple -> rangeLineLogTriple.getRight() != null)
+                )
+                .skipWhile(indexedLog -> !indexedLog.getLeft().contains(logOffset))
+                .map(Triple::getRight)
+                .toList()
+                .map(logs -> new SimpleImmutableEntry<>(String.join("", logs), logOffset));
+    }
+
+    @Nullable
+    private Map.Entry<Range<Long>, Integer> getLastLogRangeIndex() {
+        return driverLogRangeLines.asDescendingMapOfRanges().entrySet().stream().findFirst().orElse(null);
     }
 
     @Override
     Observable<String> getSparkJobDriverLogUrlObservable() {
         return Observable.just(Objects.requireNonNull(getConnectUri()).toString() + "/" + getBatchId() + "/log");
+    }
+
+    @Override
+    Observable<String> getSparkJobApplicationIdObservable() {
+        return appId == null ? Observable.empty() : Observable.just(appId);
+    }
+
+    @NotNull
+    @Override
+    public Observable<String> awaitPostDone() {
+        return Observable.interval(3, TimeUnit.SECONDS)//, Schedulers.computation())
+                .map(i -> getLastLogRangeIndex())
+                .scan(Pair.of(null, null), (prev2Entries, current) -> Pair.of(prev2Entries.getRight(), current))
+                .takeUntil(prevAndCurrentEntries -> prevAndCurrentEntries.getLeft() != prevAndCurrentEntries.getRight())
+                .filter(prevAndCurrentEntries -> prevAndCurrentEntries.getLeft() != prevAndCurrentEntries.getRight())
+                .map(any -> "pseudeo done");
     }
 
     @NotNull
