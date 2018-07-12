@@ -26,13 +26,24 @@ import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.ui.ConsoleView;
 import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.openapi.project.Project;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 public class SparkJobLogConsoleView extends ConsoleViewImpl {
+    @NotNull
+    private java.util.List<Pair<Pattern, ConsoleViewContentType>> primaryConsoleSubTypePairs = Arrays.asList(
+            Pair.of(Pattern.compile("\\bWARN |^w,"), ConsoleViewContentType.LOG_WARNING_OUTPUT),
+            Pair.of(Pattern.compile("\\bERROR |^e,"), ConsoleViewContentType.ERROR_OUTPUT),
+            Pair.of(Pattern.compile("\\bINFO |^i,|^log4j:"), ConsoleViewContentType.SYSTEM_OUTPUT)
+    );
+
     @Nullable
     private JComponent mainPanel;
 
@@ -48,10 +59,26 @@ public class SparkJobLogConsoleView extends ConsoleViewImpl {
     @Override
     public void print(@NotNull String s, @NotNull ConsoleViewContentType contentType) {
         if (contentType == ConsoleViewContentType.NORMAL_OUTPUT) {
-            super.print(s, contentType);
+            ConsoleViewContentType subType = getPrimaryConsoleSubTypePairs()
+                    .stream()
+                    .filter(patternTypePair -> patternTypePair.getLeft().matcher(s).find())
+                    .findFirst()
+                    .map(Pair::getRight)
+                    .orElse(ConsoleViewContentType.NORMAL_OUTPUT);
+
+            super.print(s, subType);
         } else {
             getSecondaryConsoleView().print(s, contentType);
         }
+    }
+
+    @NotNull
+    public List<Pair<Pattern, ConsoleViewContentType>> getPrimaryConsoleSubTypePairs() {
+        return primaryConsoleSubTypePairs;
+    }
+
+    public void setPrimaryConsoleSubTypePairs(@NotNull List<Pair<Pattern, ConsoleViewContentType>> primaryConsoleSubTypePairs) {
+        this.primaryConsoleSubTypePairs = primaryConsoleSubTypePairs;
     }
 
     @NotNull

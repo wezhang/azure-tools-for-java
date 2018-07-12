@@ -761,24 +761,22 @@ public class SparkBatchJob implements ISparkBatchJob, ILogger {
         });
     }
 
-    protected Observable<List<String>> getBatchLogs(int start, int maxLinesPerGet) {
+    Observable<SparkJobLog> getBatchLogRequest(int start, int maxLinesPerGet) {
         if (getConnectUri() == null) {
             return Observable.error(new SparkJobNotConfiguredException("Can't get Spark job connection URI, " +
                     "please configure Spark cluster which the Spark job will be submitted."));
         }
 
-        return Observable.fromCallable(() -> {
-            String logUrl = String.format("%s/%d/log?from=%d&size=%d",
-                    this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
+        String logUrl = String.format("%s/%d/log?from=%d&size=%d",
+                this.getConnectUri().toString(), batchId, start, maxLinesPerGet);
 
+
+        return Observable.fromCallable(() -> {
             HttpResponse httpResponse = this.getSubmission().getHttpResponseViaGet(logUrl);
 
-            SparkJobLog sparkJobLog = ObjectConvertUtils.convertJsonToObject(httpResponse.getMessage(),
-                    SparkJobLog.class)
-                    .orElseThrow(() -> new UnknownServiceException(
-                            "Bad spark log response: " + httpResponse.getMessage()));
-
-            return sparkJobLog.getLog();
+            return ObjectConvertUtils.convertJsonToObject(httpResponse.getMessage(), SparkJobLog.class)
+                    .orElseThrow(() ->
+                            new UnknownServiceException("Bad spark log response: " + httpResponse.getMessage()));
         });
     }
 

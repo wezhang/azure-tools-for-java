@@ -22,40 +22,45 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.google.common.collect.Range;
-import com.google.common.collect.TreeRangeMap;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
+import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
+import org.joda.time.DateTime;
+import org.jsoup.Jsoup;
 import rx.Observable;
 import rx.Observer;
 import rx.schedulers.Schedulers;
+import rx.subjects.PublishSubject;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
-import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static rx.exceptions.Exceptions.propagate;
 
 public class ServerlessSparkBatchJob extends SparkBatchJob {
-//    private final String STANDALONE_SPARK_APPID_REGEX = "Connected to Spark cluster with app ID (\\S+)";
     private final String STANDALONE_SPARK_APPID_REGEX = "(app-[-\\d]+)";
     private final Pattern appIdPattern = Pattern.compile(STANDALONE_SPARK_APPID_REGEX);
+    private final Pattern totalUptimeIdPattern = Pattern.compile("Total Uptime:(.*)");
+
     @Nullable
     private String appId;
-    private int driverLogStart = 0;
+    private SortedSet<UUID> logGuids = Collections.synchronizedSortedSet(new TreeSet<>());
 
-    private TreeRangeMap<Long, Integer> driverLogRangeLines = TreeRangeMap.create();
+    @Nullable
+    private DateTime lastLogTimestamp = null;
 
     public ServerlessSparkBatchJob(@NotNull SparkSubmissionParameter submissionParameter,
                                    @NotNull SparkBatchAzureSubmission azureSubmission,
@@ -66,9 +71,19 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
     @NotNull
     private Observable<? extends AzureSparkServerlessCluster> getCluster() {
         return AzureSparkServerlessClusterManager.getInstance()
-                .findCluster(getAzureSubmission().getAccountName(), getAzureSubmission().getClusterId());
-    }
+                .findCluster(getAzureSubmission().getAccountName(), getAzureSubmission().getClusterId())
+                .onErrorReturn(err -> {
+                    if (err instanceof NoSuchElementException) {
+                        throw propagate(new SparkJobNotConfiguredException(String.format(
+                                "Can't find the target cluster %s(ID: %s) from account %s",
+                                getSubmissionParameter().getClusterName(),
+                                getAzureSubmission().getClusterId(),
+                                getAzureSubmission().getAccountName())));
+                    }
 
+                    throw propagate(err);
+                });
+    }
 
     @NotNull
     @Override
@@ -107,51 +122,105 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
         return getAzureSubmission().getLivyUri() == null ? null : getAzureSubmission().getLivyUri().resolve("/batches");
     }
 
-    @NotNull
+    // To get a job total up time observable
+    private Observable<String> getTotalUpTime(String url) {
+        return Observable.fromCallable(() -> {
+            String uptime = "";
+
+            try {
+                HttpResponse resp = getAzureSubmission().getHttpResponseViaGet(url);
+
+                // FIXME!!! Authentication issue in dogfood
+                if (resp.getCode() >= 400) {
+                    return String.format("ErrorCode: %d", resp.getCode());
+                }
+
+                String html = resp.getContent();
+
+                // The Total Uptime should be looks like:
+                //      Total Uptime: 6 s
+                // OR
+                //      Total Uptime:
+                // OR empty
+                String totalUptime = Jsoup.parse(html, url).select("li:contains(Total Uptime:)").text();
+
+                Matcher uptimeMatcher = totalUptimeIdPattern.matcher(totalUptime);
+                if (uptimeMatcher.find()) {
+                    uptime = uptimeMatcher.group(1).trim();
+                }
+            } catch (IOException ignored) { }
+
+            return uptime;
+        })
+        .repeatWhen(ob -> ob.delay(10, TimeUnit.SECONDS))
+        .takeUntil(StringUtils::isNotBlank)
+        .filter(StringUtils::isNotBlank);
+    }
+
     @Override
-    public Observable<String> awaitStarted() {
-        return super.awaitStarted()
-                .flatMap(state -> Observable.zip(
-                        getCluster(), getSparkJobApplicationIdObservable().defaultIfEmpty(null),
-                        (cluster, appId) -> Pair.of(
-                                state,
-                                cluster.getSparkHistoryUiUri() == null ?
-                                        null :
-                                        cluster.getSparkHistoryUiUri()
-                                               .resolve(appId == null ?
-                                                        "/" :
-                                                        String.format("/history/%s/", appId))
-                                               .toString() + "?adlaAccountName=" + cluster.getAccount().getName())))
-                .map(stateJobUriPair -> {
-                    if (stateJobUriPair.getRight() != null) {
-                        getCtrlSubject().onNext(new SimpleImmutableEntry<>(MessageInfoType.Hyperlink,
-                                                                           stateJobUriPair.getRight()));
+    public Observable<SimpleImmutableEntry<String, String>> awaitDone() {
+        return Observable
+                .zip(getCluster().flatMap(AzureSparkServerlessCluster::get),
+                     getSparkJobApplicationIdObservable(),
+                     (cluster, appIdFound) -> cluster.getSparkHistoryUiUri() == null ?
+                             null :
+                             cluster.getSparkHistoryUiUri()
+                                    .resolve(appIdFound == null ? "/" : String.format("/history/%s/", appIdFound))
+                                    .toString() + "?showIncomplete=true&adlaAccountName=" + cluster.getAccount().getName())
+                .filter(Objects::nonNull)
+                .doOnNext(jobUri -> Observable.just(new SimpleImmutableEntry<>(MessageInfoType.Hyperlink, jobUri))
+                                              .subscribeOn(Schedulers.io())
+                                              // Delay 10Sec, let the History server be ready
+                                              .delay(10, TimeUnit.SECONDS)
+                                              .subscribe(msg -> getCtrlSubject().onNext(msg)))
+                .flatMap(this::getTotalUpTime)
+                .flatMap(uptime -> super.awaitDone());
+    }
+
+    // Get logs with paging
+    Observable<String> getBatchLogs(int start) {
+        return getBatchLogRequest(start, -1)
+                .concatMap(jobResp -> {
+                    if (jobResp.getFrom() + jobResp.getLog().size() == jobResp.getTotal()) {
+                        return Observable.from(jobResp.getLog());
                     }
 
-                    return stateJobUriPair.getKey();
+                    // Pagination
+                    return Observable.from(jobResp.getLog())
+                            .concatWith(getBatchLogs(jobResp.getFrom() + jobResp.getLog().size()));
                 });
     }
 
     @NotNull
     @Override
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
-        return super.getSubmissionLog()
-                .scan(Pair.of(-1, (SimpleImmutableEntry<MessageInfoType, String>) null), (lastIndexedLog, typedLog) ->
-                        Pair.of(lastIndexedLog.getLeft() + 1, typedLog))
-                .filter(indexedTypeLog -> indexedTypeLog.getRight() != null)
-                .takeUntil(indexedTypeLog -> {
-                    Matcher m = appIdPattern.matcher(indexedTypeLog.getRight().getValue());
+        PublishSubject<String> logTypedWindowSubject = PublishSubject.create();
+        AtomicInteger windowIndex = new AtomicInteger();
 
-                    if (m.find()) {
-                        appId = m.group(1);
-                        driverLogStart = indexedTypeLog.getLeft() + 1;
+        return getBatchLogs(0)
+                .doOnNext(line -> {
+                    logGuids.add(UUID.nameUUIDFromBytes(line.getBytes()));
 
-                        return true;
+                    if (line.startsWith("\nstderr:")) {
+                        logTypedWindowSubject.onNext("stderr");
+                    }
+                })
+                .window(() -> logTypedWindowSubject)
+                .flatMap(obs -> {
+                    switch (windowIndex.getAndIncrement()) {
+                        case 0: // stdout
+                            return obs
+                                    .filter(line -> !line.trim().equalsIgnoreCase("stdout:"))
+                                    .map(line -> new SimpleImmutableEntry<>(MessageInfoType.Log, line));
+                        case 1: // stderr
+                            return obs
+                                    .filter(line -> !line.startsWith("\nstderr:"))
+                                    .map(line -> new SimpleImmutableEntry<>(MessageInfoType.Error, line));
+                        default:
                     }
 
-                    return false;
-                })
-                .map(Pair::getRight);
+                    return obs.map(line -> new SimpleImmutableEntry<>(MessageInfoType.Info, line));
+                });
     }
 
     @NotNull
@@ -162,55 +231,53 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
                     "please configure Spark cluster which the Spark job will be submitted."));
         }
 
-        Map.Entry<Range<Long>, Integer> prevLineEntry = driverLogRangeLines.getEntry(logOffset - 1);
+        // TODO:: Only allow the sequence reading
 
-        // FIXME!!! logOffset is not the line header isn't handled
+        int blockSize = (size >= 0) ? size : 4096;
 
-        int nextLine;
-        Range<Long> lastRange;
-
-        if (prevLineEntry != null) {
-            lastRange = prevLineEntry.getKey();
-            nextLine = prevLineEntry.getValue();
-        } else {
-            Map.Entry<Range<Long>, Integer> startEntry = getLastLogRangeIndex();
-
-            if (startEntry != null) {
-                // Start from the last log index
-                nextLine = startEntry.getValue() + 1;
-                lastRange = startEntry.getKey();
-            } else {
-                // Start from the scratch
-                nextLine = driverLogStart;
-                lastRange = Range.closed(-1L, -1L);
-            }
-        }
-
-        return Observable.just(Pair.of(lastRange, nextLine))
-                .flatMap(prevRangeLinePair -> getBatchLogs(prevRangeLinePair.getValue() + 1, max(min(size / 128 + 1, 16), 16))
-                        .flatMap(Observable::from)
-                        .scan(Triple.of(prevRangeLinePair.getLeft(), prevRangeLinePair.getRight(), (String)null),
-                                (lastRangeLineLogTriple , log) -> {
-                                    Long currentStart = lastRangeLineLogTriple.getLeft().upperEndpoint() + 1;
-                                    int currentLine = lastRangeLineLogTriple.getMiddle() + 1;
-
-                                    // With line-break added
-                                    Range<Long> logRange = Range.closed(currentStart, currentStart + log.length());
-                                    driverLogRangeLines.put(logRange, currentLine);
-
-                                    return Triple.of(logRange, currentLine, log + "\n");
-                                })
-                        .filter(rangeLineLogTriple -> rangeLineLogTriple.getRight() != null)
-                )
-                .skipWhile(indexedLog -> !indexedLog.getLeft().contains(logOffset))
-                .map(Triple::getRight)
+        return getBatchLogs(0)
+                .doOnNext(line -> {
+                    Matcher appIdMatcher = appIdPattern.matcher(line);
+                    if (appIdMatcher.find()) {
+                        setAppId(appIdMatcher.group(1));
+                    }
+                })
+                .skipWhile(line -> {
+                    if (type.equals("stdout")) {
+                        // Reading from `stdout:`(included)
+                        return !line.trim().equalsIgnoreCase("stdout:");
+                    } else {
+                        // Reading from `\nstderr:`(included)
+                        return !line.startsWith("\nstderr:");
+                    }
+                })
+                .skip(1)    // Skip the first line, `stdout:` or `\nstderr:`
+                .takeWhile(line -> {
+                    if (type.equals("stdout")) {
+                        // Stop reading at `\nstderr:`(excluded)
+                        return !line.startsWith("\nstderr:");
+                    } else {
+                        return true;
+                    }
+                })
+                .skipWhile(line -> logGuids.contains(UUID.nameUUIDFromBytes(line.getBytes())))
+                // Scan with calculating the remained buffer size
+                // Plus one for the linebreak to be added
+                .scan(Pair.of(blockSize, (String) null), (remainedSizeWithLine, line) ->
+                        Pair.of(remainedSizeWithLine.getLeft() - line.length() - 1, line))
+                .filter(remainedSizeWithLine -> remainedSizeWithLine.getRight() != null)
+                .takeWhile(remainedSizeWithLine -> remainedSizeWithLine.getLeft() >= 0)
+                .map(Pair::getRight)
+                .doOnNext(line -> logGuids.add(UUID.nameUUIDFromBytes(line.getBytes())))
+                .map(line -> line + "\n")
                 .toList()
-                .map(logs -> new SimpleImmutableEntry<>(String.join("", logs), logOffset));
-    }
+                .map(logs -> {
+                    if (!logs.isEmpty()) {
+                        lastLogTimestamp = DateTime.now();
+                    }
 
-    @Nullable
-    private Map.Entry<Range<Long>, Integer> getLastLogRangeIndex() {
-        return driverLogRangeLines.asDescendingMapOfRanges().entrySet().stream().findFirst().orElse(null);
+                    return new SimpleImmutableEntry<>(String.join("", logs), logOffset);
+                });
     }
 
     @Override
@@ -220,23 +287,45 @@ public class ServerlessSparkBatchJob extends SparkBatchJob {
 
     @Override
     Observable<String> getSparkJobApplicationIdObservable() {
-        return appId == null ? Observable.empty() : Observable.just(appId);
+        return Observable.fromCallable(this::getAppId)
+//                .observeOn(Schedulers.io())
+                .repeatWhen(ob -> ob.delay(1, TimeUnit.SECONDS))
+                .takeUntil(Objects::nonNull)
+                .filter(Objects::nonNull);
     }
 
     @NotNull
     @Override
     public Observable<String> awaitPostDone() {
-        return Observable.interval(3, TimeUnit.SECONDS)//, Schedulers.computation())
-                .map(i -> getLastLogRangeIndex())
-                .scan(Pair.of(null, null), (prev2Entries, current) -> Pair.of(prev2Entries.getRight(), current))
-                .takeUntil(prevAndCurrentEntries -> prevAndCurrentEntries.getLeft() != prevAndCurrentEntries.getRight())
-                .filter(prevAndCurrentEntries -> prevAndCurrentEntries.getLeft() != prevAndCurrentEntries.getRight())
-                .map(any -> "pseudeo done");
+        final int waitingSeconds = 30;
+
+        return Observable.fromCallable(() -> Observable.interval(1, TimeUnit.SECONDS, Schedulers.computation())
+                .map(i -> getLastLogTimestamp())
+                .filter(Objects::nonNull)
+                .takeUntil(last -> last.isBefore(DateTime.now().minusSeconds(waitingSeconds)))
+                .filter(last -> last.isBefore(DateTime.now().minusSeconds(waitingSeconds)))
+                .map(any -> String.format("No logs for %d seconds", waitingSeconds))
+                .toBlocking()
+                .firstOrDefault(null));
+    }
+
+    @Nullable
+    private DateTime getLastLogTimestamp() {
+        return lastLogTimestamp;
     }
 
     @NotNull
     private SparkBatchAzureSubmission getAzureSubmission() {
         return (SparkBatchAzureSubmission) getSubmission();
+    }
+
+    @Nullable
+    public String getAppId() {
+        return appId;
+    }
+
+    public void setAppId(@Nullable String appId) {
+        this.appId = appId;
     }
 
     private void ctrlInfo(@NotNull String message) {
