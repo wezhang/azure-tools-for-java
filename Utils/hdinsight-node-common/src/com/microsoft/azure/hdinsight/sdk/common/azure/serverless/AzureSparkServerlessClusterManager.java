@@ -256,6 +256,10 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
         return concat(from(getAccounts()), get().flatMap(manager -> from(manager.getAccounts())))
                 .isEmpty()
                 .map(isEmpty -> !isEmpty)
-                .onErrorReturn(err -> false);
+                .onErrorReturn(err -> {
+                    log().warn("Checking Azure Data Lake Spark pool got error: " + err);
+
+                    return false;
+                });
     }
 }

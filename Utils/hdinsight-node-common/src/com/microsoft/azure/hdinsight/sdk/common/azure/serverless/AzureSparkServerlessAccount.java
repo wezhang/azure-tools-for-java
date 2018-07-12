@@ -47,7 +47,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
-public class AzureSparkServerlessAccount implements ClusterContainer {
+public class AzureSparkServerlessAccount implements ClusterContainer, Comparable<AzureSparkServerlessAccount> {
     private static final String REST_SEGMENT_SPARK_RESOURCEPOOLS = "/activityTypes/spark/resourcePools";
     private static final String REST_SEGMENT_JOB_LIST = "/Jobs";
 
@@ -237,5 +237,14 @@ public class AzureSparkServerlessAccount implements ClusterContainer {
                     .orElse(null);
         }
         return storageRootPath;
+    }
+
+    @Override
+    public int compareTo(@NotNull AzureSparkServerlessAccount other) {
+        if (this == other) {
+            return 0;
+        }
+
+        return getName().compareTo(other.getName());
     }
 }
