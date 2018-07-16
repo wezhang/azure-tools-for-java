@@ -88,7 +88,11 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
     public AzureSparkServerlessClusterManager() {
         this.httpMap.put("common", new AzureHttpObservable(ApiVersion.VERSION));
 
+        // Invalid cached accounts when signing out or changing subscription selection
         AuthMethodManager.getInstance().addSignOutEventListener(() -> accounts = ImmutableSortedSet.of());
+        if (getAzureManager() != null) {
+            getAzureManager().getSubscriptionManager().addListener(ev -> accounts = ImmutableSortedSet.of());
+        }
     }
 
     //
@@ -116,6 +120,11 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
         }
     }
 
+    /**
+     * Get the cached clusters, non-block
+     *
+     * @return Immutable sorted IClusterDetail set
+     */
     @NotNull
     @Override
     public ImmutableSortedSet<? extends IClusterDetail> getClusters() {
@@ -150,15 +159,27 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
                 .defaultIfEmpty(this);
     }
 
+    /**
+     * Deep fetch all accounts' clusters
+     *
+     * @return Chained call result of this
+     */
     public Observable<AzureSparkServerlessClusterManager> fetchClusters() {
         return get()
                 .map(AzureSparkServerlessClusterManager::getAccounts)
                 .flatMap(Observable::from)
-                .observeOn(Schedulers.io())
-                .flatMap(AzureSparkServerlessAccount::get)
+                .flatMap(account -> account.get().onErrorReturn(err -> {
+                    log().warn(String.format("Can't get the account %s details: %s", account.getName(), err));
+
+                    return account;
+                }))
                 .map(account -> account.getClusters())
                 .flatMap(Observable::from)
-                .flatMap(cluster -> ((AzureSparkServerlessCluster)cluster).get())
+                .flatMap(cluster -> ((AzureSparkServerlessCluster)cluster).get().onErrorReturn(err -> {
+                    log().warn(String.format("Can't get the cluster %s details: %s", cluster.getName(), err));
+
+                    return (AzureSparkServerlessCluster) cluster;
+                }))
                 .toSortedList()
                 .map(clusters -> this)
                 .defaultIfEmpty(this);
