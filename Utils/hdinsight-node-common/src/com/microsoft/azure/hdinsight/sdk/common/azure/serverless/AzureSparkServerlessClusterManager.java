@@ -193,10 +193,8 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
 
         // Loop subscriptions to get all accounts
         return Observable
-                .fromCallable(() -> getAzureManager().getSubscriptionManager().getSubscriptionIdToSubscriptionDetailsMap())
-                .flatMap(sidToDetails -> Observable.from(getAzureManager().getSubscriptionManager().getAccountSidList())
-                                                    // Handle account one by one
-                                                   .map(sidToDetails::get))
+                .fromCallable(() -> getAzureManager().getSubscriptionManager().getSelectedSubscriptionDetails())
+                .flatMap(Observable::from)             // Get Subscription details one by one
                 .map(sub -> Pair.of(
                         sub,
                         URI.create(getSubscriptionsUri(sub.getSubscriptionId()).toString() + "/")
