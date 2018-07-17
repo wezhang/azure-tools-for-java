@@ -22,7 +22,7 @@
 
 package com.microsoft.intellij.feedback
 
-import com.microsoft.tooling.msservices.components.DefaultLoader
+import com.intellij.ide.BrowserUtil
 import org.apache.commons.lang3.StringUtils
 import org.apache.http.client.utils.URLEncodedUtils
 import org.apache.http.message.BasicNameValuePair
@@ -57,7 +57,7 @@ class GithubIssue<T : Reportable>(private val reportable: T) {
     }
 
     fun report() {
-        DefaultLoader.getIdeHelper().openLinkInBrowser(getRequestUrl())
+        BrowserUtil.browse(getRequestUrl())
     }
 
     fun withLabel(label: String): GithubIssue<T> {
