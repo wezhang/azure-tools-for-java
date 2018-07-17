@@ -34,6 +34,7 @@ import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.ApiVersion;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccount;
 import com.microsoft.azure.hdinsight.sdk.rest.azure.datalake.analytics.accounts.models.DataLakeAnalyticsAccountBasic;
+import com.microsoft.azuretools.adauth.AuthException;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
@@ -167,7 +168,8 @@ public class AzureSparkServerlessClusterManager implements ClusterContainer,
     private Observable<List<Triple<SubscriptionDetail, DataLakeAnalyticsAccountBasic, DataLakeAnalyticsAccount>>>
     getAzureDataLakeAccountsRequest() {
         if (getAzureManager() == null) {
-            return Observable.empty();
+            return Observable.error(new AuthException(
+                    "Can't get Azure Data Lake account since the user isn't signed in, please sign in by Azure Explorer."));
         }
 
         // Loop subscriptions to get all accounts
