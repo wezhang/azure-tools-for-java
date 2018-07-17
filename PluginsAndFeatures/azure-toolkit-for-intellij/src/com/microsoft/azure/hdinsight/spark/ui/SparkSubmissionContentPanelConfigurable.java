@@ -69,7 +69,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     @NotNull
     protected ImmutableList<IClusterDetail> getClusterDetails() {
-        return ClusterManagerEx.getInstance().getClusterDetails();
+        return ClusterManagerEx.getInstance().getClusterDetailsWithoutAsync(true);
     }
 
     protected void createUIComponents() {
