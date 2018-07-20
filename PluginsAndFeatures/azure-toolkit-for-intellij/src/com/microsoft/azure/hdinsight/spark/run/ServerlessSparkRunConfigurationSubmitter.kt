@@ -46,5 +46,6 @@ class ServerlessSparkRunConfigurationSubmitter(project: Project, val clusterName
         model.submitModel.submissionParameter.clusterName = clusterName     // Select the cluster
 
         ProgramRunnerUtil.executeConfiguration(runConfigurationSetting, executor)
+        runConfigurationSetting.isEditBeforeRun = false
     }
 }

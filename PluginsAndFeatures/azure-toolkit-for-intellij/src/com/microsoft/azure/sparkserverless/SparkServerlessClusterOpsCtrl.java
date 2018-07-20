@@ -89,7 +89,7 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
         this.sparkServerlessClusterOps.getSubmitAction()
                 .observeOn(ideSchedulers.dispatchUIThread())
                 .subscribe(clusterNodePair -> {
-                    LOG.info(String.format("Submit message received. cluster: %s, node: %s",
+                    log().info(String.format("Submit message received. cluster: %s, node: %s",
                             clusterNodePair.getLeft(), clusterNodePair.getRight()));
 
                     try {
@@ -101,9 +101,9 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
                         submitter.submit();
 
                     } catch (Exception ex) {
-                        LOG.error(ex);
+                        log().error(ex.getMessage());
                     }
-                }, ex -> LOG.error(ex.getMessage(), ex));
+                }, ex -> log().error(ex.getMessage(), ex));
     }
 
 }
