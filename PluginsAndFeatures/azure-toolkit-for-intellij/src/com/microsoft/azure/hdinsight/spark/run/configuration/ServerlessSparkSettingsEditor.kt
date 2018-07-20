@@ -28,7 +28,7 @@ import com.microsoft.azure.hdinsight.spark.ui.ServerlessSparkConfigurable
 import javax.swing.JComponent
 
 class ServerlessSparkSettingsEditor(project: Project) : SettingsEditor<ServerlessSparkConfiguration>() {
-    private val configurable = ServerlessSparkConfigurable(project)
+    val configurable = ServerlessSparkConfigurable(project)
 
     override fun createEditor(): JComponent {
         return configurable.component

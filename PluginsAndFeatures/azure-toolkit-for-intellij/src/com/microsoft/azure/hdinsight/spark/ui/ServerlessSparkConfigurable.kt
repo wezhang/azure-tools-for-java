@@ -26,8 +26,8 @@ import com.intellij.openapi.project.Project
 
 class ServerlessSparkConfigurable(project: Project) : SparkBatchJobConfigurable(project) {
     override fun createUIComponents() {
-        myLocalRunConfigurable = SparkLocalRunConfigurable(project)
-        myClusterSubmissionConfigurable = ServerlessSparkSubmissionPanelConfigurable(
+        localRunConfigurable = SparkLocalRunConfigurable(project)
+        clusterSubmissionConfigurable = ServerlessSparkSubmissionPanelConfigurable(
                 project, null, ServerlessSparkSubmissionContentPanel(null))
     }
 }

@@ -44,6 +44,10 @@ public class SparkBatchJobConfigurableModel {
     private SparkSubmitModel submitModel;
     @Tag("focused-tab-index")
     private int focusedTabIndex = 0;
+    @Transient
+    private boolean isLocalRunConfigEnabled;
+    @Transient
+    private boolean isClusterSelectionEnabled;
 
     public SparkBatchJobConfigurableModel() { }
 
@@ -102,5 +106,23 @@ public class SparkBatchJobConfigurableModel {
 
     public void setFocusedTabIndex(int focusedTabIndex) {
         this.focusedTabIndex = focusedTabIndex;
+    }
+
+    @Transient
+    public boolean isLocalRunConfigEnabled() {
+        return isLocalRunConfigEnabled;
+    }
+
+    public void setLocalRunConfigEnabled(boolean localRunConfigEnabled) {
+        isLocalRunConfigEnabled = localRunConfigEnabled;
+    }
+
+    @Transient
+    public boolean isClusterSelectionEnabled() {
+        return isClusterSelectionEnabled;
+    }
+
+    public void setClusterSelectionEnabled(boolean clusterSelectionEnabled) {
+        this.isClusterSelectionEnabled = clusterSelectionEnabled;
     }
 }

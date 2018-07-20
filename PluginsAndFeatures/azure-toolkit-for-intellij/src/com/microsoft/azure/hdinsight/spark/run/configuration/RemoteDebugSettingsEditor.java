@@ -24,10 +24,8 @@ package com.microsoft.azure.hdinsight.spark.run.configuration;
 
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SettingsEditor;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable;
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel;
-import org.jetbrains.annotations.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 import javax.swing.*;
 
@@ -62,5 +60,9 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
         jobConfigurable = new SparkBatchJobConfigurable(runConfiguration.getSubmitModel().getProject());
 
         return jobConfigurable.getComponent();
+    }
+
+    public SparkBatchJobConfigurable getJobConfigurable() {
+        return jobConfigurable;
     }
 }

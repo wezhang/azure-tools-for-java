@@ -220,6 +220,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 });
     }
 
+    public void setClusterSelectionEnabled(boolean enabled) {
+        submissionPanel.getClustersListComboBox().setEnabled(enabled);
+    }
+
     @Override
     public void setData(@NotNull SparkSubmitModel data) {
         // Data -> Component
