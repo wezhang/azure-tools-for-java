@@ -73,6 +73,9 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
     @NotNull
     private String dataRootDirectory;
 
+    private SparkLocalRunConfigurableModel() {
+    }
+
     public SparkLocalRunConfigurableModel(@NotNull Project project) {
         this.project = project;
         this.setWorkingDirectory(PathUtil.getLocalPath(project.getBaseDir().getPath()));
@@ -106,6 +109,10 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
     @Override
     public Project getProject() {
         return project;
+    }
+
+    public void setProject(Project project) {
+        this.project = project;
     }
 
     @Override

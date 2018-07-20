@@ -33,6 +33,9 @@ import java.util.Optional;
 
 @Tag("spark-job-configuration")
 public class SparkBatchJobConfigurableModel {
+    @Transient
+    private Project project;
+
     @Tag("local-run")
     @NotNull
     private SparkLocalRunConfigurableModel localRunConfigurableModel;
@@ -45,6 +48,7 @@ public class SparkBatchJobConfigurableModel {
     public SparkBatchJobConfigurableModel() { }
 
     public SparkBatchJobConfigurableModel(@NotNull Project project) {
+        this.project = project;
         localRunConfigurableModel = new SparkLocalRunConfigurableModel(project);
         submitModel = new SparkSubmitModel(project);
     }
@@ -81,9 +85,10 @@ public class SparkBatchJobConfigurableModel {
         Element root = element.getChild("spark-job-configuration");
 
         if (root != null) {
-            Optional.ofNullable(root.getChild("local-run"))
-                    .map(elem -> (Element) elem.getContent(0))
-                    .ifPresent(elem -> getLocalRunConfigurableModel().applyFromElement(elem));
+            XmlSerializer.deserializeInto(this, root);
+
+            // Transient fields
+            this.localRunConfigurableModel.setProject(project);
 
             Optional.ofNullable(root.getChild("spark_submission"))
                     .map(elem -> getSubmitModel().applyFromElement(elem))
