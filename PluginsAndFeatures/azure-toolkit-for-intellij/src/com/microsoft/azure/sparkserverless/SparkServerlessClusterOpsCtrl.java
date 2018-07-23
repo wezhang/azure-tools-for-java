@@ -22,11 +22,18 @@
 
 package com.microsoft.azure.sparkserverless;
 
+import com.intellij.execution.RunManager;
+import com.intellij.execution.RunnerAndConfigurationSettings;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.Project;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.IdeSchedulers;
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster;
-import com.microsoft.azure.hdinsight.spark.run.ServerlessSparkRunConfigurationSubmitter;
+import com.microsoft.azure.hdinsight.spark.actions.SparkSubmitJobAction;
+import com.microsoft.azure.hdinsight.spark.actions.SparkAppSubmitContext;
+import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfigurationFactory;
+import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfigurationType;
 import com.microsoft.azure.sparkserverless.serverexplore.sparkserverlessnode.SparkServerlessClusterOps;
 import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessClusterDestoryDialog;
 import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessClusterMonitorDialog;
@@ -34,6 +41,9 @@ import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessClust
 import com.microsoft.azure.sparkserverless.serverexplore.ui.SparkServerlessProvisionDialog;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
+
+import static com.microsoft.azure.hdinsight.spark.actions.SparkDataKeys.CLUSTER;
+import static com.microsoft.azure.hdinsight.spark.actions.SparkDataKeys.RUN_CONFIGURATION_SETTING;
 
 public class SparkServerlessClusterOpsCtrl implements ILogger {
     @NotNull
@@ -93,13 +103,25 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
                             clusterNodePair.getLeft(), clusterNodePair.getRight()));
 
                     try {
-                        ServerlessSparkRunConfigurationSubmitter submitter =
-                                new ServerlessSparkRunConfigurationSubmitter(
-                                        (Project) clusterNodePair.getRight().getProject(),
-                                        clusterNodePair.getLeft().getName());
+                        AzureSparkServerlessCluster cluster = clusterNodePair.getLeft();
+                        SparkAppSubmitContext context = new SparkAppSubmitContext();
+                        Project project = (Project) clusterNodePair.getRight().getProject();
+                        RunnerAndConfigurationSettings runConfigurationSetting = RunManager.getInstance(project)
+                                .createRunConfiguration(
+                                        "[Azure Data Lake Spark] " + cluster.getName(),
+                                        new ServerlessSparkConfigurationFactory(new ServerlessSparkConfigurationType()));
 
-                        submitter.submit();
+                        context.putData(RUN_CONFIGURATION_SETTING, runConfigurationSetting)
+                                .putData(CLUSTER, cluster);
 
+                        AnActionEvent event = AnActionEvent.createFromDataContext(
+                                String.format("Azure Data Lake Spark pool %s:%s context menu",
+                                        cluster.getAccount().getName(), cluster.getName()),
+                                new Presentation("Submit Job"),
+                                context);
+
+                        new SparkSubmitJobAction("Submit Job", "Submit specified Spark application into the remote cluster", null)
+                                .actionPerformed(event);
                     } catch (Exception ex) {
                         log().error(ex.getMessage());
                     }
