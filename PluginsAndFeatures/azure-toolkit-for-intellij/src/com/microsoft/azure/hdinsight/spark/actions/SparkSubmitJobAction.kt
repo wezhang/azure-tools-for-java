@@ -24,28 +24,46 @@ package com.microsoft.azure.hdinsight.spark.actions
 
 import com.intellij.execution.ExecutorRegistry
 import com.intellij.execution.ProgramRunnerUtil
+import com.intellij.execution.RunnerAndConfigurationSettings
+import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.microsoft.azure.hdinsight.spark.actions.SparkDataKeys.*
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor
 import com.microsoft.azure.hdinsight.spark.run.configuration.*
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
-import javax.swing.Icon
 
-class SparkSubmitJobAction(text: String?, description: String?, icon: Icon?) : AzureAnAction(text, description, icon) {
+class SparkSubmitJobAction : AzureAnAction() {
     override fun onActionPerformed(anActionEvent: AnActionEvent?) {
         if (anActionEvent == null) {
             return
         }
 
-        submit(anActionEvent.dataContext)
+        val runConfigurationSetting = anActionEvent.dataContext.getData(RUN_CONFIGURATION_SETTING) ?:
+                getRunConfigurationFromDataContext(anActionEvent.dataContext) ?: return
+        val clusterName = anActionEvent.dataContext.getData(CLUSTER)?.name
+        val mainClassName = anActionEvent.dataContext.getData(MAIN_CLASS_NAME)
+
+        submit(runConfigurationSetting, clusterName, mainClassName)
     }
 
-    fun submit(context: DataContext) {
-        val runConfigurationSetting = context.getData(RUN_CONFIGURATION_SETTING) ?: return
-        val clusterName = context.getData(CLUSTER)?.name
-        val mainClassName = context.getData(MAIN_CLASS_NAME)
+    override fun update(event: AnActionEvent?) {
+        super.update(event)
 
+        if (event == null) {
+            return
+        }
+
+        event.presentation.isEnabledAndVisible = getRunConfigurationFromDataContext(event.dataContext) != null
+    }
+
+    private fun getRunConfigurationFromDataContext(dataContext: DataContext): RunnerAndConfigurationSettings? {
+        val configContext = ConfigurationContext.getFromContext(dataContext)
+
+        return configContext.findExisting() ?: configContext.configuration
+    }
+
+    private fun submit(runConfigurationSetting: RunnerAndConfigurationSettings, clusterName: String?, mainClassName: String?) {
         val executor = ExecutorRegistry.getInstance().getExecutorById(SparkBatchJobRunExecutor.EXECUTOR_ID)
 
         runConfigurationSetting.isEditBeforeRun = true
@@ -57,6 +75,8 @@ class SparkSubmitJobAction(text: String?, description: String?, icon: Icon?) : A
         if (clusterName != null) {
             model.submitModel.submissionParameter.clusterName = clusterName     // Select the cluster
             model.isClusterSelectionEnabled = false
+        } else {
+            model.isClusterSelectionEnabled = true
         }
 
         if (mainClassName != null) {

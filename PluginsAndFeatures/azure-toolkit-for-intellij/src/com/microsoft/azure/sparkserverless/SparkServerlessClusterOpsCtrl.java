@@ -114,14 +114,16 @@ public class SparkServerlessClusterOpsCtrl implements ILogger {
                         context.putData(RUN_CONFIGURATION_SETTING, runConfigurationSetting)
                                 .putData(CLUSTER, cluster);
 
+                        Presentation actionPresentation = new Presentation("Submit Job");
+                        actionPresentation.setDescription("Submit specified Spark application into the remote cluster");
+
                         AnActionEvent event = AnActionEvent.createFromDataContext(
                                 String.format("Azure Data Lake Spark pool %s:%s context menu",
                                         cluster.getAccount().getName(), cluster.getName()),
-                                new Presentation("Submit Job"),
+                                actionPresentation,
                                 context);
 
-                        new SparkSubmitJobAction("Submit Job", "Submit specified Spark application into the remote cluster", null)
-                                .actionPerformed(event);
+                        new SparkSubmitJobAction().actionPerformed(event);
                     } catch (Exception ex) {
                         log().error(ex.getMessage());
                     }
