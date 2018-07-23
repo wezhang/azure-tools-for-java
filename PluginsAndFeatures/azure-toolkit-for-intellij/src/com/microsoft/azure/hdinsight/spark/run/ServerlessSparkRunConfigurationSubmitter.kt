@@ -26,15 +26,14 @@ import com.intellij.execution.ExecutorRegistry
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
 import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfiguration
-import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfigurationFactory
-import com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfigurationType
+import com.microsoft.azure.hdinsight.spark.run.configuration.*
 
 class ServerlessSparkRunConfigurationSubmitter(project: Project, val clusterName: String?) {
     var runConfigurationSetting = RunManager.getInstance(project).createRunConfiguration(
-            "[Spark Job] To ADL pool $clusterName",
+            "[Azure Data Lake Spark] $clusterName",
             ServerlessSparkConfigurationFactory(ServerlessSparkConfigurationType()))
     var runConfiguration = runConfigurationSetting.configuration as ServerlessSparkConfiguration
+    var configurationEditor = runConfiguration.configurationEditor as ServerlessSparkSettingsEditor
 
     var executor = ExecutorRegistry.getInstance().getExecutorById(SparkBatchJobRunExecutor.EXECUTOR_ID)
 
@@ -44,8 +43,12 @@ class ServerlessSparkRunConfigurationSubmitter(project: Project, val clusterName
         val model = runConfiguration.model
         model.focusedTabIndex = 1   // Select remote job submission tab
         model.submitModel.submissionParameter.clusterName = clusterName     // Select the cluster
+        model.isLocalRunConfigEnabled = false
+        model.isClusterSelectionEnabled = false
 
         ProgramRunnerUtil.executeConfiguration(runConfigurationSetting, executor)
         runConfigurationSetting.isEditBeforeRun = false
+        model.isLocalRunConfigEnabled = true
+        model.isClusterSelectionEnabled = true
     }
 }
