@@ -182,8 +182,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             }
         } catch (IOException ignored) { }
 
-        destSubmitModel.setCachedClusterDetailsWithTitleMapping(clusterDetails);
-
         destSubmitModel.getClusterComboBoxModel().removeAllElements();
         clusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail.getTitle()));
     }
@@ -227,26 +225,26 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @Override
     public void setData(@NotNull SparkSubmitModel data) {
         // Data -> Component
-        SparkSubmissionParameter parameter = data.getSubmissionParameter();
+//        SparkSubmissionParameter parameter = data.getSubmissionParameter();
 
-        submitModel.setSubmissionParameters(parameter);
+//        submitModel.setSubmissionParameters(parameter);
 
         resetClusterDetailsToComboBoxModel(submitModel, getClusterDetails());
         if (data.getSelectedClusterDetail().isPresent()) {
             setSelectedClusterByTitle(submitModel, data.getSelectedClusterDetail().get().getTitle());
         } else {
-            setSelectedClusterByName(submitModel, parameter.getClusterName());
+            setSelectedClusterByName(submitModel, data.getClusterName());
         }
 
-        if (parameter.isLocalArtifact()) {
+        if (data.getIsLocalArtifact()) {
             submissionPanel.getLocalArtifactRadioButton().setSelected(true);
         }
 
-        submissionPanel.getSelectedArtifactTextField().setText(parameter.getLocalArtifactPath());
-        submissionPanel.getMainClassTextField().setText(parameter.getMainClassName());
-        submissionPanel.getCommandLineTextField().setText(String.join(" ", parameter.getArgs()));
-        submissionPanel.getReferencedJarsTextField().setText(String.join(";", parameter.getReferencedJars()));
-        submissionPanel.getReferencedFilesTextField().setText(String.join(";", parameter.getReferencedFiles()));
+        submissionPanel.getSelectedArtifactTextField().setText(data.getLocalArtifactPath());
+        submissionPanel.getMainClassTextField().setText(data.getMainClassName());
+        submissionPanel.getCommandLineTextField().setText(String.join(" ", data.getCommandLineArgs()));
+        submissionPanel.getReferencedJarsTextField().setText(String.join(";", data.getReferenceJars()));
+        submissionPanel.getReferencedFilesTextField().setText(String.join(";", data.getReferenceFiles()));
 
         // update job configuration table
         submitModel.getTableModel().loadJobConfigMap(data.getTableModel().getJobConfigMap());
@@ -292,8 +290,15 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         Map<String, Object> jobConfigMap = submitModel.getJobConfigMap();
 
         // submission parameters
-        data.setSubmissionParameters(new SparkSubmissionParameter(selectedClusterName, isLocalArtifact,
-                selectedArtifactName, localArtifactPath, null, className, referencedFileList, uploadedFilePathList, argsList, jobConfigMap));
+        data.setClusterName(selectedClusterName);
+        data.setIsLocalArtifact(isLocalArtifact);
+        data.setArtifactName(selectedArtifactName);
+        data.setLocalArtifactPath(localArtifactPath);
+        data.setFilePath(null);
+        data.setMainClassName(className);
+        data.setReferenceFiles(referencedFileList);
+        data.setReferenceJars(uploadedFilePathList);
+        data.setCommandLineArgs(argsList);
 
         // Sub models
         resetClusterDetailsToComboBoxModel(data, submitModel.getCachedClusterDetails());

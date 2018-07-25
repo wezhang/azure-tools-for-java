@@ -21,89 +21,103 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.intellij.credentialStore.*;
+import com.intellij.credentialStore.CredentialAttributes;
 import com.intellij.ide.passwordSafe.PasswordSafe;
-import com.intellij.openapi.util.InvalidDataException;
-import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.intellij.util.xmlb.annotations.Attribute;
+import com.intellij.util.xmlb.annotations.Tag;
+import com.intellij.util.xmlb.annotations.Transient;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.StringUtils;
-import org.jdom.Element;
 
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Optional;
 
+@Tag("ssh_cert")
 public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshAuth {
-    public static final String SUBMISSION_CONTENT_SSH_CERT= "ssh_cert";
-    private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_AUTHTYPE_NAME= "auth_type";
-    private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_USER_NAME= "user";
-    private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_PRIVATE_KEYPATH_NAME= "private_key_path";
-    private static final String SUBMISSION_ATTRIBUTE_SSH_CERT_STORE_ACCOUNT_NAME= "store_account";
     private static final String SERVICE_NAME_PREFIX = "Azure IntelliJ Plugin Spark Debug SSH - ";
+    @Transient
     @Nullable
     private String clusterName;
 
+    @Attribute("remote_debug_enabled")
     public boolean enableRemoteDebug = false;
 
+    @Transient
     @Nullable
     public String getClusterName() {
         return clusterName;
     }
 
+    @Transient
     public void setClusterName(@Nullable String clusterName) {
         this.clusterName = clusterName;
     }
 
+    @Transient
     public URI getServiceURI() throws URISyntaxException {
-        return new URI("ssh", sshUserName, getClusterName(), 22, "/", null, null);
+        return new URI("ssh", getSshUserName(), getClusterName(), 22, "/", null, null);
     }
 
+    @Attribute("store_account")
     public String getCredentialStoreAccount() {
         try {
             return SERVICE_NAME_PREFIX + getServiceURI().toString();
         } catch (URISyntaxException e) {
             throw new RuntimeException(
-                    String.format("Wrong arguments: cluster(%s), user(%s)", getClusterName(), sshUserName), e);
+                    String.format("Wrong arguments: cluster(%s), user(%s)", getClusterName(), getSshUserName()), e);
         }
     }
 
-    public Element exportToElement() {
-        Element sshCertElement = new Element(SUBMISSION_CONTENT_SSH_CERT);
-        sshCertElement.setAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_USER_NAME, this.sshUserName);
-        sshCertElement.setAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_AUTHTYPE_NAME, this.sshAuthType.name());
-        if (this.sshAuthType == SparkSubmitAdvancedConfigModel.SSHAuthType.UseKeyFile) {
-            sshCertElement.setAttribute(
-                    SUBMISSION_ATTRIBUTE_SSH_CERT_PRIVATE_KEYPATH_NAME,
-                    Optional.ofNullable(this.sshKeyFile).map(File::toString).orElse(""));
-        } else if (StringUtils.isNotBlank(sshPassword) && StringUtils.isNotBlank(clusterName)){
+    @Attribute("store_account")
+    public void setCredentialStoreAccount(String storeAccount) {
+        try {
+            super.setSshPassword(PasswordSafe.getInstance().getPassword(new CredentialAttributes(
+                    getCredentialStoreAccount(), getSshUserName())));
+        } catch (Throwable ignored) { }
+    }
+
+    @Attribute("user")
+    @Override
+    public void setSshUserName(String sshUserName) {
+        super.setSshUserName(sshUserName);
+    }
+
+    @Attribute("auth_type")
+    @Override
+    public void setSshAuthType(SSHAuthType authType) {
+        super.setSshAuthType(authType);
+    }
+
+    @Attribute("private_key_path")
+    public String getSshPrivateKeyPath() {
+        return super.getSshKeyFile() == null ? "" : super.getSshKeyFile().toString();
+    }
+
+    @Attribute("private_key_path")
+    public void setSshPrivateKeyPath(String path) {
+        super.setSshKeyFile(new File(path));
+    }
+
+    @Transient
+    @Override
+    public File getSshKeyFile() {
+        return super.getSshKeyFile();
+    }
+
+    @Transient
+    public void setSshPassword(@Nullable String password) {
+        super.setSshPassword(password);
+
+        if (StringUtils.isNotBlank(getSshPassword()) && StringUtils.isNotBlank(clusterName)) {
             PasswordSafe.getInstance().setPassword(
-                    new CredentialAttributes(getCredentialStoreAccount(), sshUserName), sshPassword);
-
-            sshCertElement.setAttribute(
-                    SUBMISSION_ATTRIBUTE_SSH_CERT_STORE_ACCOUNT_NAME,
-                    getCredentialStoreAccount());
+                    new CredentialAttributes(getCredentialStoreAccount(), getSshUserName()), getSshPassword());
         }
-
-        return sshCertElement;
     }
 
-    public SparkSubmitAdvancedConfigModel factoryFromElement(@NotNull Element sshCertElem)
-            throws InvalidDataException {
-        this.enableRemoteDebug = true;
-
-        Optional.ofNullable(sshCertElem.getAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_USER_NAME))
-                .ifPresent(attribute -> sshUserName = attribute.getValue());
-        Optional.ofNullable(sshCertElem.getAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_AUTHTYPE_NAME))
-                .ifPresent(attribute -> sshAuthType =
-                        SparkSubmitAdvancedConfigModel.SSHAuthType.valueOf(attribute.getValue()));
-        Optional.ofNullable(sshCertElem.getAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_PRIVATE_KEYPATH_NAME))
-                .ifPresent(attribute -> sshKeyFile = new File(attribute.getValue()));
-        Optional.ofNullable(sshCertElem.getAttribute(SUBMISSION_ATTRIBUTE_SSH_CERT_STORE_ACCOUNT_NAME))
-                .ifPresent(attribute -> sshPassword =
-                        PasswordSafe.getInstance().getPassword(
-                                new CredentialAttributes(getCredentialStoreAccount(), sshUserName)));
-
-        return this;
+    @Transient
+    @Nullable
+    public String getSshPassword() {
+        return super.getSshPassword();
     }
 }

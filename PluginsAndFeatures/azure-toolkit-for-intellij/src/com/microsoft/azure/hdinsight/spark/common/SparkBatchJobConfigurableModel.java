@@ -21,12 +21,13 @@
 
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
 
@@ -49,7 +50,9 @@ public class SparkBatchJobConfigurableModel {
     @Transient
     private boolean isClusterSelectionEnabled;
 
-    public SparkBatchJobConfigurableModel() { }
+    public SparkBatchJobConfigurableModel() {
+        this(DummyProject.getInstance());
+    }
 
     public SparkBatchJobConfigurableModel(@NotNull Project project) {
         this.project = project;
@@ -63,7 +66,7 @@ public class SparkBatchJobConfigurableModel {
         return localRunConfigurableModel;
     }
 
-    public void setLocalRunConfigurableModel(final SparkLocalRunConfigurableModel localRunConfigurableModel) {
+    public void setLocalRunConfigurableModel(@NotNull final SparkLocalRunConfigurableModel localRunConfigurableModel) {
         this.localRunConfigurableModel = localRunConfigurableModel;
     }
 
@@ -73,7 +76,7 @@ public class SparkBatchJobConfigurableModel {
         return submitModel;
     }
 
-    public void setSubmitModel(SparkSubmitModel submitModel) {
+    public void setSubmitModel(@NotNull SparkSubmitModel submitModel) {
         this.submitModel = submitModel;
     }
 
@@ -95,8 +98,7 @@ public class SparkBatchJobConfigurableModel {
             this.localRunConfigurableModel.setProject(project);
 
             Optional.ofNullable(root.getChild("spark_submission"))
-                    .map(elem -> getSubmitModel().applyFromElement(elem))
-                    .ifPresent(this::setSubmitModel);
+                    .ifPresent(elem -> getSubmitModel().applyFromElement(elem));
         }
     }
 

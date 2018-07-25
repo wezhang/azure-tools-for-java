@@ -23,22 +23,21 @@
 package com.microsoft.azure.hdinsight.spark.common
 
 import com.intellij.openapi.project.Project
+import com.intellij.util.xmlb.annotations.Attribute
 import com.microsoft.azuretools.utils.Pair
-import org.jdom.Element
-import java.net.URI
 
-class ServerlessSparkSubmitModel(project: Project) : SparkSubmitModel(project) {
+class ServerlessSparkSubmitModel : SparkSubmitModel {
+    @Attribute("tenant_id")
     var tenantId: String = "common"
+    @Attribute("account_name")
     var accountName: String? = null
+    @Attribute("cluster_id")
     var clusterId: String? = null
-    var livyUri: URI? = null
+    @Attribute("livy_uri")
+    var livyUri: String? = null
 
-    companion object {
-        @JvmStatic val SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID = "tenant_id"
-        @JvmStatic val SERVERLESS_SUBMISSION_ATTRIBUTE_ACCOUNT_NAME = "account_name"
-        @JvmStatic val SERVERLESS_SUBMISSION_ATTRIBUTE_CLUSTER_ID= "cluster_id"
-        @JvmStatic val SERVERLESS_SUBMISSION_ATTRIBUTE_LIVY_URI = "livy_uri"
-    }
+    constructor() : super()
+    constructor(project: Project) : super(project)
 
     override fun getDefaultParameters(): Array<Pair<String, String>> {
         return arrayOf(
@@ -46,37 +45,5 @@ class ServerlessSparkSubmitModel(project: Project) : SparkSubmitModel(project) {
                 Pair(SparkSubmissionParameter.DriverCores, SparkSubmissionParameter.DriverCoresDefaultValue),
                 Pair(SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorMemoryDefaultValue),
                 Pair(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue))
-    }
-
-    override fun exportToElement(): Element {
-        val root = super.exportToElement()
-                .setAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID, tenantId)
-
-        if (accountName != null) {
-            root.setAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_ACCOUNT_NAME, accountName)
-        }
-
-        if (clusterId != null) {
-            root.setAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_CLUSTER_ID, clusterId)
-        }
-
-        if (livyUri != null) {
-            root.setAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_LIVY_URI, livyUri.toString())
-        }
-
-        return root
-    }
-
-    override fun applyFromElement(rootElement: Element): SparkSubmitModel {
-        super.applyFromElement(rootElement)
-
-        if (rootElement.name == SUBMISSION_CONTENT_NAME) {
-            tenantId = rootElement.getAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_TENANT_ID)?.value ?: "common"
-            accountName = rootElement.getAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_ACCOUNT_NAME)?.value
-            clusterId = rootElement.getAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_CLUSTER_ID)?.value
-            livyUri = rootElement.getAttribute(SERVERLESS_SUBMISSION_ATTRIBUTE_LIVY_URI)?.value?.let { URI.create(it) }
-        }
-
-        return this
     }
 }

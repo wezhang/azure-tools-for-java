@@ -21,16 +21,13 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.utils.Pair;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 public class SparkSubmissionParameter {
@@ -55,14 +52,14 @@ public class SparkSubmissionParameter {
     private String file = "";
     private String className = "";
 
-    private String clusterName;
-    private boolean isLocalArtifact;
-    private String artifactName;
-    private String localArtifactPath;
-    private List<String> files;
-    private List<String> jars;
-    private List<String> args;
-    private Map<String, Object> jobConfig;
+    private String clusterName = "";
+    private boolean isLocalArtifact = false;
+    private String artifactName = "";
+    private String localArtifactPath = "";
+    private List<String> files = new ArrayList<>();
+    private List<String> jars = new ArrayList<>();
+    private List<String> args = new ArrayList<>();
+    private Map<String, Object> jobConfig = new HashMap<>();
 
     public static final String DriverMemory = "driverMemory";
     public static final String DriverMemoryDefaultValue = "4G";
@@ -83,6 +80,9 @@ public class SparkSubmissionParameter {
     public static final SparkConfigures ConfDefaultValue = new SparkConfigures();
 
     public static final String NAME = "name";
+
+    public SparkSubmissionParameter() {
+    }
 
     public SparkSubmissionParameter(String clusterName,
                                     boolean isLocalArtifact,
@@ -142,6 +142,10 @@ public class SparkSubmissionParameter {
         return localArtifactPath;
     }
 
+    public void setLocalArtifactPath(String path) {
+        localArtifactPath = path;
+    }
+
     public String getFile() {
         return file;
     }
@@ -170,10 +174,10 @@ public class SparkSubmissionParameter {
         this.file = filePath;
     }
 
-    public static List<SparkSubmissionJobConfigCheckResult> checkJobConfigMap(Map<String, Object> jobConfigMap) {
+    public static List<SparkSubmissionJobConfigCheckResult> checkJobConfigMap(Map<String, String> jobConfigMap) {
 
         List<SparkSubmissionJobConfigCheckResult> messageList = new ArrayList<>();
-        for (Map.Entry<String, Object> entry : jobConfigMap.entrySet()) {
+        for (Map.Entry<String, String> entry : jobConfigMap.entrySet()) {
             String entryKey = entry.getKey();
             if (StringHelper.isNullOrWhiteSpace(entryKey)) {
                 continue;
@@ -182,14 +186,14 @@ public class SparkSubmissionParameter {
             if (entryKey.equals(DriverCores)
                     || entryKey.equals(NumExecutors)
                     || entryKey.equals(ExecutorCores)) {
-                if (StringHelper.isNullOrWhiteSpace(entry.getValue().toString())) {
+                if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
                     messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
                             "Warning : Empty value(s) will be override by default value(s) of system"));
                     continue;
                 }
 
                 try {
-                    Integer.parseInt(entry.getValue().toString());
+                    Integer.parseInt(entry.getValue());
                 } catch (NumberFormatException e) {
                     messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Error,
                             String.format("Error : Failed to parse \"%s\", it should be an integer", entry.getValue())));
@@ -197,7 +201,7 @@ public class SparkSubmissionParameter {
             } else if (entryKey.equals(DriverMemory)
                     || entryKey.equals(ExecutorMemory)
                     || entryKey.equals(NAME)) {
-                if (StringHelper.isNullOrWhiteSpace(entry.getValue().toString())) {
+                if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
                     messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
                             "Warning : Empty value(s) will be override by default value(s) of system"));
                 }
@@ -205,6 +209,40 @@ public class SparkSubmissionParameter {
         }
 
         return messageList;
+    }
+
+    @NotNull
+    public Map<String, String> flatJobConfig() {
+        Map<String, String> flattedMap = new HashMap<>();
+
+        getJobConfig().forEach((key, value) -> {
+            if (isSubmissionParameter(key)) {
+                flattedMap.put(key, value == null ? null : value.toString());
+            } else if (key.equals(Conf)) {
+                new SparkConfigures(value).forEach((scKey, scValue) ->
+                        flattedMap.put(scKey, scValue == null ? null : scValue.toString()));
+            }
+        });
+
+        return flattedMap;
+    }
+
+    public void applyFlattedJobConf(Map<String, String> jobConfFlatted) {
+        jobConfig.clear();
+
+        SparkConfigures sparkConfig = new SparkConfigures();
+
+        jobConfFlatted.forEach((key, value) -> {
+            if (isSubmissionParameter(key)) {
+                jobConfig.put(key, value);
+            } else {
+                sparkConfig.put(key, value);
+            }
+        });
+
+        if (!sparkConfig.isEmpty()) {
+            jobConfig.put(Conf, sparkConfig);
+        }
     }
 
     public String serializeToJson() {

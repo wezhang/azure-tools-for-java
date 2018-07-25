@@ -61,9 +61,6 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
     }
 
     override fun resetClusterDetailsToComboBoxModel(destSubmitModel: SparkSubmitModel, cachedClusterDetails: MutableList<IClusterDetail>) {
-        // Reset submit model
-        destSubmitModel.setCachedClusterDetailsWithTitleMapping(cachedClusterDetails)
-
         // Reset cluster combo box model
         destSubmitModel.clusterComboBoxModel.removeAllElements()
         cachedClusterDetails.forEach { destSubmitModel.clusterComboBoxModel.addElement(it.title) }
@@ -80,7 +77,7 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
             serverlessData.tenantId = cluster.subscription.tenantId
             serverlessData.accountName = cluster.account.name
             serverlessData.clusterId = cluster.guid
-            serverlessData.livyUri = cluster.livyUri
+            serverlessData.livyUri = cluster.livyUri.toString()
         }
 
         super.getData(data)

@@ -64,44 +64,29 @@ public class SubmissionTableModel extends InteractiveTableModel{
     }
 
     @NotNull
-    public Map<String, Object> getJobConfigMap() {
-        Map<String, Object> jobConfigMap = new HashMap<>();
-        Map<String, Object> sparkConfigMap = new HashMap<>();
+    public Map<String, String> getJobConfigMap() {
+        Map<String, String> jobConfigMap = new HashMap<>();
 
         for (int index = 0; index < this.getRowCount(); index++) {
             String key = (String) this.getValueAt(index, 0);
+            Object value = this.getValueAt(index, 1);
 
             if (!StringHelper.isNullOrWhiteSpace(key)) {
-                // Separate the submission and Spark conf parameters
-                if (SparkSubmissionParameter.isSubmissionParameter(key)) {
-                    jobConfigMap.put(key, this.getValueAt(index, 1));
-                } else {
-                    sparkConfigMap.put(key, this.getValueAt(index, 1));
-                }
+                jobConfigMap.put(key, value == null ? null : value.toString());
             }
-        }
-
-        if (!sparkConfigMap.isEmpty()) {
-            jobConfigMap.put(SparkSubmissionParameter.Conf, sparkConfigMap);
         }
 
         return jobConfigMap;
     }
 
-    public void loadJobConfigMap(Map<String, Object> jobConf) {
+    public void loadJobConfigMap(Map<String, String> jobConf) {
         removeAllRows();
 
-        Stream.concat(
-                jobConf.entrySet().stream()
-                        .filter(entry -> SparkSubmissionParameter.isSubmissionParameter(entry.getKey())),
-                // The Spark Job Configuration needs to be separated
-                jobConf.entrySet().stream()
-                        .filter(entry -> !SparkSubmissionParameter.isSubmissionParameter(entry.getKey()))
-                        .filter(entry -> entry.getKey().equals(SparkSubmissionParameter.Conf))
-                        .flatMap(entry -> new SparkConfigures(entry.getValue()).entrySet().stream())
-        )
-        .filter(entry -> !entry.getKey().trim().isEmpty())
-        .forEach(entry -> super.addRow(entry.getKey(), entry.getValue()));
+        jobConf.forEach((key, value) -> {
+            if (key != null) {
+                super.addRow(key, value);
+            }
+        });
 
         if (!hasEmptyRow()) {
             addEmptyRow();

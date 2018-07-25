@@ -276,16 +276,16 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
 
     private void loadParameters(SparkSubmitAdvancedConfigModel newAdvConfigModel) {
         if (newAdvConfigModel != null) {
-            if (newAdvConfigModel.sshPassword != null && newAdvConfigModel.sshPassword.length() > 0) {
-                sshPasswordUsePasswordField.setText(newAdvConfigModel.sshPassword);
+            if (newAdvConfigModel.getSshPassword() != null && newAdvConfigModel.getSshPassword().length() > 0) {
+                sshPasswordUsePasswordField.setText(newAdvConfigModel.getSshPassword());
             }
 
-            if (newAdvConfigModel.sshKeyFile != null && newAdvConfigModel.sshKeyFile.exists()) {
-                sshPasswordUseKeyFileTextField.setText(newAdvConfigModel.sshKeyFile.getAbsolutePath());
+            if (newAdvConfigModel.getSshKeyFile() != null && newAdvConfigModel.getSshKeyFile().exists()) {
+                sshPasswordUseKeyFileTextField.setText(newAdvConfigModel.getSshKeyFile().getAbsolutePath());
             }
 
             sshPasswordUsePasswordRadioButton.setSelected(true);
-            switch (newAdvConfigModel.sshAuthType)
+            switch (newAdvConfigModel.getSshAuthType())
             {
                 case UsePassword:
                     sshPasswordUsePasswordRadioButton.setSelected(true);
@@ -296,8 +296,8 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
 
             }
 
-            if (newAdvConfigModel.sshUserName != null && newAdvConfigModel.sshUserName.length() > 0){
-                sshUserNameTextField.setText(newAdvConfigModel.sshUserName);
+            if (newAdvConfigModel.getSshUserName() != null && newAdvConfigModel.getSshUserName().length() > 0){
+                sshUserNameTextField.setText(newAdvConfigModel.getSshUserName());
             }
 
             enableRemoteDebugCheckBox.setSelected(newAdvConfigModel.enableRemoteDebug);
@@ -377,9 +377,9 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
     private Subscription registerAsyncSshAuthCheck(PublishSubject<String> checkEventSubject, @NotNull String selectedClusterName) {
         return checkEventSubject.throttleWithTimeout(500, TimeUnit.MILLISECONDS)
             .map(message -> saveParameters())
-            .filter(model -> !model.sshUserName.isEmpty() &&
+            .filter(model -> !model.getSshUserName().isEmpty() &&
                              enableRemoteDebugCheckBox.isSelected() &&
-                             (model.sshAuthType == UsePassword ? !model.sshPassword.isEmpty() : model.sshKeyFile != null))
+                             (model.getSshAuthType() == UsePassword ? !model.getSshPassword().isEmpty() : model.getSshKeyFile() != null))
             .map(advConfModelToProbe -> {
                 checkSshCertIndicator.start();
 
@@ -409,13 +409,13 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
                 Boolean isPass = pair.second().equals("passed");
 
                 if (enableRemoteDebugCheckBox.isSelected() &&
-                        ((probedAdvModel.sshAuthType == UsePassword &&
+                        ((probedAdvModel.getSshAuthType() == UsePassword &&
                                 sshPasswordUsePasswordRadioButton.isSelected() &&
-                                probedAdvModel.sshPassword.equals(new String(sshPasswordUsePasswordField.getPassword()))) ||
-                         (probedAdvModel.sshAuthType == UseKeyFile &&
+                                probedAdvModel.getSshPassword().equals(new String(sshPasswordUsePasswordField.getPassword()))) ||
+                         (probedAdvModel.getSshAuthType() == UseKeyFile &&
                                 sshPasswordUseKeyFileRadioButton.isSelected() &&
-                                probedAdvModel.sshKeyFile != null &&
-                                probedAdvModel.sshKeyFile.toString().equals(PathUtil.getLocalPath(sshPasswordUseKeyFileTextField.getText()))))
+                                probedAdvModel.getSshKeyFile() != null &&
+                                probedAdvModel.getSshKeyFile().toString().equals(PathUtil.getLocalPath(sshPasswordUseKeyFileTextField.getText()))))
                         ){
                     // Checked parameter is matched with current content
                     checkSshCertIndicator.stop("SSH Authentication is " + pair.second());
@@ -479,27 +479,24 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
     public void getData(@NotNull SparkSubmitAdvancedConfigModel data) {
         // Component -> Data
         if (sshPasswordUsePasswordField.getPassword() != null && sshPasswordUsePasswordField.getPassword().length > 0) {
-            data.sshPassword = new String(sshPasswordUsePasswordField.getPassword());
+            data.setSshPassword(new String(sshPasswordUsePasswordField.getPassword()));
         }
 
         if (!sshPasswordUseKeyFileTextField.getText().trim().isEmpty()) {
             File f = new File(sshPasswordUseKeyFileTextField.getText());
             if (f.exists() && !f.isDirectory()){
-                data.sshKeyFile = f;
+                data.setSshKeyFile(f);
             }
         }
 
-        if (sshPasswordUsePasswordRadioButton.isSelected())
-        {
-            data.sshAuthType = UsePassword;
-        }
-        else if (sshPasswordUseKeyFileRadioButton.isSelected())
-        {
-            data.sshAuthType = SparkSubmitAdvancedConfigModel.SSHAuthType.UseKeyFile;
+        if (sshPasswordUsePasswordRadioButton.isSelected()) {
+            data.setSshAuthType(UsePassword);
+        } else if (sshPasswordUseKeyFileRadioButton.isSelected()) {
+            data.setSshAuthType(UseKeyFile);
         }
 
         if (sshUserNameTextField.getText() != null && sshUserNameTextField.getText().length() > 0){
-            data.sshUserName = sshUserNameTextField.getText();
+            data.setSshUserName(sshUserNameTextField.getText());
         }
 
         data.enableRemoteDebug = enableRemoteDebugCheckBox.isSelected();
