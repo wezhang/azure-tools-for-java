@@ -76,19 +76,15 @@ public class SparkBatchRemoteDebugJobScenario {
     public void createBatchSparkJobWithDriverDebuggingConfig(
             String connectUrl,
             Map<String, Object> sparkConfig) throws Throwable {
-        SparkSubmissionParameter parameter = new SparkSubmissionParameterScenario()
-                .mockSparkSubmissionParameterWithJobConf(new HashMap<String, Object>() {{
-                    Map<String, Object> cleanedConf = sparkConfig.entrySet().stream()
-                            .filter(entry -> !entry.getKey().isEmpty() || !entry.getValue().toString().isEmpty())
-                            .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
-
-                    if (!cleanedConf.isEmpty()) { put("conf", new SparkConfigures(cleanedConf)); }
-                }});
+        SparkSubmissionParameterScenario scenario = new SparkSubmissionParameterScenario();
+        scenario.sparkSubmissionParameter.applyFlattedJobConf(new HashMap<String, String>() {{
+                sparkConfig.forEach((k, v) -> put(k, (String) v));
+        }});
 
         caught = null;
 
         try {
-            debugSubmissionParameter = SparkBatchRemoteDebugJob.convertToDebugParameter(parameter);
+            debugSubmissionParameter = SparkBatchRemoteDebugJob.convertToDebugParameter(scenario.sparkSubmissionParameter);
         } catch (Exception e) {
             caught = e;
         }

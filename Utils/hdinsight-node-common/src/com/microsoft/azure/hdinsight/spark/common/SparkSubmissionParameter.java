@@ -21,16 +21,18 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.utils.Pair;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.*;
 
-
-public class SparkSubmissionParameter {
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class SparkSubmissionParameter implements IConvertible {
     /**
      * For interactive spark job:
      * <p>
@@ -65,19 +67,18 @@ public class SparkSubmissionParameter {
     public static final String DriverMemoryDefaultValue = "4G";
 
     public static final String DriverCores = "driverCores";
-    public static final String DriverCoresDefaultValue = "1";
+    public static final Integer DriverCoresDefaultValue = 1;
 
     public static final String ExecutorMemory = "executorMemory";
     public static final String ExecutorMemoryDefaultValue = "4G";
 
     public static final String NumExecutors = "numExecutors";
-    public static final String NumExecutorsDefaultValue = "";
+    public static final Integer NumExecutorsDefaultValue = 5;
 
     public static final String ExecutorCores = "executorCores";
-    public static final String ExecutorCoresDefaultValue = "1";
+    public static final Integer ExecutorCoresDefaultValue = 1;
 
     public static final String Conf = "conf";   // 	Spark configuration properties
-    public static final SparkConfigures ConfDefaultValue = new SparkConfigures();
 
     public static final String NAME = "name";
 
@@ -126,18 +127,22 @@ public class SparkSubmissionParameter {
         this.artifactName = artifactName;
     }
 
+    @JsonIgnore
     public String getClusterName() {
         return clusterName;
     }
 
+    @JsonIgnore
     public boolean isLocalArtifact() {
         return isLocalArtifact;
     }
 
+    @JsonIgnore
     public String getArtifactName() {
         return artifactName;
     }
 
+    @JsonIgnore
     public String getLocalArtifactPath() {
         return localArtifactPath;
     }
@@ -146,32 +151,84 @@ public class SparkSubmissionParameter {
         localArtifactPath = path;
     }
 
+    @JsonProperty("file")
     public String getFile() {
         return file;
     }
 
+    @JsonProperty("className")
     public String getMainClassName() {
         return className;
     }
 
+    @JsonProperty("files")
     public List<String> getReferencedFiles() {
         return files;
     }
 
+    @JsonProperty("jars")
     public List<String> getReferencedJars() {
         return jars;
     }
 
+    @JsonProperty("args")
     public List<String> getArgs() {
         return args;
     }
 
+    @JsonIgnore
     public Map<String, Object> getJobConfig() {
         return jobConfig;
     }
 
     public void setFilePath(String filePath) {
         this.file = filePath;
+    }
+
+    @JsonProperty("driverMemory")
+    public String getDriverMemory() {
+        return (String) jobConfig.get(DriverMemory);
+    }
+
+    @JsonProperty("driverCores")
+    public Integer getDriverCores() {
+        return Optional.ofNullable(jobConfig.get(DriverCores))
+                .map(String.class::cast)
+                .map(Integer::parseInt)
+                .orElse(null);
+    }
+
+    @JsonProperty("executorMemory")
+    public String getExecutorMemory() {
+        return (String) jobConfig.get(ExecutorMemory);
+    }
+
+    @JsonProperty("executorCores")
+    public Integer getExecutorCores() {
+        return Optional.ofNullable(jobConfig.get(ExecutorCores))
+                .map(String.class::cast)
+                .map(Integer::parseInt)
+                .orElse(null);
+    }
+
+    @JsonProperty("numExecutors")
+    public Integer getNumExecutors() {
+        return Optional.ofNullable(jobConfig.get(NumExecutors))
+                .map(String.class::cast)
+                .map(Integer::parseInt)
+                .orElse(null);
+    }
+
+    @JsonProperty("conf")
+    public Map<String, String> getConf() {
+        Map<String, String> jobConf = new HashMap<>();
+
+        Optional.ofNullable(jobConfig.get(Conf))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .ifPresent(conf -> conf.forEach((k, v) -> jobConf.put((String) k, (String) v)));
+
+        return jobConf.isEmpty() ? null : jobConf;
     }
 
     public static List<SparkSubmissionJobConfigCheckResult> checkJobConfigMap(Map<String, String> jobConfigMap) {
@@ -246,90 +303,19 @@ public class SparkSubmissionParameter {
     }
 
     public String serializeToJson() {
-
-        JSONObject jsonObject = new JSONObject(getSparkSubmissionParameterMap());
-        try {
-            Object driverCoresValue = jsonObject.get(DriverCores);
-            jsonObject.put(DriverCores, Integer.parseInt(driverCoresValue.toString()));
-        } catch (JSONException e) {
-        }
-
-        try {
-            Object driverCoresValue = jsonObject.get(ExecutorCores);
-            jsonObject.put(ExecutorCores, Integer.parseInt(driverCoresValue.toString()));
-        } catch (JSONException e) {
-        }
-
-        try {
-            Object driverCoresValue = jsonObject.get(NumExecutors);
-            jsonObject.put(NumExecutors, Integer.parseInt(driverCoresValue.toString()));
-        } catch (JSONException e) {
-        }
-
-        return jsonObject.toString();
-    }
-
-    private Map<String, Object> getSparkSubmissionParameterMap() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("file", file);
-        map.put("className", className);
-        if (files != null && files.size() > 0) {
-            map.put("files", files);
-        }
-
-        if (jars != null && jars.size() > 0) {
-            map.put("jars", jars);
-        }
-
-        if (args != null && args.size() > 0) {
-            map.put("args", args);
-        }
-
-        if (jobConfig != null) {
-            if (jobConfig.containsKey(DriverMemory) && !StringHelper.isNullOrWhiteSpace(jobConfig.get(DriverMemory).toString())) {
-                map.put(DriverMemory, jobConfig.get(DriverMemory));
-            }
-
-            if (jobConfig.containsKey(DriverCores) && !StringHelper.isNullOrWhiteSpace(jobConfig.get(DriverCores).toString())) {
-                map.put(DriverCores, jobConfig.get(DriverCores));
-            }
-
-            if (jobConfig.containsKey(ExecutorMemory) && !StringHelper.isNullOrWhiteSpace(jobConfig.get(ExecutorMemory).toString())) {
-                map.put(ExecutorMemory, jobConfig.get(ExecutorMemory));
-            }
-
-            if (jobConfig.containsKey(ExecutorCores) && !StringHelper.isNullOrWhiteSpace(jobConfig.get(ExecutorCores).toString())) {
-                map.put(ExecutorCores, jobConfig.get(ExecutorCores));
-            }
-
-            if (jobConfig.containsKey(NumExecutors) && !StringHelper.isNullOrWhiteSpace(jobConfig.get(NumExecutors).toString())) {
-                map.put(NumExecutors, jobConfig.get(NumExecutors));
-            }
-
-            if (jobConfig.containsKey(Conf) &&
-                    jobConfig.get(Conf) != null &&
-                    !StringHelper.isNullOrWhiteSpace(jobConfig.get(Conf).toString())) {
-                map.put(Conf, jobConfig.get(Conf));
-            }
-
-            if (jobConfig.containsKey(NAME)) {
-                map.put(NAME, jobConfig.get(NAME));
-            }
-        }
-
-        return map;
+        return convertToJson().orElse("");
     }
 
     public static final String[] parameterList = new String[]{SparkSubmissionParameter.DriverMemory, SparkSubmissionParameter.DriverCores,
             SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.NumExecutors};
 
     //the first value in pair should be in same order with parameterList
-    public static final Pair<String, String>[] defaultParameters = new Pair[]{
-            new Pair<String, String>(SparkSubmissionParameter.DriverMemory, SparkSubmissionParameter.DriverMemoryDefaultValue),
-            new Pair<String, String>(SparkSubmissionParameter.DriverCores, SparkSubmissionParameter.DriverCoresDefaultValue),
-            new Pair<String, String>(SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorMemoryDefaultValue),
-            new Pair<String, String>(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue),
-            new Pair<String, String>(SparkSubmissionParameter.NumExecutors, SparkSubmissionParameter.NumExecutorsDefaultValue)
+    public static final Pair<String, Object>[] defaultParameters = new Pair[]{
+            new Pair<>(SparkSubmissionParameter.DriverMemory, SparkSubmissionParameter.DriverMemoryDefaultValue),
+            new Pair<>(SparkSubmissionParameter.DriverCores, SparkSubmissionParameter.DriverCoresDefaultValue),
+            new Pair<>(SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorMemoryDefaultValue),
+            new Pair<>(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue),
+            new Pair<>(SparkSubmissionParameter.NumExecutors, SparkSubmissionParameter.NumExecutorsDefaultValue)
     };
 
     /**
