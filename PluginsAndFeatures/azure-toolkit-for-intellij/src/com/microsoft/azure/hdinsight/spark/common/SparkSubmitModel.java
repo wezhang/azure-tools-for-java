@@ -36,11 +36,13 @@ import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.utils.Pair;
 import org.jdom.Element;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import java.util.*;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 @Tag(SparkSubmitModel.SUBMISSION_CONTENT_NAME)
@@ -277,7 +279,9 @@ public class SparkSubmitModel {
 
     @NotNull
     protected Pair<String, String>[] getDefaultParameters() {
-        return SparkSubmissionParameter.defaultParameters;
+        return Arrays.stream(SparkSubmissionParameter.defaultParameters)
+                .map(p -> new Pair<>(p.first(), (String) p.second()))
+                .toArray((IntFunction<Pair<String, String>[]>) Pair[]::new);
     }
 
     private void initializeTableModel(final SubmissionTableModel tableModel) {
