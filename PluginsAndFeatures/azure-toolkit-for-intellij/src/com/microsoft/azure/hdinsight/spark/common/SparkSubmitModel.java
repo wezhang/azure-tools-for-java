@@ -280,7 +280,7 @@ public class SparkSubmitModel {
     @NotNull
     protected Pair<String, String>[] getDefaultParameters() {
         return Arrays.stream(SparkSubmissionParameter.defaultParameters)
-                .map(p -> new Pair<>(p.first(), (String) p.second()))
+                .map(p -> new Pair<>(p.first(), p.second().toString()))
                 .toArray((IntFunction<Pair<String, String>[]>) Pair[]::new);
     }
 

@@ -57,7 +57,7 @@ public class RemoteDebugSettingsEditor extends SettingsEditor<RemoteDebugRunConf
     @NotNull
     @Override
     protected JComponent createEditor() {
-        jobConfigurable = new SparkBatchJobConfigurable(runConfiguration.getSubmitModel().getProject());
+        jobConfigurable = new SparkBatchJobConfigurable(runConfiguration.getProject());
 
         return jobConfigurable.getComponent();
     }
