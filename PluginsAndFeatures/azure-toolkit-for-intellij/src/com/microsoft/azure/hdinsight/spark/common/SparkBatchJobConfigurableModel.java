@@ -46,9 +46,9 @@ public class SparkBatchJobConfigurableModel {
     @Tag("focused-tab-index")
     private int focusedTabIndex = 0;
     @Transient
-    private boolean isLocalRunConfigEnabled;
+    private boolean isLocalRunConfigEnabled = true;
     @Transient
-    private boolean isClusterSelectionEnabled;
+    private boolean isClusterSelectionEnabled = true;
 
     public SparkBatchJobConfigurableModel() {
         this(DummyProject.getInstance());
