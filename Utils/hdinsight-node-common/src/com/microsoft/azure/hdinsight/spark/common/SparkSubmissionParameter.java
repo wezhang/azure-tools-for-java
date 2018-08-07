@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.utils.Pair;
 
@@ -192,10 +193,7 @@ public class SparkSubmissionParameter implements IConvertible {
 
     @JsonProperty("driverCores")
     public Integer getDriverCores() {
-        return Optional.ofNullable(jobConfig.get(DriverCores))
-                .map(String.class::cast)
-                .map(Integer::parseInt)
-                .orElse(null);
+        return parseIntegerSafety(jobConfig.get(DriverCores));
     }
 
     @JsonProperty("executorMemory")
@@ -205,18 +203,12 @@ public class SparkSubmissionParameter implements IConvertible {
 
     @JsonProperty("executorCores")
     public Integer getExecutorCores() {
-        return Optional.ofNullable(jobConfig.get(ExecutorCores))
-                .map(String.class::cast)
-                .map(Integer::parseInt)
-                .orElse(null);
+        return parseIntegerSafety(jobConfig.get(ExecutorCores));
     }
 
     @JsonProperty("numExecutors")
     public Integer getNumExecutors() {
-        return Optional.ofNullable(jobConfig.get(NumExecutors))
-                .map(String.class::cast)
-                .map(Integer::parseInt)
-                .orElse(null);
+        return parseIntegerSafety(jobConfig.get(NumExecutors));
     }
 
     @JsonProperty("conf")
@@ -229,6 +221,24 @@ public class SparkSubmissionParameter implements IConvertible {
                 .ifPresent(conf -> conf.forEach((k, v) -> jobConf.put((String) k, (String) v)));
 
         return jobConf.isEmpty() ? null : jobConf;
+    }
+
+    @JsonIgnore
+    @Nullable
+    private Integer parseIntegerSafety(@Nullable Object maybeInteger) {
+        if (maybeInteger == null) {
+            return null;
+        }
+
+        if (maybeInteger instanceof Integer) {
+            return (Integer) maybeInteger;
+        }
+
+        try {
+            return Integer.parseInt(maybeInteger.toString());
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public static List<SparkSubmissionJobConfigCheckResult> checkJobConfigMap(Map<String, String> jobConfigMap) {
