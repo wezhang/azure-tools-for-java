@@ -30,7 +30,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.ComboboxWithBrowseButton;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
-import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.DarkThemeManager;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckResult;
@@ -56,9 +55,7 @@ import java.beans.PropertyChangeListener;
 import java.io.IOException;
 
 public class SparkSubmissionContentPanel extends JPanel{
-    public SparkSubmissionContentPanel(@Nullable CallBack updateCallBack){
-        this.updateCallBack = updateCallBack;
-
+    public SparkSubmissionContentPanel(){
         initializeComponents();
 
         addContainerListener(new ContainerAdapter() {
@@ -82,8 +79,6 @@ public class SparkSubmissionContentPanel extends JPanel{
     }
 
     public int displayLayoutCurrentRow = 0;
-
-    private CallBack updateCallBack;
 
     protected final int margin = 10;
     private static final String REFRESH_BUTTON_PATH = "/icons/refresh.png";
@@ -149,10 +144,6 @@ public class SparkSubmissionContentPanel extends JPanel{
 
         TableColumn keyColumn = jobConfigurationTable.getColumnModel().getColumn(InteractiveTableModel.KEY_INDEX);
         keyColumn.setCellRenderer(new InteractiveRenderer(InteractiveTableModel.KEY_INDEX));
-        
-        if (updateCallBack != null) {
-            updateCallBack.run();
-        }
     }
 
     @NotNull
@@ -619,10 +610,6 @@ public class SparkSubmissionContentPanel extends JPanel{
 
         errorMessageLabels[label].setForeground(isWarning ? DarkThemeManager.getInstance().getWarningMessageColor() : DarkThemeManager.getInstance().getErrorMessageColor());
         this.errorMessageLabels[label].setVisible(isVisible);
-
-        if (updateCallBack != null) {
-            updateCallBack.run();
-        }
     }
 
     private void setStatusForMessageLabel(@NotNull int label, @NotNull boolean isVisible, @Nullable String message) {

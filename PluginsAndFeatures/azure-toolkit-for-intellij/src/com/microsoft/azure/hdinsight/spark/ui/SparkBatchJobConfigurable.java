@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.ui;
 import com.intellij.openapi.project.Project;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -49,7 +50,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
     protected void createUIComponents() {
         myLocalRunConfigurable = new SparkLocalRunConfigurable(myProject);
         myClusterSubmissionConfigurable = new SparkSubmissionDebuggablePanelConfigurable(
-                myProject, () -> {}, new SparkSubmissionDebuggableContentPanel(null));
+                new SparkSubmitModel(myProject), new SparkSubmissionDebuggableContentPanel());
     }
 
     @Override

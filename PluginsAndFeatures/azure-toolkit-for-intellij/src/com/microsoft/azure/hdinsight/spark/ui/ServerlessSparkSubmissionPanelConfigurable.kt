@@ -33,8 +33,8 @@ import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import rx.schedulers.Schedulers
 
-class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, callBack: CallBack?, submissionPanel: SparkSubmissionContentPanel)
-    : SparkSubmissionContentPanelConfigurable(project, callBack, submissionPanel), ILogger {
+class ServerlessSparkSubmissionPanelConfigurable(private val model: ServerlessSparkSubmitModel, submissionPanel: SparkSubmissionContentPanel)
+    : SparkSubmissionContentPanelConfigurable(model, submissionPanel), ILogger {
     override fun refreshClusterListAsync() {
         submissionPanel.setClustersListRefreshEnabled(false)
 
@@ -46,12 +46,8 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
                 .subscribe(
                         { clusters ->
                             refreshClusterSelection(clusters.asList())
-                            if (submissionPanel.clustersListComboBox.comboBox.selectedItem != null) {
-                                submissionPanel.clusterSelectedSubject.onNext(
-                                        submissionPanel.clustersListComboBox.comboBox.selectedItem as String)
-                            }
                         },
-                        { err -> log().warn("Project ${project.name} failed to refresh Azure Data Lake Spark Pool", err) }
+                        { err -> log().warn("Project ${model.project.name} failed to refresh Azure Data Lake Spark Pool", err) }
                 )
     }
 
@@ -63,7 +59,7 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
     override fun resetClusterDetailsToComboBoxModel(destSubmitModel: SparkSubmitModel, cachedClusterDetails: MutableList<IClusterDetail>) {
         // Reset cluster combo box model
         destSubmitModel.clusterComboBoxModel.removeAllElements()
-        cachedClusterDetails.forEach { destSubmitModel.clusterComboBoxModel.addElement(it.title) }
+        cachedClusterDetails.forEach { destSubmitModel.clusterComboBoxModel.addElement(it) }
     }
 
     override fun getData(data: SparkSubmitModel?) {
@@ -82,5 +78,4 @@ class ServerlessSparkSubmissionPanelConfigurable(private val project: Project, c
 
         super.getData(data)
     }
-
 }

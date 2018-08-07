@@ -36,20 +36,22 @@ import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionParameter;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 
 import javax.swing.*;
+import java.awt.event.ItemEvent;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * Spark Batch Application Submission UI control class
+ */
 public class SparkSubmissionContentPanelConfigurable implements SettableControl<SparkSubmitModel> {
     @NotNull
     private final Project myProject;
@@ -57,29 +59,19 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     private SparkSubmissionContentPanel submissionPanel;
     private JPanel myWholePanel;
 
-    private CallBack updateCallback;
-
     @NotNull
     private SparkSubmitModel submitModel;
 
-    public SparkSubmissionContentPanelConfigurable(@NotNull Project project,
-                                                   @Nullable CallBack callBack,
+    public SparkSubmissionContentPanelConfigurable(@NotNull SparkSubmitModel model,
                                                    @NotNull SparkSubmissionContentPanel submissionPanel) {
-        this.myProject = project;
-        this.updateCallback = callBack;
         this.submissionPanel = submissionPanel;
+        this.submitModel = model;
+        this.myProject = model.getProject();
 
-    }
-
-    @NotNull
-    protected ImmutableList<IClusterDetail> getClusterDetails() {
-        return ClusterManagerEx.getInstance().getClusterDetailsWithoutAsync(true);
-    }
-
-    protected void createUIComponents() {
-        // Customized UI creation
-        this.submitModel = new SparkSubmitModel(myProject);
+        submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
         this.submissionPanel.getClustersListComboBox().getComboBox().setModel(submitModel.getClusterComboBoxModel());
+        this.submissionPanel.getClustersListComboBox().getComboBox().setRenderer(new SparkClusterListRenderer());
+        this.submissionPanel.getSelectedArtifactComboBox().setModel(submitModel.getArtifactComboBoxModel());
 
         submissionPanel.getMainClassTextField().addActionListener(e -> {
                     PsiClass selected = submissionPanel.getLocalArtifactRadioButton().isSelected() ?
@@ -94,15 +86,21 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         );
 
         this.submissionPanel.addClusterListRefreshActionListener(e -> refreshClusterListAsync());
+        this.submissionPanel.getClustersListComboBox().getComboBox().addItemListener(e -> {
+            switch (e.getStateChange()) {
+            case ItemEvent.SELECTED:
+                if (e.getItem() != null) {
+                    IClusterDetail cluster = (IClusterDetail) e.getItem();
+                    getSubmissionPanel().getClusterSelectedSubject().onNext(cluster.getName());
+                }
+                break;
+            default:
+            }
+        });
 
         this.submissionPanel.addJobConfigurationLoadButtonActionListener(e -> {
-            FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(
-                    true,
-                    false,
-                    false,
-                    false,
-                    false,
-                    false);
+            FileChooserDescriptor fileChooserDescriptor =
+                    new FileChooserDescriptor(true, false, false, false, false, false);
 
             fileChooserDescriptor.setTitle("Select Spark Property File");
 
@@ -111,12 +109,18 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                     .ifPresent(this::loadJobConfigMapFromPropertyFile);
         });
 
-        this.submissionPanel.getSelectedArtifactComboBox().setModel(submitModel.getArtifactComboBoxModel());
-        this.submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
-
         this.submissionPanel.updateTableColumn();
 
         refreshClusterListAsync();
+    }
+
+    @NotNull
+    protected ImmutableList<IClusterDetail> getClusterDetails() {
+        return ClusterManagerEx.getInstance().getClusterDetailsWithoutAsync(true);
+    }
+
+    protected void createUIComponents() {
+        // Customized UI creation
     }
 
     @NotNull
@@ -130,13 +134,13 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     }
 
     protected void refreshClusterSelection(@NotNull List<IClusterDetail> clusters) {
-        Optional<String> selectedClusterTitle = submitModel.getSelectedClusterDetail()
+        Optional<String> selectedClusterTitle = getSubmitModel().getSelectedClusterDetail()
                 .map(IClusterDetail::getTitle);
-        resetClusterDetailsToComboBoxModel(submitModel, clusters);
+        resetClusterDetailsToComboBoxModel(getSubmitModel(), clusters);
         if (selectedClusterTitle.isPresent()) {
-            setSelectedClusterByTitle(submitModel, selectedClusterTitle.get());
+            setSelectedClusterByTitle(getSubmitModel(), selectedClusterTitle.get());
         } else {
-            setSelectedClusterByName(submitModel, submitModel.getSubmissionParameter().getClusterName());
+            setSelectedClusterByName(getSubmitModel(), getSubmitModel().getSubmissionParameter().getClusterName());
         }
     }
 
@@ -164,7 +168,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             refreshClusterSelection(cachedClusters);
 
             submissionPanel.setClustersListRefreshEnabled(true);
-            submissionPanel.getClusterSelectedSubject().onNext((String) submissionPanel.getClustersListComboBox().getComboBox().getSelectedItem());
         });
 
     }
@@ -183,17 +186,17 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         } catch (IOException ignored) { }
 
         destSubmitModel.getClusterComboBoxModel().removeAllElements();
-        clusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail.getTitle()));
+        clusterDetails.forEach(clusterDetail -> destSubmitModel.getClusterComboBoxModel().addElement(clusterDetail));
     }
 
     private void loadJobConfigMapFromPropertyFile(String propertyFilePath) {
-        submitModel.getTableModel().loadJobConfigMapFromPropertyFile(propertyFilePath);
+        getSubmitModel().getTableModel().loadJobConfigMapFromPropertyFile(propertyFilePath);
     }
 
     private void setSelectedClusterByTitle(SparkSubmitModel destSubmitModel, String clusterTitleToSelect) {
-        final DefaultComboBoxModel<String> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
+        final DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
 
-        destSubmitModel.getCachedClusterDetails().stream()
+        getClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getTitle().equals(clusterTitleToSelect))
                 .map(IClusterDetail::getTitle)
                 .findFirst()
@@ -205,9 +208,9 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     }
 
     private void setSelectedClusterByName(SparkSubmitModel destSubmitModel, String clusterNameToSelect) {
-        final DefaultComboBoxModel<String> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
+        final DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel = destSubmitModel.getClusterComboBoxModel();
 
-        destSubmitModel.getCachedClusterDetails().stream()
+        getClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getName().equals(clusterNameToSelect))
                 .map(IClusterDetail::getTitle)
                 .findFirst()
@@ -225,15 +228,12 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @Override
     public void setData(@NotNull SparkSubmitModel data) {
         // Data -> Component
-//        SparkSubmissionParameter parameter = data.getSubmissionParameter();
 
-//        submitModel.setSubmissionParameters(parameter);
-
-        resetClusterDetailsToComboBoxModel(submitModel, getClusterDetails());
+        resetClusterDetailsToComboBoxModel(getSubmitModel(), getClusterDetails());
         if (data.getSelectedClusterDetail().isPresent()) {
-            setSelectedClusterByTitle(submitModel, data.getSelectedClusterDetail().get().getTitle());
+            setSelectedClusterByTitle(getSubmitModel(), data.getSelectedClusterDetail().get().getTitle());
         } else {
-            setSelectedClusterByName(submitModel, data.getClusterName());
+            setSelectedClusterByName(getSubmitModel(), data.getClusterName());
         }
 
         if (data.getIsLocalArtifact()) {
@@ -247,11 +247,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         submissionPanel.getReferencedFilesTextField().setText(String.join(";", data.getReferenceFiles()));
 
         // update job configuration table
-        submitModel.getTableModel().loadJobConfigMap(data.getTableModel().getJobConfigMap());
-
-        if (updateCallback != null) {
-            updateCallback.run();
-        }
+        getSubmitModel().getTableModel().loadJobConfigMap(data.getTableModel().getJobConfigMap());
     }
 
     @Override
@@ -266,7 +262,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         String localArtifactPath = submissionPanel.getSelectedArtifactTextField().getText();
 
-        String selectedClusterName = submitModel.getSelectedClusterDetail()
+        String selectedClusterName = getSubmitModel().getSelectedClusterDetail()
                 .map(IClusterDetail::getName)
                 .orElse("");
 
@@ -287,8 +283,6 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         Boolean isLocalArtifact = submissionPanel.getLocalArtifactRadioButton().isSelected();
 
-        Map<String, Object> jobConfigMap = submitModel.getJobConfigMap();
-
         // submission parameters
         data.setClusterName(selectedClusterName);
         data.setIsLocalArtifact(isLocalArtifact);
@@ -301,15 +295,15 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         data.setCommandLineArgs(argsList);
 
         // Sub models
-        resetClusterDetailsToComboBoxModel(data, submitModel.getCachedClusterDetails());
-        submitModel.getSelectedClusterDetail()
+        resetClusterDetailsToComboBoxModel(data, getClusterDetails());
+        getSubmitModel().getSelectedClusterDetail()
                    .map(IClusterDetail::getTitle)
                    .ifPresent(selectedTitle -> setSelectedClusterByTitle(data, selectedTitle));
 
-        data.getTableModel().loadJobConfigMap(submitModel.getTableModel().getJobConfigMap());
+        data.getTableModel().loadJobConfigMap(getSubmitModel().getTableModel().getJobConfigMap());
 
         data.getArtifactComboBoxModel().removeAllElements();
-        final DefaultComboBoxModel<String> componentArtifactsModel = submitModel.getArtifactComboBoxModel();
+        final DefaultComboBoxModel<String> componentArtifactsModel = getSubmitModel().getArtifactComboBoxModel();
         IntStream.range(0, componentArtifactsModel.getSize())
                 .boxed()
                 .map(componentArtifactsModel::getElementAt)

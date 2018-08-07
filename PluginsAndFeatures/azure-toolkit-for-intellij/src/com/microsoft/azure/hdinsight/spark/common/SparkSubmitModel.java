@@ -32,7 +32,6 @@ import com.intellij.util.xmlb.annotations.Attribute;
 import com.intellij.util.xmlb.annotations.Property;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
-import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
@@ -49,7 +48,7 @@ import java.util.stream.Collectors;
 public class SparkSubmitModel {
     private static final String[] columns = {"Key", "Value", ""};
 
-    protected static final String SUBMISSION_CONTENT_NAME = "spark_submission";
+    static final String SUBMISSION_CONTENT_NAME = "spark_submission";
     private static final String SUBMISSION_CONTENT_JOB_CONF = "job_conf";
 
     @Transient
@@ -68,7 +67,7 @@ public class SparkSubmitModel {
     private SparkSubmitAdvancedConfigModel advancedConfigModel = new SparkSubmitAdvancedConfigModel();
 
     @Transient
-    private DefaultComboBoxModel<String> clusterComboBoxModel;
+    private DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel;
 
     @Transient
     private DefaultComboBoxModel<String> artifactComboBoxModel;
@@ -85,6 +84,7 @@ public class SparkSubmitModel {
     }
 
     public SparkSubmitModel(@NotNull Project project, @NotNull SparkSubmissionParameter submissionParameter) {
+        this.project = project;
         this.clusterComboBoxModel = new DefaultComboBoxModel<>();
         this.artifactComboBoxModel = new DefaultComboBoxModel<>();
         this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
@@ -122,20 +122,13 @@ public class SparkSubmitModel {
 
     @Transient
     public Optional<IClusterDetail> getSelectedClusterDetail() {
-        return ClusterManagerEx.getInstance().getClusterDetails().stream()
-                .filter(cluster -> cluster.getTitle().equals(clusterComboBoxModel.getSelectedItem()))
-                .findFirst();
+        return Optional.ofNullable(getClusterComboBoxModel().getSelectedItem())
+                .map(IClusterDetail.class::cast);
     }
 
     @Transient
     @NotNull
-    public List<IClusterDetail> getCachedClusterDetails() {
-        return ClusterManagerEx.getInstance().getClusterDetails();
-    }
-
-    @Transient
-    @NotNull
-    public DefaultComboBoxModel<String> getClusterComboBoxModel() {
+    public DefaultComboBoxModel<IClusterDetail> getClusterComboBoxModel() {
         return clusterComboBoxModel;
     }
 
@@ -272,11 +265,6 @@ public class SparkSubmitModel {
         return Optional.ofNullable(buildJarPath);
     }
 
-    @Transient
-    public Map<String, Object> getJobConfigMap() {
-        return getSubmissionParameter().getJobConfig();
-    }
-
     @NotNull
     protected Pair<String, String>[] getDefaultParameters() {
         return Arrays.stream(SparkSubmissionParameter.defaultParameters)
@@ -307,6 +295,7 @@ public class SparkSubmitModel {
     public Element exportToElement() {
         Element submitModelElement = XmlSerializer.serialize(this);
 
+        // To keep back-compatible of XML serialization
         submitModelElement.addContent(new Element(SUBMISSION_CONTENT_JOB_CONF)
                 .setAttributes(this.tableModel.getJobConfigMap().entrySet().stream()
                         .filter(entry -> entry.getKey() != null && !entry.getKey().trim().isEmpty())
@@ -319,6 +308,7 @@ public class SparkSubmitModel {
     public SparkSubmitModel applyFromElement(@NotNull Element rootElement) throws InvalidDataException{
         XmlSerializer.deserializeInto(this, rootElement);
 
+        // To keep back-compatible of XML serialization
         Element jobConfElem = rootElement.getChild(SUBMISSION_CONTENT_JOB_CONF);
         if (jobConfElem != null) {
             Map<String, String> jobConf = jobConfElem.getAttributes().stream()

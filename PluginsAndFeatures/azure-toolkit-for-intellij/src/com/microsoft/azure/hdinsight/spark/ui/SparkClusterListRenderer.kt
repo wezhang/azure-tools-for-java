@@ -22,4 +22,13 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-class ServerlessSparkSubmissionContentPanel : SparkSubmissionContentPanel()
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
+import java.awt.Component
+import javax.swing.DefaultListCellRenderer
+import javax.swing.JList
+
+class SparkClusterListRenderer : DefaultListCellRenderer() {
+    override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+        return super.getListCellRendererComponent(list, (value as? IClusterDetail)?.title ?: value, index, isSelected, cellHasFocus)
+    }
+}

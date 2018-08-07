@@ -22,16 +22,13 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.common.CallBack
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import java.awt.event.ActionListener
 
-class SparkSubmissionDebuggablePanelConfigurable(project: Project,
-                                                 callBack: CallBack?,
+class SparkSubmissionDebuggablePanelConfigurable(model: SparkSubmitModel,
                                                  submissionPanel: SparkSubmissionDebuggableContentPanel)
-    : SparkSubmissionContentPanelConfigurable(project, callBack, submissionPanel) {
+    : SparkSubmissionContentPanelConfigurable(model, submissionPanel) {
     private val submissionDebuggablePanel
         get() = submissionPanel as SparkSubmissionDebuggableContentPanel
 

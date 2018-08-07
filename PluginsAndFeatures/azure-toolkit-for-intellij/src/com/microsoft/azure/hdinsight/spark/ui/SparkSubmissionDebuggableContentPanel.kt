@@ -22,14 +22,13 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.microsoft.azure.hdinsight.common.CallBack
 import java.awt.GridBagConstraints
 import java.awt.Insets
 import java.awt.event.ActionListener
 import java.util.concurrent.TimeUnit
 import javax.swing.JButton
 
-class SparkSubmissionDebuggableContentPanel(updateCallBack: CallBack?) : SparkSubmissionContentPanel(updateCallBack) {
+class SparkSubmissionDebuggableContentPanel : SparkSubmissionContentPanel() {
 
     private val advancedConfigButton = JButton("Advanced configuration")
     val advancedConfigDialog = SparkSubmissionAdvancedConfigDialog()
