@@ -26,6 +26,6 @@ class ReportableError(shortMessage: String, private val detailMessage: String)
             : Reportable(shortMessage){
     override val detailInfo
         get() = mapOf(
-                "Error message" to detailMessage
+                "Error message" to GithubMarkdownFormat.toCode(detailMessage)
         )
 }

@@ -32,6 +32,7 @@ open class Reportable(private val shortMessage: String) {
 
     private val platformInfo = mutableMapOf<String, String>(
             "IntelliJ build version" to "${appInfo.fullVersion} ${appInfo.build}",
+            "OS" to System.getProperty("os.name"),
             "JDK" to "${System.getProperty("java.vendor")} ${System.getProperty("java.version")}",
             "Plugin version" to plugin.version
     )

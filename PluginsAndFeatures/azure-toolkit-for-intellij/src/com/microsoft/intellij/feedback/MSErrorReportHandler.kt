@@ -43,7 +43,7 @@ class MSErrorReportHandler : ErrorReportSubmitter() {
                 ReportableError("Uncaught Exception ${event.message ?: ""} ${event.throwableText.split("\n").first()}",
                                 event.toString())
                         .with("Additional Info", additionalInfo ?: "None")
-                        .with("Parent component", parentComponent.toString()))
+                        .with("Parent component", GithubMarkdownFormat.toCode(parentComponent.toString())))
                 .withLabel("bug")
 
         githubIssue.report()
