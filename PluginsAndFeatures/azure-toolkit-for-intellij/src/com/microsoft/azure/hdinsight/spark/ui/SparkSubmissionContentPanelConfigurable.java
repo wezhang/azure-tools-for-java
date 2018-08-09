@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.ui;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.impl.jar.JarFileSystemImpl;
@@ -308,6 +309,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 .boxed()
                 .map(componentArtifactsModel::getElementAt)
                 .forEach(artifact -> data.getArtifactComboBoxModel().addElement(artifact));
+    }
+
+    public void validate() throws ConfigurationException {
+
     }
 
     public SparkSubmissionContentPanel getSubmissionPanel() {

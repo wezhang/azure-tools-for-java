@@ -21,6 +21,7 @@
 
 package com.microsoft.azure.hdinsight.spark.ui;
 
+import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
@@ -96,5 +97,9 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
 
     private void setLocalRunConfigEnabled(boolean enabled) {
         executionTypeTabPane.setEnabledAt(0, enabled);
+    }
+
+    public void validate() throws ConfigurationException{
+        myClusterSubmissionConfigurable.validate();
     }
 }
