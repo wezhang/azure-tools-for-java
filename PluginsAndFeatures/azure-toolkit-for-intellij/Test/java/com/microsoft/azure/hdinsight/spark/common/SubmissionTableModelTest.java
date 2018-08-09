@@ -42,7 +42,7 @@ public class SubmissionTableModelTest extends TestCase{
 
     @Test
     public void testGetJobConfigMap() throws Exception {
-        Map<String,Object> maps = tableModel.getJobConfigMap();
+        Map<String, String> maps = tableModel.getJobConfigMap();
         assertEquals(maps.size(), 0);
 
         tableModel.setValueAt("test", 0, 0);

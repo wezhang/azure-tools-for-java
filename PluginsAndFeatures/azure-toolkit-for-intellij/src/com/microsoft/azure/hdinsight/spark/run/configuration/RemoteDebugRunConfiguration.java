@@ -204,8 +204,5 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
                 .map(className -> "[Spark Job] " + className)
                 .orElse(null);
     }
-
-    public void setAsNew() {
-    }
 }
 
