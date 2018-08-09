@@ -33,8 +33,7 @@ import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
 
 import javax.swing.*
 
-class RemoteDebugSettingsEditor(val runConfiguration: RemoteDebugRunConfiguration) : SettingsEditor<RemoteDebugRunConfiguration>() {
-    val jobConfigurable: SparkBatchJobConfigurable = SparkBatchJobConfigurable(runConfiguration.project)
+class RemoteDebugSettingsEditor(val jobConfigurable: SparkBatchJobConfigurable) : SettingsEditor<RemoteDebugRunConfiguration>() {
 
     override fun resetEditorFrom(remoteDebugRunConfiguration: RemoteDebugRunConfiguration) {
         // Reset the panel from the RunConfiguration

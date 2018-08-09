@@ -41,6 +41,7 @@ import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebugExecutor;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor;
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobSubmissionState;
+import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable;
 import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -115,7 +116,7 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     @NotNull
     @Override
     public SettingsEditor<? extends RunConfiguration> getConfigurationEditor() {
-        return new RemoteDebugSettingsEditor(this);
+        return new RemoteDebugSettingsEditor(new SparkBatchJobConfigurable(getProject()));
     }
 
     @Override

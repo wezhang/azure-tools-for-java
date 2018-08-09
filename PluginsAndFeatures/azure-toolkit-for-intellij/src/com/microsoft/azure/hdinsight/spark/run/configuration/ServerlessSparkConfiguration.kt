@@ -32,17 +32,19 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalDebugState
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchRemoteRunState
+import com.microsoft.azure.hdinsight.spark.ui.ServerlessSparkConfigurable
 
 class ServerlessSparkConfiguration (name: String,
                                     val module: ServerlessSparkConfigurationModule,
                                     factory: ConfigurationFactory)
     : RemoteDebugRunConfiguration(module.model, factory, module, name) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
-        return ServerlessSparkSettingsEditor(module.project)
+        return RemoteDebugSettingsEditor(ServerlessSparkConfigurable(module.project))
     }
 
     override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
@@ -72,5 +74,9 @@ class ServerlessSparkConfiguration (name: String,
     // Validation
     override fun getValidModules(): MutableCollection<Module> {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun getModel(): SparkBatchJobConfigurableModel {
+        return module.model
     }
 }
