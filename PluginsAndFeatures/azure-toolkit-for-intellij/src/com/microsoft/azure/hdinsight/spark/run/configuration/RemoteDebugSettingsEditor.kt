@@ -44,7 +44,7 @@ class RemoteDebugSettingsEditor(val runConfiguration: RemoteDebugRunConfiguratio
     @Throws(ConfigurationException::class)
     override fun applyEditorTo(remoteDebugRunConfiguration: RemoteDebugRunConfiguration) {
         // Apply the panel's setting to RunConfiguration
-        jobConfigurable.validata()
+        jobConfigurable.validate()
         jobConfigurable.getData(remoteDebugRunConfiguration.model)
     }
 
