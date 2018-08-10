@@ -202,11 +202,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         getClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getTitle().equals(clusterTitleToSelect))
-                .map(IClusterDetail::getTitle)
                 .findFirst()
-                .ifPresent(clusterTitle -> {
-                    if (clusterComboBoxModel.getIndexOf(clusterTitle) >= 0) {
-                        clusterComboBoxModel.setSelectedItem(clusterTitle);
+                .ifPresent(cluster-> {
+                    if (clusterComboBoxModel.getIndexOf(cluster) >= 0) {
+                        clusterComboBoxModel.setSelectedItem(cluster);
                     }
                 });
     }
@@ -216,11 +215,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         getClusterDetails().stream()
                 .filter(clusterDetail -> clusterDetail.getName().equals(clusterNameToSelect))
-                .map(IClusterDetail::getTitle)
                 .findFirst()
-                .ifPresent(clusterTitle -> {
-                    if (clusterComboBoxModel.getIndexOf(clusterTitle) >= 0) {
-                        clusterComboBoxModel.setSelectedItem(clusterTitle);
+                .ifPresent(cluster-> {
+                    if (clusterComboBoxModel.getIndexOf(cluster) >= 0) {
+                        clusterComboBoxModel.setSelectedItem(cluster);
                     }
                 });
     }
