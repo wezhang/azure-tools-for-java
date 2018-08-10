@@ -61,7 +61,7 @@ import java.net.URI;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Optional;
 
-public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner {
+public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implements SparkSubmissionRunner {
     public static final Key<String> DebugTargetKey = new Key<>("debug-target");
     private static final Key<String> ProfileNameKey = new Key<>("profile-name");
     public static final String DebugDriver = "driver";

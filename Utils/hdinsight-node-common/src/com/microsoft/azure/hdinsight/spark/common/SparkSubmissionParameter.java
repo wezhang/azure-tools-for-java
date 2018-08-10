@@ -31,6 +31,8 @@ import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.utils.Pair;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SparkSubmissionParameter implements IConvertible {
@@ -63,6 +65,8 @@ public class SparkSubmissionParameter implements IConvertible {
     private List<String> jars = new ArrayList<>();
     private List<String> args = new ArrayList<>();
     private Map<String, Object> jobConfig = new HashMap<>();
+
+    private static final Pattern memorySizeRegex = Pattern.compile(	"\\d+(.\\d+)?[gGmM]");
 
     public static final String DriverMemory = "driverMemory";
     public static final String DriverMemoryDefaultValue = "4G";
@@ -250,27 +254,27 @@ public class SparkSubmissionParameter implements IConvertible {
                 continue;
             }
 
+            if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
+                messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
+                        "Warning : Empty value(s) will be override by default value(s) of system"));
+
+                continue;
+            }
+
             if (entryKey.equals(DriverCores)
                     || entryKey.equals(NumExecutors)
                     || entryKey.equals(ExecutorCores)) {
-                if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
-                    messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
-                            "Warning : Empty value(s) will be override by default value(s) of system"));
-                    continue;
-                }
-
                 try {
                     Integer.parseInt(entry.getValue());
                 } catch (NumberFormatException e) {
                     messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Error,
-                            String.format("Error : Failed to parse \"%s\", it should be an integer", entry.getValue())));
+                            String.format("Error : Key \"%s\" failed to parse the value \"%s\", it should be an integer", entry.getKey(), entry.getValue())));
                 }
             } else if (entryKey.equals(DriverMemory)
-                    || entryKey.equals(ExecutorMemory)
-                    || entryKey.equals(NAME)) {
-                if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
-                    messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
-                            "Warning : Empty value(s) will be override by default value(s) of system"));
+                    || entryKey.equals(ExecutorMemory)) {
+                if (!memorySizeRegex.matcher(entry.getValue()).matches()) {
+                    messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Error,
+                            String.format("Error : Key \"%s\" failed to parse the value \"%s\" into the memory size, it should be like 1.5G, 500M or 4g", entry.getKey(), entry.getValue())));
                 }
             }
         }

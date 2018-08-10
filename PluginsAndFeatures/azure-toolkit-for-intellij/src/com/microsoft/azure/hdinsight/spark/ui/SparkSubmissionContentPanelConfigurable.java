@@ -22,6 +22,7 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.google.common.collect.ImmutableList;
+import com.intellij.execution.configurations.RuntimeConfigurationException;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.ConfigurationException;
@@ -37,6 +38,8 @@ import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckResult;
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -312,6 +315,12 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     }
 
     public void validate() throws ConfigurationException {
+        // FIXME!!! Need to re-design submission panel
+
+        SparkSubmissionJobConfigCheckResult confTableCheckResult = getSubmitModel().getTableModel().getFirstCheckResults();
+        if (confTableCheckResult.getStatus() == SparkSubmissionJobConfigCheckStatus.Error) {
+            throw new ConfigurationException("Job Configuration " + confTableCheckResult.getMessaqge());
+        }
 
     }
 

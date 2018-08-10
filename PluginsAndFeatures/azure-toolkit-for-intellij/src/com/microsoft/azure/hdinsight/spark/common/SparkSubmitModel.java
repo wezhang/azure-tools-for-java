@@ -266,10 +266,10 @@ public class SparkSubmitModel {
     }
 
     @NotNull
-    protected Pair<String, String>[] getDefaultParameters() {
+    protected Pair<String, ? extends Object>[] getDefaultParameters() {
         return Arrays.stream(SparkSubmissionParameter.defaultParameters)
-                .map(p -> new Pair<>(p.first(), p.second().toString()))
-                .toArray((IntFunction<Pair<String, String>[]>) Pair[]::new);
+                .map(p -> new Pair<>(p.first(), p.second()))
+                .toArray((IntFunction<Pair<String, Object>[]>) Pair[]::new);
     }
 
     private void initializeTableModel(final SubmissionTableModel tableModel) {

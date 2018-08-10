@@ -20,30 +20,6 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.common
+package com.microsoft.azure.hdinsight.spark.run
 
-import com.intellij.openapi.project.Project
-import com.intellij.util.xmlb.annotations.Attribute
-import com.microsoft.azuretools.utils.Pair
-
-class ServerlessSparkSubmitModel : SparkSubmitModel {
-    @Attribute("tenant_id")
-    var tenantId: String = "common"
-    @Attribute("account_name")
-    var accountName: String? = null
-    @Attribute("cluster_id")
-    var clusterId: String? = null
-    @Attribute("livy_uri")
-    var livyUri: String? = null
-
-    constructor() : super()
-    constructor(project: Project) : super(project)
-
-    override fun getDefaultParameters(): Array<Pair<String, out Any>> {
-        return arrayOf(
-                Pair(SparkSubmissionParameter.DriverMemory, SparkSubmissionParameter.DriverMemoryDefaultValue),
-                Pair(SparkSubmissionParameter.DriverCores, SparkSubmissionParameter.DriverCoresDefaultValue),
-                Pair(SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorMemoryDefaultValue),
-                Pair(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue))
-    }
-}
+interface SparkSubmissionRunner
