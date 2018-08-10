@@ -27,6 +27,8 @@ import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.JavaExecutionUtil;
 import com.intellij.execution.configurations.*;
+import com.intellij.execution.executors.DefaultDebugExecutor;
+import com.intellij.execution.executors.DefaultRunExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ProgramRunner;
 import com.intellij.openapi.module.Module;
@@ -201,33 +203,48 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
     @Nullable
     @Override
     public RunProfileState getState(@NotNull Executor executor, @NotNull ExecutionEnvironment executionEnvironment) throws ExecutionException {
-        String debugTarget = executionEnvironment.getUserData(SparkBatchJobDebuggerRunner.DebugTargetKey);
-        boolean isExecutor = StringUtils.equals(debugTarget, SparkBatchJobDebuggerRunner.DebugExecutor);
+        final String debugTarget = executionEnvironment.getUserData(SparkBatchJobDebuggerRunner.DebugTargetKey);
+        final boolean isExecutor = StringUtils.equals(debugTarget, SparkBatchJobDebuggerRunner.DebugExecutor);
+        RunProfileStateWithAppInsightsEvent state = null;
 
-        SparkBatchJobSubmissionState state = new SparkBatchJobSubmissionState(getProject(), jobModel, isExecutor);
-
-        if (!isExecutor) {
-            if (executor instanceof SparkBatchJobDebugExecutor ||
-                    executor instanceof SparkBatchJobRunExecutor) {
+        if (executor instanceof SparkBatchJobDebugExecutor) {
+            if (isExecutor) {
+                setRunMode(RunMode.REMOTE_DEBUG_EXECUTOR);
+                state = new SparkBatchRemoteDebugExecutorState(getModel().getSubmitModel());
+            } else {
                 if (getSubmitModel().getArtifact() != null) {
-                    BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun(getProject(), this, getSubmitModel().getArtifact());
+                    BuildArtifactsBeforeRunTaskProvider
+                            .setBuildArtifactBeforeRun(getProject(), this, getSubmitModel().getArtifact());
                 }
 
                 setRunMode(RunMode.REMOTE);
-            } else {
-                setRunMode(RunMode.LOCAL);
+                state = new SparkBatchRemoteDebugState(getModel().getSubmitModel());
+            }
+        } else if (executor instanceof SparkBatchJobRunExecutor) {
+            if (getSubmitModel().getArtifact() != null) {
+                BuildArtifactsBeforeRunTaskProvider
+                        .setBuildArtifactBeforeRun(getProject(), this, getSubmitModel().getArtifact());
             }
 
-            state.createAppInsightEvent(executor, actionProperties.entrySet().stream().collect(Collectors.toMap(
-                    (Map.Entry<Object, Object> entry) -> (String) entry.getKey(),
-                    (Map.Entry<Object, Object> entry) -> (String) entry.getValue()
-            )));
-        } else {
-            setRunMode(RunMode.REMOTE_DEBUG_EXECUTOR);
+            setRunMode(RunMode.REMOTE);
+            state = new SparkBatchRemoteRunState(getModel().getSubmitModel());
+        } else if (executor instanceof DefaultDebugExecutor) {
+            setRunMode(RunMode.LOCAL);
+            state = new SparkBatchLocalDebugState(getProject(), getModel().getLocalRunConfigurableModel());
+        } else if (executor instanceof DefaultRunExecutor) {
+            setRunMode(RunMode.LOCAL);
+            state = new SparkBatchLocalRunState(getProject(), getModel().getLocalRunConfigurableModel());
         }
 
-        // Clear the action properties
-        actionProperties.clear();
+        if (state != null) {
+            state.createAppInsightEvent(executor, getActionProperties().entrySet().stream().collect(Collectors.toMap(
+                    (Map.Entry<Object, Object> entry) -> entry.getKey() == null ? null : entry.getKey().toString(),
+                    (Map.Entry<Object, Object> entry) -> entry.getValue() == null ? "" : entry.getValue().toString()
+            )));
+
+            // Clear the action properties
+            getActionProperties().clear();
+        }
 
         return state;
     }

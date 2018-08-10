@@ -22,21 +22,11 @@
 
 package com.microsoft.azure.hdinsight.spark.run.configuration
 
-import com.intellij.execution.Executor
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.RunConfiguration
-import com.intellij.execution.configurations.RunProfileState
-import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.options.SettingsEditor
-import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalDebugState
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
-import com.microsoft.azure.hdinsight.spark.run.SparkBatchRemoteRunState
 import com.microsoft.azure.hdinsight.spark.ui.ServerlessSparkConfigurable
 
 class ServerlessSparkConfiguration (name: String,
@@ -45,30 +35,6 @@ class ServerlessSparkConfiguration (name: String,
     : RemoteDebugRunConfiguration(module.model, factory, module, name) {
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {
         return RemoteDebugSettingsEditor(ServerlessSparkConfigurable(module.project))
-    }
-
-    override fun getState(executor: Executor, executionEnvironment: ExecutionEnvironment): RunProfileState? {
-        val state = when(executor) {
-            is SparkBatchJobRunExecutor -> {
-                if (submitModel.artifact != null) {
-                    BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun(project, this, submitModel.artifact)
-                }
-
-                setRunMode(RunMode.REMOTE)
-                SparkBatchRemoteRunState(module.model.serverlessSparkSubmitModel)
-            }
-            is DefaultRunExecutor -> {
-                setRunMode(RunMode.LOCAL)
-                SparkBatchLocalRunState(project, module.model.localRunConfigurableModel)
-            }
-            is DefaultDebugExecutor -> {
-                setRunMode(RunMode.LOCAL)
-                SparkBatchLocalDebugState(project, module.model.localRunConfigurableModel)
-            }
-            else -> null
-        }
-
-        return state?.createAppInsightEvent(executor, actionProperties.map({ it.key.toString() to it.value.toString()}).toMap())
     }
 
     // Validation

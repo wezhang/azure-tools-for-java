@@ -110,7 +110,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
     @Override
     protected void execute(ExecutionEnvironment environment, Callback callback, RunProfileState state) throws ExecutionException {
         final AsyncPromise<ExecutionEnvironment> jobDriverEnvReady = new AsyncPromise<> ();
-        final SparkBatchJobSubmissionState submissionState = (SparkBatchJobSubmissionState) state;
+        final SparkBatchRemoteDebugState submissionState = (SparkBatchRemoteDebugState) state;
 
         // Check parameters before starting
         submissionState.checkSubmissionParameter();
@@ -218,9 +218,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
                                     jdbReadyEvent.getRemoteHost().orElse("unknown"),
                                     jdbReadyEvent.isDriver());
 
-                            SparkBatchJobSubmissionState forkState = jdbReadyEvent.isDriver() ?
+                            SparkBatchRemoteDebugState forkState = jdbReadyEvent.isDriver() ?
                                     submissionState :
-                                    (SparkBatchJobSubmissionState) forkEnv.getState();
+                                    (SparkBatchRemoteDebugState) forkEnv.getState();
 
                             if (forkState == null) {
                                 return;
