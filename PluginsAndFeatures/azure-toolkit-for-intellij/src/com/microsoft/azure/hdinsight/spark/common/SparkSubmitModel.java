@@ -25,7 +25,6 @@ import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.packaging.artifacts.Artifact;
-import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.AbstractCollection;
 import com.intellij.util.xmlb.annotations.Attribute;
@@ -56,9 +55,6 @@ public class SparkSubmitModel {
     private Project project = DummyProject.getInstance();
 
     @Transient
-    private Map<String, Artifact> artifactHashMap = new HashMap<>();
-
-    @Transient
     @NotNull
     private SparkSubmissionParameter submissionParameter; // The parameters to packing submission related various
 
@@ -70,7 +66,7 @@ public class SparkSubmitModel {
     private DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel;
 
     @Transient
-    private DefaultComboBoxModel<String> artifactComboBoxModel;
+    private DefaultComboBoxModel<Artifact> artifactComboBoxModel;
 
     @Transient
     private SubmissionTableModel tableModel = new SubmissionTableModel(columns);
@@ -89,21 +85,6 @@ public class SparkSubmitModel {
         this.artifactComboBoxModel = new DefaultComboBoxModel<>();
         this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
         this.submissionParameter = submissionParameter;
-
-        final List<Artifact> artifacts = ArtifactUtil.getArtifactWithOutputPaths(project);
-
-        for (Artifact artifact : artifacts) {
-            artifactHashMap.put(artifact.getName(), artifact);
-            artifactComboBoxModel.addElement(artifact.getName());
-            if (artifactComboBoxModel.getSize() == 0) {
-                artifactComboBoxModel.setSelectedItem(artifact.getName());
-            }
-        }
-
-        int index = artifactComboBoxModel.getIndexOf(submissionParameter.getArtifactName());
-        if (index != -1) {
-            artifactComboBoxModel.setSelectedItem(submissionParameter.getArtifactName());
-        }
 
         initializeTableModel(tableModel);
     }
@@ -133,7 +114,8 @@ public class SparkSubmitModel {
     }
 
     @Transient
-    public DefaultComboBoxModel<String> getArtifactComboBoxModel() {
+    @NotNull
+    public DefaultComboBoxModel<Artifact> getArtifactComboBoxModel() {
         return artifactComboBoxModel;
     }
 
@@ -238,11 +220,8 @@ public class SparkSubmitModel {
     @Transient
     @Nullable
     public Artifact getArtifact() {
-        return Optional.of(getSubmissionParameter())
-                .map(SparkSubmissionParameter::getArtifactName)
-                .filter(name -> artifactHashMap.containsKey(name))
-                .map(artifactHashMap::get)
-                .orElse(null);
+        return getArtifactComboBoxModel().getSelectedItem() == null ?
+                null : (Artifact) getArtifactComboBoxModel().getSelectedItem();
     }
 
     @Transient
@@ -260,7 +239,7 @@ public class SparkSubmitModel {
     public Optional<String> getArtifactPath() {
         String buildJarPath = getSubmissionParameter().isLocalArtifact() ?
                 getSubmissionParameter().getLocalArtifactPath() :
-                ((artifactHashMap.get(getSubmissionParameter().getArtifactName()).getOutputFilePath()));
+                (getArtifact() == null ? null : getArtifact().getOutputFilePath());
 
         return Optional.ofNullable(buildJarPath);
     }

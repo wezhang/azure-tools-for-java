@@ -27,15 +27,13 @@ import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.FixedSizeButton;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.ui.ComboboxWithBrowseButton;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.table.JBTable;
 import com.microsoft.azure.hdinsight.common.DarkThemeManager;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckResult;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitHelper;
-import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel;
+import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveRenderer;
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
@@ -86,7 +84,7 @@ public class SparkSubmissionContentPanel extends JPanel{
     @NotNull
     private ComboboxWithBrowseButton clustersListComboBox;
     @NotNull
-    private ComboBox<String> selectedArtifactComboBox;
+    private ComboBox<Artifact> selectedArtifactComboBox;
     @NotNull
     private TextFieldWithBrowseButton selectedArtifactTextField;
     @NotNull
@@ -147,7 +145,7 @@ public class SparkSubmissionContentPanel extends JPanel{
     }
 
     @NotNull
-    ComboBox<String> getSelectedArtifactComboBox() {
+    ComboBox<Artifact> getSelectedArtifactComboBox() {
         return selectedArtifactComboBox;
     }
 
@@ -164,6 +162,11 @@ public class SparkSubmissionContentPanel extends JPanel{
     @NotNull
     JRadioButton getLocalArtifactRadioButton() {
         return localArtifactRadioButton;
+    }
+
+    @NotNull
+    JRadioButton getIntelliJArtifactRadioButton() {
+        return intelliJArtifactRadioButton;
     }
 
     @NotNull
