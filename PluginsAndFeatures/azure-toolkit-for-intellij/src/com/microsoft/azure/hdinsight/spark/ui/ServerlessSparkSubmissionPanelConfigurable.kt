@@ -22,44 +22,25 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.google.common.collect.ImmutableList
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.common.CallBack
+import com.google.common.collect.ImmutableSortedSet
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager
 import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
-import rx.schedulers.Schedulers
+import rx.Observable
 
-class ServerlessSparkSubmissionPanelConfigurable(private val model: ServerlessSparkSubmitModel, submissionPanel: SparkSubmissionContentPanel)
+class ServerlessSparkSubmissionPanelConfigurable(model: ServerlessSparkSubmitModel, submissionPanel: SparkSubmissionContentPanel)
     : SparkSubmissionContentPanelConfigurable(model, submissionPanel), ILogger {
-    override fun refreshClusterListAsync() {
-        submissionPanel.setClustersListRefreshEnabled(false)
+    override fun getType(): String = "Azure Data Lake Spark Pool"
 
-        AzureSparkServerlessClusterManager.getInstance()
-                .fetchClusters()
-                .subscribeOn(Schedulers.io())
-                .map { clusterManager -> clusterManager.clusters }
-                .doOnEach { submissionPanel.setClustersListRefreshEnabled(true) }
-                .subscribe(
-                        { clusters ->
-                            refreshClusterSelection(clusters.asList())
-                        },
-                        { err -> log().warn("Project ${model.project.name} failed to refresh Azure Data Lake Spark Pool", err) }
-                )
+    override fun getClusterDetails(): ImmutableSortedSet<out IClusterDetail> {
+        return AzureSparkServerlessClusterManager.getInstance().clusters
     }
 
-    override fun getClusterDetails(): ImmutableList<IClusterDetail> {
-        return ImmutableList.copyOf(
-                AzureSparkServerlessClusterManager.getInstance().clusters.asList().filterIsInstance<AzureSparkServerlessCluster>())
-    }
-
-    override fun resetClusterDetailsToComboBoxModel(destSubmitModel: SparkSubmitModel, cachedClusterDetails: MutableList<IClusterDetail>) {
-        // Reset cluster combo box model
-        destSubmitModel.clusterComboBoxModel.removeAllElements()
-        cachedClusterDetails.forEach { destSubmitModel.clusterComboBoxModel.addElement(it) }
+    override fun getClusterDetailsWithRefresh(): Observable<ImmutableSortedSet<out IClusterDetail>> {
+        return AzureSparkServerlessClusterManager.getInstance().fetchClusters().map { it.clusters }
     }
 
     override fun getData(data: SparkSubmitModel?) {

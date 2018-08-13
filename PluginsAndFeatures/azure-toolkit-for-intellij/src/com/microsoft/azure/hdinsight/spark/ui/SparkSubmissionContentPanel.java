@@ -200,7 +200,7 @@ public class SparkSubmissionContentPanel extends JPanel{
     }
 
     void setClustersListRefreshEnabled(boolean enabled) {
-        clustersListComboBox.getButton().setEnabled(enabled);
+        clustersListComboBox.setButtonEnabled(enabled);
     }
 
     void addClusterListRefreshActionListener(ActionListener actionListener) {
