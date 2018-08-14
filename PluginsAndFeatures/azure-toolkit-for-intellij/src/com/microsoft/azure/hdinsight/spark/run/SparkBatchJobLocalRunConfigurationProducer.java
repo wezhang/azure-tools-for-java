@@ -33,6 +33,7 @@ import com.intellij.execution.configurations.ConfigurationUtil;
 import com.intellij.execution.junit.JavaRunConfigurationProducerBase;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.TestSourcesFilter;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -67,7 +68,9 @@ public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigura
         return Optional.ofNullable(context.getModule())
                 .map(Module::getProject)
                 .flatMap(project -> getMainClassFromContext(context)
-                                        .filter(mcPair -> isSparkContext(project, mcPair.getKey().getContainingFile())))
+                                        .filter(mcPair -> isSparkContext(project, mcPair.getKey().getContainingFile()))
+                                        .filter(mcPair -> !TestSourcesFilter.isTestSources(
+                                                mcPair.getKey().getContainingFile().getVirtualFile(), project)))
                 .map(mcPair -> {
                     setupConfiguration(configuration, mcPair.getValue(), context);
 
