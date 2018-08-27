@@ -36,6 +36,8 @@ import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.openapi.util.WriteExternalException;
+import com.intellij.packaging.artifacts.Artifact;
+import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTask;
 import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchJobConfigurableModel;
@@ -206,24 +208,25 @@ public class RemoteDebugRunConfiguration extends ModuleBasedConfiguration<RunCon
         final String debugTarget = executionEnvironment.getUserData(SparkBatchJobDebuggerRunner.DebugTargetKey);
         final boolean isExecutor = StringUtils.equals(debugTarget, SparkBatchJobDebuggerRunner.DebugExecutor);
         RunProfileStateWithAppInsightsEvent state = null;
+        final Artifact selectedArtifact = ArtifactUtil.getArtifactWithOutputPaths(getProject()).stream()
+                .filter(artifact -> artifact.getName().equals(getSubmitModel().getArtifactName()))
+                .findFirst().orElse(null);
 
         if (executor instanceof SparkBatchJobDebugExecutor) {
             if (isExecutor) {
                 setRunMode(RunMode.REMOTE_DEBUG_EXECUTOR);
                 state = new SparkBatchRemoteDebugExecutorState(getModel().getSubmitModel());
             } else {
-                if (getSubmitModel().getArtifact() != null) {
-                    BuildArtifactsBeforeRunTaskProvider
-                            .setBuildArtifactBeforeRun(getProject(), this, getSubmitModel().getArtifact());
+                if (selectedArtifact != null) {
+                    BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun(getProject(), this, selectedArtifact);
                 }
 
                 setRunMode(RunMode.REMOTE);
                 state = new SparkBatchRemoteDebugState(getModel().getSubmitModel());
             }
         } else if (executor instanceof SparkBatchJobRunExecutor) {
-            if (getSubmitModel().getArtifact() != null) {
-                BuildArtifactsBeforeRunTaskProvider
-                        .setBuildArtifactBeforeRun(getProject(), this, getSubmitModel().getArtifact());
+            if (selectedArtifact != null) {
+                BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun(getProject(), this, selectedArtifact);
             }
 
             setRunMode(RunMode.REMOTE);

@@ -25,6 +25,8 @@ import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.packaging.artifacts.Artifact;
+import com.intellij.packaging.artifacts.ArtifactManager;
+import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.AbstractCollection;
 import com.intellij.util.xmlb.annotations.Attribute;
@@ -218,13 +220,6 @@ public class SparkSubmitModel {
     }
 
     @Transient
-    @Nullable
-    public Artifact getArtifact() {
-        return getArtifactComboBoxModel().getSelectedItem() == null ?
-                null : (Artifact) getArtifactComboBoxModel().getSelectedItem();
-    }
-
-    @Transient
     @NotNull
     public Project getProject() {
         return project;
@@ -237,11 +232,11 @@ public class SparkSubmitModel {
 
     @Transient
     public Optional<String> getArtifactPath() {
-        String buildJarPath = getSubmissionParameter().isLocalArtifact() ?
-                getSubmissionParameter().getLocalArtifactPath() :
-                (getArtifact() == null ? null : getArtifact().getOutputFilePath());
-
-        return Optional.ofNullable(buildJarPath);
+        return getIsLocalArtifact() ?
+                Optional.ofNullable(getLocalArtifactPath()) :
+                Optional.ofNullable(getArtifactName())
+                        .map(name -> ArtifactManager.getInstance(project).findArtifact(name))
+                        .map(Artifact::getOutputFilePath);
     }
 
     @NotNull
