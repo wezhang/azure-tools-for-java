@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.spark.common;
 
 import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
 import com.microsoft.azuretools.adauth.StringUtils;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import org.jetbrains.annotations.NotNull;
@@ -40,6 +41,7 @@ public class SubmissionTableModel extends InteractiveTableModel{
         super(columnNames);
     }
 
+    @Nullable
     public SparkSubmissionJobConfigCheckResult getFirstCheckResults() {
         return checkResults == null || checkResults.size() == 0 ? null : checkResults.get(0);
     }

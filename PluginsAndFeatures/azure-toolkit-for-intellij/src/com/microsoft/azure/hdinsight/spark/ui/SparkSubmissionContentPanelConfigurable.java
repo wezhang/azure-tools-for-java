@@ -51,6 +51,7 @@ import rx.schedulers.Schedulers;
 
 import javax.swing.*;
 import java.awt.event.ItemEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -319,11 +320,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     public void validate() throws ConfigurationException {
         // FIXME!!! Need to re-design submission panel
 
-        SparkSubmissionJobConfigCheckResult confTableCheckResult = getSubmitModel().getTableModel().getFirstCheckResults();
-        if (confTableCheckResult.getStatus() == SparkSubmissionJobConfigCheckStatus.Error) {
-            throw new ConfigurationException("Job Configuration " + confTableCheckResult.getMessaqge());
+        List<String> errors = submissionPanel.getErrorMessages();
+        if (!errors.isEmpty()) {
+            throw new ConfigurationException(String.join("; \n", errors));
         }
-
     }
 
     public SparkSubmissionContentPanel getSubmissionPanel() {

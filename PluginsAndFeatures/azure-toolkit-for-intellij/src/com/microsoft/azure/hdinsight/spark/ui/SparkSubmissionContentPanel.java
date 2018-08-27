@@ -51,6 +51,8 @@ import java.awt.event.*;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class SparkSubmissionContentPanel extends JPanel{
     public SparkSubmissionContentPanel(){
@@ -66,14 +68,14 @@ public class SparkSubmissionContentPanel extends JPanel{
         });
     }
 
-    public boolean haveErrorMessage() {
-        for (int i = 0; i < errorMessageLabels.length; ++i) {
-            if (errorMessageLabels[i].isVisible() && errorMessageLabels[i].getForeground().equals(DarkThemeManager.getInstance().getErrorMessageColor())) {
-                return true;
-            }
-        }
+    @NotNull
+    public java.util.List<String> getErrorMessages() {
+        final Color currentErrorColor = DarkThemeManager.getInstance().getErrorMessageColor();
 
-        return false;
+        return Arrays.stream(errorMessageLabels)
+                .filter(errorLabel -> errorLabel.isVisible() && errorLabel.getForeground().equals(currentErrorColor))
+                .map(JLabel::getText)
+                .collect(Collectors.toList());
     }
 
     public int displayLayoutCurrentRow = 0;
