@@ -564,7 +564,7 @@ public class SparkSubmissionContentPanel extends JPanel{
 
     private void addReferencedJarsLineItem() {
         JLabel commandLineArgs = new JLabel("Referenced Jars(spark.jars)");
-        commandLineArgs.setToolTipText("Files to be placed on the java classpath; The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)");
+        commandLineArgs.setToolTipText("Files to be placed on the java classpath; The path needs to be an Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)");
 
         add(commandLineArgs,
                 new GridBagConstraints(0, ++displayLayoutCurrentRow,
@@ -574,7 +574,7 @@ public class SparkSubmissionContentPanel extends JPanel{
                         new Insets(margin, margin, 0, 0), 0, 0));
 
         referencedJarsTextField = new JTextField();
-        referencedJarsTextField.setToolTipText("Files to be placed on the java classpath; The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)");
+        referencedJarsTextField.setToolTipText("Files to be placed on the java classpath; The path needs to be an Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)");
         add(referencedJarsTextField,
                 new GridBagConstraints(1, displayLayoutCurrentRow,
                         0, 1,
@@ -585,7 +585,7 @@ public class SparkSubmissionContentPanel extends JPanel{
 
     private void addReferencedFilesLineItem() {
         JLabel commandLineArgs = new JLabel("Referenced Files(spark.files)");
-        commandLineArgs.setToolTipText("Files to be placed in executor working directory. The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ");
+        commandLineArgs.setToolTipText("Files to be placed in executor working directory. The path needs to be an Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ");
         add(commandLineArgs,
                 new GridBagConstraints(0, ++displayLayoutCurrentRow,
                         1, 1,
@@ -594,7 +594,7 @@ public class SparkSubmissionContentPanel extends JPanel{
                         new Insets(margin, margin, 0, 0), 0, 0));
 
         referencedFilesTextField = new JTextField();
-        referencedFilesTextField.setToolTipText("Files to be placed in executor working directory. The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ");
+        referencedFilesTextField.setToolTipText("Files to be placed in executor working directory. The path needs to be an Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ");
         add(referencedFilesTextField, new GridBagConstraints(1, displayLayoutCurrentRow,
                 0, 1,
                 1, 0,

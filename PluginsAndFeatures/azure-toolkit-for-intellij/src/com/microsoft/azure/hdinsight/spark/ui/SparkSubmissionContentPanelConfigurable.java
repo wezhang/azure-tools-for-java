@@ -27,22 +27,23 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiClass;
+import com.intellij.openapi.vfs.impl.jar.JarFileSystemImpl;
 import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.packaging.impl.elements.ManifestFileUtil;
+import com.intellij.psi.PsiClass;
 import com.intellij.ui.ListCellRendererWrapper;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.metadata.ClusterMetaDataService;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckResult;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
 import rx.Subscription;
@@ -50,7 +51,6 @@ import rx.schedulers.Schedulers;
 
 import javax.swing.*;
 import java.awt.event.ItemEvent;
-import java.util.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -205,6 +205,11 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             } else {
                 artifactModel.insertElementAt(artifacts.get(i), i); // Insert without select it
             }
+        }
+
+        // If no element selected, select the first one as default
+        if (StringUtils.isBlank(artifactName) && artifactModel.getSelectedItem() == null && artifactModel.getSize() > 0) {
+            artifactModel.setSelectedItem(artifactModel.getElementAt(0));
         }
     }
 
