@@ -28,11 +28,8 @@ import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.artifacts.ArtifactManager;
 import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.util.xmlb.XmlSerializer;
+import com.intellij.util.xmlb.annotations.*;
 import com.intellij.util.xmlb.annotations.AbstractCollection;
-import com.intellij.util.xmlb.annotations.Attribute;
-import com.intellij.util.xmlb.annotations.Property;
-import com.intellij.util.xmlb.annotations.Tag;
-import com.intellij.util.xmlb.annotations.Transient;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
@@ -181,40 +178,52 @@ public class SparkSubmitModel {
     }
 
     @Tag("cmd_line_args")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public List<String> getCommandLineArgs() {
         return getSubmissionParameter().getArgs();
     }
 
     @Tag("cmd_line_args")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public void setCommandLineArgs(List<String> cmdArgs) {
+        if (cmdArgs == getCommandLineArgs()) {
+            return;
+        }
+
         getSubmissionParameter().getArgs().clear();
         getSubmissionParameter().getArgs().addAll(cmdArgs);
     }
 
     @Tag("ref_jars")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public List<String> getReferenceJars() {
         return getSubmissionParameter().getReferencedJars();
     }
 
     @Tag("ref_jars")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public void setReferenceJars(List<String> refJars) {
+        if (refJars == getReferenceJars()) {
+            return;
+        }
+
         getSubmissionParameter().getReferencedJars().clear();
         getSubmissionParameter().getReferencedJars().addAll(refJars);
     }
 
     @Tag("ref_files")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public List<String> getReferenceFiles() {
         return getSubmissionParameter().getReferencedFiles();
     }
 
     @Tag("ref_files")
-    @AbstractCollection(surroundWithTag = false)
+    @XCollection(style = XCollection.Style.v2)
     public void setReferenceFiles(List<String> refFiles) {
+        if (refFiles == getReferenceFiles()) {
+            return;
+        }
+
         getSubmissionParameter().getReferencedFiles().clear();
         getSubmissionParameter().getReferencedFiles().addAll(refFiles);
     }

@@ -141,6 +141,10 @@ public class SparkLocalRunConfigurableModel implements CommonJavaRunConfiguratio
 
     @Override
     public void setEnvs(@NotNull Map<String, String> map) {
+        if (map == envs) {
+            return;
+        }
+
         envs.clear();
         envs.putAll(map);
     }
