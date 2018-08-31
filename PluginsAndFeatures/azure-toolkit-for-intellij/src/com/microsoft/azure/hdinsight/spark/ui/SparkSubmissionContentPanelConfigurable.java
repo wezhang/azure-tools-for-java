@@ -38,9 +38,8 @@ import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.metadata.ClusterMetaDataService;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckResult;
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
+import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
@@ -51,7 +50,6 @@ import rx.schedulers.Schedulers;
 
 import javax.swing.*;
 import java.awt.event.ItemEvent;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -95,7 +93,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     protected void createUIComponents() {
         // Customized UI creation
-        this.submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
+        this.submissionPanel.getJobConfigurationTable().setModel(new SubmissionTableModel());
         this.submissionPanel.getClustersListComboBox().getComboBox().setModel(submitModel.getClusterComboBoxModel());
         this.submissionPanel.getClustersListComboBox().getComboBox().setRenderer(new ListCellRendererWrapper<IClusterDetail>() {
             @Override
@@ -266,7 +264,8 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         submissionPanel.getReferencedFilesTextField().setText(String.join(";", data.getReferenceFiles()));
 
         // update job configuration table
-        getSubmitModel().getTableModel().loadJobConfigMap(data.getTableModel().getJobConfigMap());
+        getSubmitModel().setTableModel(data.getTableModel());
+        submissionPanel.getJobConfigurationTable().setModel(submitModel.getTableModel());
         refreshAndSelectArtifact(getSubmitModel().getArtifactComboBoxModel(), data.getArtifactName());
     }
 
@@ -314,7 +313,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         data.setReferenceJars(uploadedFilePathList);
         data.setCommandLineArgs(argsList);
 
-        data.getTableModel().loadJobConfigMap(getSubmitModel().getTableModel().getJobConfigMap());
+        data.setTableModel(new SubmissionTableModel(getSubmitModel().getTableModel().getJobConfigMap()));
     }
 
     public void validate() throws ConfigurationException {

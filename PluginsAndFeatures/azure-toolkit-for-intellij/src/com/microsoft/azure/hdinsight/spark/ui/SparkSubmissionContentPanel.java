@@ -136,12 +136,6 @@ public class SparkSubmissionContentPanel extends JPanel{
     }
 
     void updateTableColumn() {
-        TableColumn hidden = jobConfigurationTable.getColumnModel().getColumn(InteractiveTableModel.HIDDEN_INDEX);
-        hidden.setMinWidth(2);
-        hidden.setPreferredWidth(2);
-        hidden.setMaxWidth(2);
-        hidden.setCellRenderer(new InteractiveRenderer(InteractiveTableModel.HIDDEN_INDEX));
-
         TableColumn keyColumn = jobConfigurationTable.getColumnModel().getColumn(InteractiveTableModel.KEY_INDEX);
         keyColumn.setCellRenderer(new InteractiveRenderer(InteractiveTableModel.KEY_INDEX));
     }
@@ -487,7 +481,7 @@ public class SparkSubmissionContentPanel extends JPanel{
 
         String[] columns = {"Key", "Value", ""};
 
-        jobConfigurationTable = new JBTable();
+        jobConfigurationTable = new JBTable(new SubmissionTableModel());
         Dimension jobConfigurationTableSize = new Dimension(320, 100);
         jobConfigurationTable.setPreferredScrollableViewportSize(jobConfigurationTableSize);
 

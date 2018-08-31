@@ -54,7 +54,7 @@ class ServerlessSparkSubmissionPanelConfigurable(model: ServerlessSparkSubmitMod
             serverlessData.tenantId = cluster.subscription.tenantId
             serverlessData.accountName = cluster.account.name
             serverlessData.clusterId = cluster.guid
-            serverlessData.livyUri = cluster.livyUri.toString()
+            serverlessData.livyUri = cluster.livyUri?.toString() ?: ""
         }
 
         super.getData(data)

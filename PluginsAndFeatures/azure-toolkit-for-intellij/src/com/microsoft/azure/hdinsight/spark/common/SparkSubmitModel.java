@@ -26,32 +26,29 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
 import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.artifacts.ArtifactManager;
-import com.intellij.packaging.impl.artifacts.ArtifactUtil;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.*;
-import com.intellij.util.xmlb.annotations.AbstractCollection;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.utils.Pair;
 import org.jdom.Element;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
-import java.util.*;
-import java.util.function.IntFunction;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Tag(SparkSubmitModel.SUBMISSION_CONTENT_NAME)
 public class SparkSubmitModel {
-    private static final String[] columns = {"Key", "Value", ""};
-
     static final String SUBMISSION_CONTENT_NAME = "spark_submission";
     private static final String SUBMISSION_CONTENT_JOB_CONF = "job_conf";
 
     @Transient
     @NotNull
-    private Project project = DummyProject.getInstance();
+    final private Project project;
 
     @Transient
     @NotNull
@@ -59,7 +56,7 @@ public class SparkSubmitModel {
 
     @NotNull
     @Property(surroundWithTag = false)
-    private SparkSubmitAdvancedConfigModel advancedConfigModel = new SparkSubmitAdvancedConfigModel();
+    final private SparkSubmitAdvancedConfigModel advancedConfigModel;
 
     @Transient
     private DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel;
@@ -68,10 +65,11 @@ public class SparkSubmitModel {
     private DefaultComboBoxModel<Artifact> artifactComboBoxModel;
 
     @Transient
-    private SubmissionTableModel tableModel = new SubmissionTableModel(columns);
+    @NotNull
+    private SubmissionTableModel tableModel = new SubmissionTableModel();
 
     public SparkSubmitModel() {
-        this.submissionParameter = new SparkSubmissionParameter();
+        this(DummyProject.getInstance());
     }
 
     public SparkSubmitModel(@NotNull Project project) {
@@ -85,15 +83,12 @@ public class SparkSubmitModel {
         this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
         this.submissionParameter = submissionParameter;
 
-        initializeTableModel(tableModel);
+        setTableModel(new SubmissionTableModel(submissionParameter.flatJobConfig()));
     }
 
     @Transient
     @NotNull
     public SparkSubmissionParameter getSubmissionParameter() {
-        // Apply from table model
-        submissionParameter.applyFlattedJobConf(tableModel.getJobConfigMap());
-
         return submissionParameter;
     }
 
@@ -234,9 +229,20 @@ public class SparkSubmitModel {
         return project;
     }
 
+    @NotNull
     @Transient
     public SubmissionTableModel getTableModel() {
         return tableModel;
+    }
+
+    @Transient
+    public synchronized void setTableModel(@NotNull SubmissionTableModel tableModel) {
+        initializeTableModel(tableModel);
+
+        // Apply from table model
+        submissionParameter.applyFlattedJobConf(tableModel.getJobConfigMap());
+
+        this.tableModel = tableModel;
     }
 
     @Transient
@@ -249,27 +255,22 @@ public class SparkSubmitModel {
     }
 
     @NotNull
-    protected Pair<String, ? extends Object>[] getDefaultParameters() {
-        return Arrays.stream(SparkSubmissionParameter.defaultParameters)
-                .map(p -> new Pair<>(p.first(), p.second()))
-                .toArray((IntFunction<Pair<String, Object>[]>) Pair[]::new);
+    @Transient
+    protected Stream<Pair<String, ? extends Object>> getDefaultParameters() {
+        return Arrays.stream(SparkSubmissionParameter.defaultParameters);
     }
 
     private void initializeTableModel(final SubmissionTableModel tableModel) {
-        if (submissionParameter.getJobConfig().isEmpty()) {
-            for (int i = 0; i < getDefaultParameters().length; ++i) {
-                tableModel.addRow(getDefaultParameters()[i].first(), "");
-            }
-
-            if (!tableModel.hasEmptyRow()) {
-                tableModel.addEmptyRow();
-            }
-        } else {
-            tableModel.loadJobConfigMap(submissionParameter.flatJobConfig());
+        if (tableModel.getJobConfigMap().isEmpty()) {
+            tableModel.loadJobConfigMap(getDefaultParameters()
+                                            .map(kv -> new Pair<>(kv.first(), kv.second() == null ? "" : kv.second().toString()))
+                                            .collect(Collectors.toList()));
         }
 
         tableModel.addTableModelListener(e -> {
-            if (e.getType() == TableModelEvent.UPDATE && (e.getLastRow() + 1) == tableModel.getRowCount()) {
+            if (e.getType() == TableModelEvent.UPDATE &&
+                    (e.getLastRow() + 1) == getTableModel().getRowCount() &&
+                    (!getTableModel().hasEmptyRow())) {
                 tableModel.addEmptyRow();
             }
         });
@@ -280,9 +281,9 @@ public class SparkSubmitModel {
 
         // To keep back-compatible of XML serialization
         submitModelElement.addContent(new Element(SUBMISSION_CONTENT_JOB_CONF)
-                .setAttributes(this.tableModel.getJobConfigMap().entrySet().stream()
-                        .filter(entry -> entry.getKey() != null && !entry.getKey().trim().isEmpty())
-                        .map(entry -> new org.jdom.Attribute(entry.getKey(), entry.getValue()))
+                .setAttributes(this.tableModel.getJobConfigMap().stream()
+                        .filter(entry -> entry.first() != null && !entry.first().trim().isEmpty())
+                        .map(entry -> new org.jdom.Attribute(entry.first(), entry.second()))
                         .collect(Collectors.toList())));
 
         return submitModelElement;
@@ -294,11 +295,11 @@ public class SparkSubmitModel {
         // To keep back-compatible of XML serialization
         Element jobConfElem = rootElement.getChild(SUBMISSION_CONTENT_JOB_CONF);
         if (jobConfElem != null) {
-            Map<String, String> jobConf = jobConfElem.getAttributes().stream()
-                    .collect(Collectors.toMap(org.jdom.Attribute::getName, org.jdom.Attribute::getValue));
+            List<Pair<String, String>> jobConf = jobConfElem.getAttributes().stream()
+                    .map(attribute -> new Pair<>(attribute.getName(), attribute.getValue()))
+                    .collect(Collectors.toList());
 
-            getSubmissionParameter().applyFlattedJobConf(jobConf);
-            this.tableModel.loadJobConfigMap(getSubmissionParameter().flatJobConfig());
+            setTableModel(new SubmissionTableModel(jobConf));
         }
 
         return this;

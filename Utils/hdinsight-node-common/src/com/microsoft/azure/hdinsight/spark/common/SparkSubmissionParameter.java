@@ -279,35 +279,37 @@ public class SparkSubmissionParameter implements IConvertible {
             }
         }
 
+        Collections.sort(messageList);
+
         return messageList;
     }
 
     @NotNull
-    public Map<String, String> flatJobConfig() {
-        Map<String, String> flattedMap = new HashMap<>();
+    public List<Pair<String, String>> flatJobConfig() {
+        List<Pair<String, String>> flattedConfigs = new ArrayList<>();
 
         getJobConfig().forEach((key, value) -> {
             if (isSubmissionParameter(key)) {
-                flattedMap.put(key, value == null ? null : value.toString());
+                flattedConfigs.add(new Pair<>(key, value == null ? null : value.toString()));
             } else if (key.equals(Conf)) {
                 new SparkConfigures(value).forEach((scKey, scValue) ->
-                        flattedMap.put(scKey, scValue == null ? null : scValue.toString()));
+                        flattedConfigs.add(new Pair<>(scKey, scValue == null ? null : scValue.toString())));
             }
         });
 
-        return flattedMap;
+        return flattedConfigs;
     }
 
-    public void applyFlattedJobConf(Map<String, String> jobConfFlatted) {
+    public void applyFlattedJobConf(List<Pair<String, String>> jobConfFlatted) {
         jobConfig.clear();
 
         SparkConfigures sparkConfig = new SparkConfigures();
 
-        jobConfFlatted.forEach((key, value) -> {
-            if (isSubmissionParameter(key)) {
-                jobConfig.put(key, value);
+        jobConfFlatted.forEach(kvPair -> {
+            if (isSubmissionParameter(kvPair.first())) {
+                jobConfig.put(kvPair.first(), kvPair.second());
             } else {
-                sparkConfig.put(key, value);
+                sparkConfig.put(kvPair.first(), kvPair.second());
             }
         });
 

@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.spark.common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.azuretools.utils.Pair;
 import cucumber.api.java.en.And;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
@@ -51,8 +52,8 @@ public class SparkSubmissionParameterScenario {
 
     @Given("^apply spark configs$")
     public void applySparkConfigures(Map<String, String> config) throws Throwable {
-        Map<String, String> mergedJobConf = sparkSubmissionParameter.flatJobConfig();
-        mergedJobConf.putAll(config);
+        List<com.microsoft.azuretools.utils.Pair<String, String>> mergedJobConf = sparkSubmissionParameter.flatJobConfig();
+        config.forEach( (k, v) -> mergedJobConf.add(new Pair<>(k, v)));
         sparkSubmissionParameter.applyFlattedJobConf(mergedJobConf);
     }
 

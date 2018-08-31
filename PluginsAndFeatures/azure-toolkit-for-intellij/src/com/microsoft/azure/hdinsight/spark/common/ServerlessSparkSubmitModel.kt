@@ -25,6 +25,7 @@ package com.microsoft.azure.hdinsight.spark.common
 import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.annotations.Attribute
 import com.microsoft.azuretools.utils.Pair
+import java.util.stream.Stream
 
 class ServerlessSparkSubmitModel : SparkSubmitModel {
     @Attribute("tenant_id")
@@ -39,11 +40,11 @@ class ServerlessSparkSubmitModel : SparkSubmitModel {
     constructor() : super()
     constructor(project: Project) : super(project)
 
-    override fun getDefaultParameters(): Array<Pair<String, out Any>> {
-        return arrayOf(
+    override fun getDefaultParameters(): Stream<Pair<String, out Any>> {
+        return listOf(
                 Pair(SparkSubmissionParameter.DriverMemory, SparkSubmissionParameter.DriverMemoryDefaultValue),
                 Pair(SparkSubmissionParameter.DriverCores, SparkSubmissionParameter.DriverCoresDefaultValue),
                 Pair(SparkSubmissionParameter.ExecutorMemory, SparkSubmissionParameter.ExecutorMemoryDefaultValue),
-                Pair(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue))
+                Pair(SparkSubmissionParameter.ExecutorCores, SparkSubmissionParameter.ExecutorCoresDefaultValue)).stream()
     }
 }

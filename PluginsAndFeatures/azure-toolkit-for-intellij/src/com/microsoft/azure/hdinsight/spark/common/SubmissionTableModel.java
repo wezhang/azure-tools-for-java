@@ -25,6 +25,7 @@ import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel;
 import com.microsoft.azuretools.adauth.StringUtils;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
+import com.microsoft.azuretools.utils.Pair;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,13 +33,21 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 public class SubmissionTableModel extends InteractiveTableModel{
+    private static final String[] columns = {"Key", "Value"};
+
     private List<SparkSubmissionJobConfigCheckResult> checkResults;
 
-    public SubmissionTableModel(String[] columnNames) {
-        super(columnNames);
+    public SubmissionTableModel() {
+        super(columns);
+    }
+
+    public SubmissionTableModel(List<Pair<String, String>> flatJobConfig) {
+        this();
+
+        loadJobConfigMap(flatJobConfig);
     }
 
     @Nullable
@@ -66,27 +75,28 @@ public class SubmissionTableModel extends InteractiveTableModel{
     }
 
     @NotNull
-    public Map<String, String> getJobConfigMap() {
-        Map<String, String> jobConfigMap = new HashMap<>();
+    public List<Pair<String, String>> getJobConfigMap() {
+        List<Pair<String, String>> jobConfigs = new ArrayList<>();
 
         for (int index = 0; index < this.getRowCount(); index++) {
             String key = (String) this.getValueAt(index, 0);
             Object value = this.getValueAt(index, 1);
 
             if (!StringHelper.isNullOrWhiteSpace(key)) {
-                jobConfigMap.put(key, value == null ? null : value.toString());
+                jobConfigs.add(new Pair<>(key, value == null ? null : value.toString()));
             }
         }
 
-        return jobConfigMap;
+        return jobConfigs;
     }
 
-    public void loadJobConfigMap(Map<String, String> jobConf) {
+    public void loadJobConfigMap(List<Pair<String, String>> jobConf) {
+        // Not thread safe
         removeAllRows();
 
-        jobConf.forEach((key, value) -> {
-            if (key != null) {
-                super.addRow(key, value);
+        jobConf.forEach(kvPair -> {
+            if (kvPair.first() != null) {
+                super.addRow(kvPair.first(), kvPair.second());
             }
         });
 
@@ -137,22 +147,8 @@ public class SubmissionTableModel extends InteractiveTableModel{
     }
 
     private void checkParameter() {
-        final List<SparkSubmissionJobConfigCheckResult> resultList = SparkSubmissionParameter.checkJobConfigMap(getJobConfigMap());
-
-        Collections.sort(resultList, new Comparator<SparkSubmissionJobConfigCheckResult>() {
-            @Override
-            public int compare(SparkSubmissionJobConfigCheckResult o1, SparkSubmissionJobConfigCheckResult o2) {
-                if (o1.getStatus() == o2.getStatus()) {
-                    return 0;
-                } else if (o1.getStatus() == SparkSubmissionJobConfigCheckStatus.Warning && o2.getStatus() == SparkSubmissionJobConfigCheckStatus.Error) {
-                    return 1;
-                } else {
-                    return -1;
-                }
-            }
-        });
-
-        checkResults = resultList;
+        checkResults = SparkSubmissionParameter.checkJobConfigMap(
+                getJobConfigMap().stream().collect(Collectors.toMap(Pair::first, Pair::second)));
     }
 
 }

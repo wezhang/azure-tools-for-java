@@ -32,7 +32,7 @@ import java.util.*;
 import static org.junit.Assert.assertEquals;
 
 public class SubmissionTableModelScenario {
-    SubmissionTableModel tableModel = new SubmissionTableModel(new String[] {"Key", "Value", ""});
+    SubmissionTableModel tableModel = new SubmissionTableModel();
 
     @Given("^create the SparkSubmissionTable with the following config$")
     public void createSparkSubmissionTable(Map<String, Object> tableConfig) {
