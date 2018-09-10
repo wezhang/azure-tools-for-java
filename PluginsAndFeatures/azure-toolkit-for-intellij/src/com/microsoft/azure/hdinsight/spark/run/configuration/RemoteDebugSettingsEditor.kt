@@ -30,6 +30,8 @@ package com.microsoft.azure.hdinsight.spark.run.configuration
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.SettingsEditor
 import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionDebuggableContentPanel
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionDebuggablePanelConfigurable
 
 import javax.swing.*
 
@@ -48,6 +50,9 @@ class RemoteDebugSettingsEditor(val jobConfigurable: SparkBatchJobConfigurable) 
     }
 
     override fun createEditor(): JComponent {
+        (jobConfigurable.clusterSubmissionConfigurable as? SparkSubmissionDebuggablePanelConfigurable)
+                ?.advancedConfigPanel?.apply { installWatcher(this@apply) }
+
         return jobConfigurable.component
     }
 }

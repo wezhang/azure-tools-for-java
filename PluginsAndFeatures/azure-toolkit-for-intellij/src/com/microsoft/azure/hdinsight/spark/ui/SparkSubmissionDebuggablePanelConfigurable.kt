@@ -32,6 +32,8 @@ class SparkSubmissionDebuggablePanelConfigurable(model: SparkSubmitModel,
     private val submissionDebuggablePanel
         get() = submissionPanel as SparkSubmissionDebuggableContentPanel
 
+    val advancedConfigPanel = submissionDebuggablePanel.advancedConfigDialog.rootPane
+
     override fun createUIComponents() {
         super.createUIComponents()
 
