@@ -41,7 +41,7 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
 
     val advancedConfigPanel: JRootPane = submissionDebuggablePanel.advancedConfigDialog.rootPane
 
-    private var clusterNameOfSshCert: String? = null
+    val clusterAdvModels: MutableMap<String, SparkSubmitAdvancedConfigModel> = mutableMapOf()
 
     override fun createUIComponents() {
         super.createUIComponents()
@@ -50,19 +50,30 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
         this.submissionDebuggablePanel.addAdvancedConfigurationButtonActionListener(ActionListener {
             // Read the current panel setting into current model
 
+            advConfDialog.setData(clusterAdvModels[selectedClusterDetail.name] ?: SparkSubmitAdvancedConfigModel())
             advConfDialog.setAuthenticationAutoVerify(selectedClusterDetail?.name)
             advConfDialog.isModal = true
+            advConfDialog.setCallbackOnOk {
+                val advModel = SparkSubmitAdvancedConfigModel()
+
+                // Get current advanced config model
+                advConfDialog.getData(advModel)
+                advModel.clusterName = selectedClusterDetail?.name
+
+                // Save the advanced config for the specified cluster
+                if (selectedClusterDetail?.name?.isNotBlank() == true) {
+                    clusterAdvModels[selectedClusterDetail.name] = advModel
+                }
+
+                // After the dialog closed, save password into secure store
+                if (advModel.enableRemoteDebug &&
+                        advModel.sshAuthType == SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword) {
+                    ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
+                            advModel.credentialStoreAccount, advModel.sshUserName, advModel.sshPassword)
+                }
+            }
             advConfDialog.isVisible = true
         })
-
-        submissionPanel.clustersListComboBox.comboBox.addItemListener {
-            if (it.stateChange == SELECTED) {
-//                (it.item as? IClusterDetail)?.run {   // Auto disable the remote debug after switch out the cluster
-//                    advConfDialog.isRemoteDebugEnabled = (name != null && name == clusterNameOfSshCert)
-//                }
-                advConfDialog.isRemoteDebugEnabled = false
-            }
-        }
     }
 
     override fun setData(data: SparkSubmitModel) {
@@ -71,27 +82,9 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
 
         if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
             // Advanced Configuration Dialog
-            submissionDebuggablePanel.advancedConfigDialog.run {
-                // Keep the advanced config model cluster sync with Submit model
+            if (data.clusterName?.isNotBlank() == true) {
                 data.advancedConfigModel.clusterName = data.clusterName
-
-                setData(data.advancedConfigModel)
-                setCallbackOnOk {
-                    val advModel = SparkSubmitAdvancedConfigModel()
-
-                    // Get current advanced config model
-                    getData(advModel)
-                    advModel.clusterName = data.clusterName
-
-                    // After the dialog closed, save password into secure store
-                    if (advModel.enableRemoteDebug &&
-                            advModel.sshAuthType == SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword) {
-                        advModel.clusterName = selectedClusterDetail.name
-
-                        ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
-                                advModel.credentialStoreAccount, advModel.sshUserName, advModel.sshPassword)
-                    }
-                }
+                clusterAdvModels[data.clusterName] = data.advancedConfigModel
             }
         }
     }
@@ -103,13 +96,14 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
         // Read Advanced configure after it's closed
         if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
             // Advanced Configuration Dialog
-            submissionDebuggablePanel.advancedConfigDialog.getData(data.advancedConfigModel)
-
-            // SSH cert for the selected cluster
-            data.advancedConfigModel.clusterName = selectedClusterDetail?.name
-
-            if (data.advancedConfigModel.enableRemoteDebug) {
-                clusterNameOfSshCert = selectedClusterDetail?.name
+            data.advancedConfigModel.apply {
+                clusterName = selectedClusterDetail?.name
+                clusterAdvModels[clusterName]?.also {
+                    enableRemoteDebug = it.enableRemoteDebug
+                    sshUserName = it.sshUserName
+                    sshAuthType = it.sshAuthType
+                    sshPrivateKeyPath = it.sshPrivateKeyPath
+                }
             }
         }
     }
