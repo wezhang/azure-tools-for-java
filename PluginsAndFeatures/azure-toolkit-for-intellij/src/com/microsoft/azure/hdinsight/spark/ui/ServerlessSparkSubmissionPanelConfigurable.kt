@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.spark.ui
 
 import com.google.common.collect.ImmutableSortedSet
+import com.intellij.openapi.project.Project
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster
@@ -31,8 +32,8 @@ import com.microsoft.azure.hdinsight.spark.common.ServerlessSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import rx.Observable
 
-class ServerlessSparkSubmissionPanelConfigurable(model: ServerlessSparkSubmitModel, submissionPanel: SparkSubmissionContentPanel)
-    : SparkSubmissionContentPanelConfigurable(model, submissionPanel), ILogger {
+class ServerlessSparkSubmissionPanelConfigurable(project: Project, submissionPanel: SparkSubmissionContentPanel)
+    : SparkSubmissionContentPanelConfigurable(project, submissionPanel), ILogger {
     override fun getType(): String = "Azure Data Lake Spark Pool"
 
     override fun getClusterDetails(): ImmutableSortedSet<out IClusterDetail> {
@@ -46,9 +47,7 @@ class ServerlessSparkSubmissionPanelConfigurable(model: ServerlessSparkSubmitMod
     override fun getData(data: SparkSubmitModel?) {
         // Component -> Data
         val serverlessData = data as ServerlessSparkSubmitModel
-        val cluster = submitModel.selectedClusterDetail
-                        .map { it as AzureSparkServerlessCluster }
-                        .orElse(null)
+        val cluster = selectedClusterDetail as? AzureSparkServerlessCluster
 
         if (cluster != null) {
             serverlessData.tenantId = cluster.subscription.tenantId

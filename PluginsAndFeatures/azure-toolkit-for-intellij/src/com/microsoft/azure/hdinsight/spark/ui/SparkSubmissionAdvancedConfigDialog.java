@@ -40,8 +40,13 @@ import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchDebugSession;
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.securestore.SecureStore;
+import com.microsoft.azuretools.service.ServiceManager;
 import com.microsoft.azuretools.utils.Pair;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import rx.Subscription;
 import rx.subjects.PublishSubject;
@@ -53,6 +58,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -124,6 +130,10 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
     }
 
     private SparkSubmitAdvancedConfigModel initialModel;
+
+    @Nullable
+    private SecureStore secureStore = ServiceManager.getServiceProvider(SecureStore.class);
+
     private String helpUrl;
     private Boolean doesAuthAutoVerify = false;
 
@@ -276,9 +286,11 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
 
     private void loadParameters(SparkSubmitAdvancedConfigModel newAdvConfigModel) {
         if (newAdvConfigModel != null) {
-            if (newAdvConfigModel.getSshPassword() != null && newAdvConfigModel.getSshPassword().length() > 0) {
-                sshPasswordUsePasswordField.setText(newAdvConfigModel.getSshPassword());
-            }
+            String password = secureStore != null ?
+                    secureStore.loadPassword(newAdvConfigModel.getCredentialStoreAccount(), newAdvConfigModel.getSshUserName()) :
+                    newAdvConfigModel.getSshPassword();
+
+            sshPasswordUsePasswordField.setText(password == null ? "" : password);
 
             if (newAdvConfigModel.getSshKeyFile() != null && newAdvConfigModel.getSshKeyFile().exists()) {
                 sshPasswordUseKeyFileTextField.setText(newAdvConfigModel.getSshKeyFile().getAbsolutePath());
@@ -406,7 +418,7 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
             })
             .subscribe(pair -> {
                 SparkSubmitAdvancedConfigModel probedAdvModel = pair.first();
-                Boolean isPass = pair.second().equals("passed");
+                boolean isPass = pair.second().equals("passed");
 
                 if (enableRemoteDebugCheckBox.isSelected() &&
                         ((probedAdvModel.getSshAuthType() == UsePassword &&
@@ -449,7 +461,15 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
         sshCheckSubject.onNext(message);
     }
 
-    public void addCallbackOnOk(CallBack cb) {
+    public boolean isRemoteDebugEnabled() {
+        return enableRemoteDebugCheckBox.isSelected();
+    }
+
+    public void setRemoteDebugEnabled(boolean isEnabled) {
+        enableRemoteDebugCheckBox.setSelected(isEnabled);
+    }
+
+    public void setCallbackOnOk(CallBack cb) {
         this.updateCallBack = cb;
     }
 
@@ -502,7 +522,7 @@ public class SparkSubmissionAdvancedConfigDialog extends JDialog
         data.enableRemoteDebug = enableRemoteDebugCheckBox.isSelected();
     }
 
-    public void setAuthenticationAutoVerify(String clusterName) {
+    public void setAuthenticationAutoVerify(@Nullable String clusterName) {
         if (clusterName != null) {
             this.doesAuthAutoVerify = true;
             this.sshCheckSubscription = registerAsyncSshAuthCheck(sshCheckSubject, clusterName);

@@ -21,13 +21,10 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
-import com.intellij.credentialStore.CredentialAttributes;
-import com.intellij.ide.passwordSafe.PasswordSafe;
 import com.intellij.util.xmlb.annotations.Attribute;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.net.URI;
@@ -59,7 +56,7 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
         return new URI("ssh", getSshUserName(), getClusterName(), 22, "/", null, null);
     }
 
-    @Attribute("store_account")
+    @Transient
     public String getCredentialStoreAccount() {
         try {
             return SERVICE_NAME_PREFIX + getServiceURI().toString();
@@ -67,14 +64,6 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
             throw new RuntimeException(
                     String.format("Wrong arguments: cluster(%s), user(%s)", getClusterName(), getSshUserName()), e);
         }
-    }
-
-    @Attribute("store_account")
-    public void setCredentialStoreAccount(String storeAccount) {
-        try {
-            super.setSshPassword(PasswordSafe.getInstance().getPassword(new CredentialAttributes(
-                    getCredentialStoreAccount(), getSshUserName())));
-        } catch (Throwable ignored) { }
     }
 
     @Attribute("user")
@@ -108,11 +97,6 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     @Transient
     public void setSshPassword(@Nullable String password) {
         super.setSshPassword(password);
-
-        if (StringUtils.isNotBlank(getSshPassword()) && StringUtils.isNotBlank(clusterName)) {
-            PasswordSafe.getInstance().setPassword(
-                    new CredentialAttributes(getCredentialStoreAccount(), getSshUserName()), getSshPassword());
-        }
     }
 
     @Transient

@@ -38,7 +38,7 @@ class SparkSubmissionDebuggableContentPanel : SparkSubmissionContentPanel() {
     }
 
     private fun addAdvancedConfigLineItem() {
-        advancedConfigButton.isEnabled = false
+        advancedConfigButton.isEnabled = true
         advancedConfigButton.toolTipText = "Specify advanced configuration, for example, enabling Spark remote debug"
 
         clusterSelectedSubject

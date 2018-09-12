@@ -22,48 +22,95 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.openapi.project.Project
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
+import com.microsoft.azuretools.securestore.SecureStore
+import com.microsoft.azuretools.service.ServiceManager
 import java.awt.event.ActionListener
+import java.awt.event.ItemEvent.SELECTED
+import javax.swing.JRootPane
 
-class SparkSubmissionDebuggablePanelConfigurable(model: SparkSubmitModel,
+class SparkSubmissionDebuggablePanelConfigurable(project: Project,
                                                  submissionPanel: SparkSubmissionDebuggableContentPanel)
-    : SparkSubmissionContentPanelConfigurable(model, submissionPanel) {
+    : SparkSubmissionContentPanelConfigurable(project, submissionPanel) {
     private val submissionDebuggablePanel
         get() = submissionPanel as SparkSubmissionDebuggableContentPanel
 
-    val advancedConfigPanel = submissionDebuggablePanel.advancedConfigDialog.rootPane
+    val advancedConfigPanel: JRootPane = submissionDebuggablePanel.advancedConfigDialog.rootPane
+
+    private var clusterNameOfSshCert: String? = null
 
     override fun createUIComponents() {
         super.createUIComponents()
 
         val advConfDialog = this.submissionDebuggablePanel.advancedConfigDialog
-        advConfDialog.addCallbackOnOk {
-            advConfDialog.getData(submitModel.advancedConfigModel)
-        }
-
         this.submissionDebuggablePanel.addAdvancedConfigurationButtonActionListener(ActionListener {
             // Read the current panel setting into current model
 
-            advConfDialog.setAuthenticationAutoVerify(submitModel.selectedClusterDetail
-                    .map(IClusterDetail::getName)
-                    .orElse(null))
+            advConfDialog.setAuthenticationAutoVerify(selectedClusterDetail?.name)
             advConfDialog.isModal = true
             advConfDialog.isVisible = true
         })
+
+        submissionPanel.clustersListComboBox.comboBox.addItemListener {
+            if (it.stateChange == SELECTED) {
+//                (it.item as? IClusterDetail)?.run {   // Auto disable the remote debug after switch out the cluster
+//                    advConfDialog.isRemoteDebugEnabled = (name != null && name == clusterNameOfSshCert)
+//                }
+                advConfDialog.isRemoteDebugEnabled = false
+            }
+        }
     }
 
     override fun setData(data: SparkSubmitModel) {
+        // Data -> Components
         super.setData(data)
 
-        // Advanced Configuration Dialog
-        submissionDebuggablePanel.advancedConfigDialog.setData(data.advancedConfigModel)
+        if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
+            // Advanced Configuration Dialog
+            submissionDebuggablePanel.advancedConfigDialog.run {
+                // Keep the advanced config model cluster sync with Submit model
+                data.advancedConfigModel.clusterName = data.clusterName
+
+                setData(data.advancedConfigModel)
+                setCallbackOnOk {
+                    val advModel = SparkSubmitAdvancedConfigModel()
+
+                    // Get current advanced config model
+                    getData(advModel)
+                    advModel.clusterName = data.clusterName
+
+                    // After the dialog closed, save password into secure store
+                    if (advModel.enableRemoteDebug &&
+                            advModel.sshAuthType == SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword) {
+                        advModel.clusterName = selectedClusterDetail.name
+
+                        ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
+                                advModel.credentialStoreAccount, advModel.sshUserName, advModel.sshPassword)
+                    }
+                }
+            }
+        }
     }
 
     override fun getData(data: SparkSubmitModel) {
+        // Components -> Data
         super.getData(data)
 
-        // Advanced Configuration Dialog
-        submissionDebuggablePanel.advancedConfigDialog.getData(data.advancedConfigModel)
+        // Read Advanced configure after it's closed
+        if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
+            // Advanced Configuration Dialog
+            submissionDebuggablePanel.advancedConfigDialog.getData(data.advancedConfigModel)
+
+            // SSH cert for the selected cluster
+            data.advancedConfigModel.clusterName = selectedClusterDetail?.name
+
+            if (data.advancedConfigModel.enableRemoteDebug) {
+                clusterNameOfSshCert = selectedClusterDetail?.name
+            }
+        }
     }
 }

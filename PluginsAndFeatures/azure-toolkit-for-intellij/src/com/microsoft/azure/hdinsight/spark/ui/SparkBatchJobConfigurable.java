@@ -51,7 +51,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
     protected void createUIComponents() {
         myLocalRunConfigurable = new SparkLocalRunConfigurable(myProject);
         myClusterSubmissionConfigurable = new SparkSubmissionDebuggablePanelConfigurable(
-                new SparkSubmitModel(myProject), new SparkSubmissionDebuggableContentPanel());
+                myProject, new SparkSubmissionDebuggableContentPanel());
     }
 
     @Override

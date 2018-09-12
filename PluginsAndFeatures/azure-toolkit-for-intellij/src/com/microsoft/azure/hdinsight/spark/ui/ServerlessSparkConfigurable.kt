@@ -29,6 +29,6 @@ class ServerlessSparkConfigurable(project: Project) : SparkBatchJobConfigurable(
     override fun createUIComponents() {
         localRunConfigurable = SparkLocalRunConfigurable(project)
         clusterSubmissionConfigurable = ServerlessSparkSubmissionPanelConfigurable(
-                ServerlessSparkSubmitModel(project), ServerlessSparkSubmissionContentPanel())
+                project, ServerlessSparkSubmissionContentPanel())
     }
 }
