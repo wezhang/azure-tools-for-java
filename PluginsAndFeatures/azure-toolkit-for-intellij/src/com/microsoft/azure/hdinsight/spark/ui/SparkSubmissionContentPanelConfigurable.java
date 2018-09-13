@@ -22,11 +22,9 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.google.common.collect.ImmutableSortedSet;
-import com.intellij.openapi.fileChooser.FileChooser;
-import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.execution.configurations.RuntimeConfigurationError;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.impl.jar.JarFileSystemImpl;
 import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.impl.artifacts.ArtifactUtil;
@@ -56,7 +54,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 
 /**
  * Spark Batch Application Submission UI control class
@@ -311,6 +308,12 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     public void validate() throws ConfigurationException {
         // FIXME!!! Need to re-design submission panel
+        SubmissionTableModel confTableModel = ((SubmissionTableModel)getSubmissionPanel().getJobConfigurationTable().getModel());
+        for (Pair<String, String> confEntry : confTableModel.getJobConfigMap()) {
+            if (StringUtils.isNotBlank(confEntry.first()) && StringUtils.containsWhitespace(confEntry.first())) {
+                throw new RuntimeConfigurationError("The Spark config key with whitespace is not allowed: (" + confEntry.first() + ")");
+            }
+        }
 
         List<String> errors = submissionPanel.getErrorMessages();
         if (!errors.isEmpty()) {

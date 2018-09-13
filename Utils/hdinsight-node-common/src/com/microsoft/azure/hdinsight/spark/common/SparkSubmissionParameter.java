@@ -27,12 +27,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.utils.Pair;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SparkSubmissionParameter implements IConvertible {
@@ -250,11 +249,18 @@ public class SparkSubmissionParameter implements IConvertible {
         List<SparkSubmissionJobConfigCheckResult> messageList = new ArrayList<>();
         for (Map.Entry<String, String> entry : jobConfigMap.entrySet()) {
             String entryKey = entry.getKey();
-            if (StringHelper.isNullOrWhiteSpace(entryKey)) {
+            if (StringUtils.isBlank(entryKey)) {
                 continue;
             }
 
-            if (StringHelper.isNullOrWhiteSpace(entry.getValue())) {
+            if (StringUtils.containsWhitespace(entryKey)) {
+                messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Error,
+                        "Error : The Spark config key with whitespace is not allowed"));
+
+                continue;
+            }
+
+            if (StringUtils.isBlank(entry.getValue())) {
                 messageList.add(new SparkSubmissionJobConfigCheckResult(SparkSubmissionJobConfigCheckStatus.Warning,
                         "Warning : Empty value(s) will be override by default value(s) of system"));
 

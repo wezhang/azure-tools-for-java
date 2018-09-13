@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.common;
 import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.InvalidDataException;
+import com.intellij.openapi.util.WriteExternalException;
 import com.intellij.packaging.artifacts.Artifact;
 import com.intellij.packaging.artifacts.ArtifactManager;
 import com.intellij.util.xmlb.XmlSerializer;
@@ -31,6 +32,7 @@ import com.intellij.util.xmlb.annotations.*;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.utils.Pair;
+import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
 
 import javax.swing.*;
@@ -94,12 +96,6 @@ public class SparkSubmitModel {
 
     @NotNull
     public SparkSubmitAdvancedConfigModel getAdvancedConfigModel() { return advancedConfigModel; }
-
-    @Transient
-    public Optional<IClusterDetail> getSelectedClusterDetail() {
-        return Optional.ofNullable(getClusterComboBoxModel().getSelectedItem())
-                .map(IClusterDetail.class::cast);
-    }
 
     @Transient
     @NotNull
@@ -276,17 +272,23 @@ public class SparkSubmitModel {
         });
     }
 
-    public Element exportToElement() {
-        Element submitModelElement = XmlSerializer.serialize(this);
+    public Element exportToElement() throws WriteExternalException {
+        try {
+            Element submitModelElement = XmlSerializer.serialize(this);
 
-        // To keep back-compatible of XML serialization
-        submitModelElement.addContent(new Element(SUBMISSION_CONTENT_JOB_CONF)
-                .setAttributes(this.tableModel.getJobConfigMap().stream()
-                        .filter(entry -> entry.first() != null && !entry.first().trim().isEmpty())
-                        .map(entry -> new org.jdom.Attribute(entry.first(), entry.second()))
-                        .collect(Collectors.toList())));
+            // To keep back-compatible of XML serialization
+            submitModelElement.addContent(new Element(SUBMISSION_CONTENT_JOB_CONF)
+                    .setAttributes(this.tableModel.getJobConfigMap().stream()
+                            .filter(entry -> entry.first() != null &&
+                                    !entry.first().trim().isEmpty() &&
+                                    !StringUtils.containsWhitespace(entry.first()))
+                            .map(entry -> new org.jdom.Attribute(entry.first(), entry.second()))
+                            .collect(Collectors.toList())));
 
-        return submitModelElement;
+            return submitModelElement;
+        } catch (Exception ex) {
+            throw new WriteExternalException("Can't export Spark submit model to XML element", ex);
+        }
     }
 
     public SparkSubmitModel applyFromElement(@NotNull Element rootElement) throws InvalidDataException{

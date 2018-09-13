@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.spark.common;
 
 import com.intellij.openapi.command.impl.DummyProject;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.WriteExternalException;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
@@ -80,7 +81,7 @@ public class SparkBatchJobConfigurableModel {
         this.submitModel = submitModel;
     }
 
-    public Element exportToElement() {
+    public Element exportToElement() throws WriteExternalException {
         Element jobConfElement = XmlSerializer.serialize(this);
 
         jobConfElement.addContent(getSubmitModel().exportToElement());
