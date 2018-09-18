@@ -206,10 +206,6 @@ public class SparkSubmissionContentPanel extends JPanel{
     private void addSparkClustersLineItem() {
         JLabel sparkClusterLabel = new JLabel("Spark clusters(Linux only)");
         sparkClusterLabel.setToolTipText("The HDInsight Spark cluster you want to submit your application to. Only Linux cluster is supported.");
-        GridBagConstraints c11 = new GridBagConstraints();
-        c11.gridx = 0;
-        c11.gridy = 0;
-        c11.insets = new Insets(margin, margin, 0, margin);
         add(sparkClusterLabel,
                 new GridBagConstraints(0, displayLayoutCurrentRow,
                         1, 1,

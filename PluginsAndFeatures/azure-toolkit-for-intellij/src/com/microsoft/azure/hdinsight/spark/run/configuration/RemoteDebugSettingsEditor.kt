@@ -50,9 +50,6 @@ class RemoteDebugSettingsEditor(val jobConfigurable: SparkBatchJobConfigurable) 
     }
 
     override fun createEditor(): JComponent {
-        (jobConfigurable.clusterSubmissionConfigurable as? SparkSubmissionDebuggablePanelConfigurable)
-                ?.advancedConfigPanel?.apply { installWatcher(this@apply) }
-
         return jobConfigurable.component
     }
 }

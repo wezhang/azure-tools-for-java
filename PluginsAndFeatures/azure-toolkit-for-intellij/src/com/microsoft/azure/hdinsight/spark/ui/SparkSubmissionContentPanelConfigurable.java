@@ -125,7 +125,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 case ItemEvent.SELECTED:
                     if (e.getItem() != null) {
                         IClusterDetail cluster = (IClusterDetail) e.getItem();
-                        getSubmissionPanel().getClusterSelectedSubject().onNext(cluster.getName());
+                        onClusterSelected(cluster);
                     }
                     break;
                 default:
@@ -151,6 +151,10 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     @NotNull
     private DefaultComboBoxModel<IClusterDetail> getClusterComboBoxModel() {
         return (DefaultComboBoxModel<IClusterDetail>) (submissionPanel.getClustersListComboBox().getComboBox().getModel());
+    }
+
+    protected void onClusterSelected(@NotNull IClusterDetail cluster) {
+        getSubmissionPanel().getClusterSelectedSubject().onNext(cluster.getName());
     }
 
     private synchronized void refreshClusterListAsync(@Nullable String preSelectedClusterName) {
@@ -179,7 +183,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 () -> clustersRefreshSub = null);
     }
 
-    private void refreshAndSelectArtifact(final @Nullable String artifactName) {
+    private synchronized void refreshAndSelectArtifact(final @Nullable String artifactName) {
         DefaultComboBoxModel<Artifact> artifactModel = (DefaultComboBoxModel<Artifact>) submissionPanel.getSelectedArtifactComboBox().getModel();
 
         final List<Artifact> artifacts = ArtifactUtil.getArtifactWithOutputPaths(myProject);

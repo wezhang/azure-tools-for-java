@@ -22,16 +22,13 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.openapi.project.Project
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword
+import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UseKeyFile
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
-import com.microsoft.azuretools.securestore.SecureStore
-import com.microsoft.azuretools.service.ServiceManager
-import java.awt.event.ActionListener
-import java.awt.event.ItemEvent.SELECTED
-import javax.swing.JRootPane
+import org.apache.commons.lang3.StringUtils
 
 class SparkSubmissionDebuggablePanelConfigurable(project: Project,
                                                  submissionPanel: SparkSubmissionDebuggableContentPanel)
@@ -39,70 +36,53 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
     private val submissionDebuggablePanel
         get() = submissionPanel as SparkSubmissionDebuggableContentPanel
 
-    val advancedConfigPanel: JRootPane = submissionDebuggablePanel.advancedConfigDialog.rootPane
+    private val advancedConfigPanel
+        get() = submissionDebuggablePanel.advancedConfigPanel
 
-    val clusterAdvModels: MutableMap<String, SparkSubmitAdvancedConfigModel> = mutableMapOf()
+    private val advancedConfigCtrl = object : SparkSubmissionAdvancedConfigCtrl(advancedConfigPanel) {
+        override fun getClusterNameToCheck(): String? = selectedClusterDetail?.name
+    }
 
-    override fun createUIComponents() {
-        super.createUIComponents()
 
-        val advConfDialog = this.submissionDebuggablePanel.advancedConfigDialog
-        this.submissionDebuggablePanel.addAdvancedConfigurationButtonActionListener(ActionListener {
-            // Read the current panel setting into current model
+    override fun onClusterSelected(cluster: IClusterDetail) {
+        super.onClusterSelected(cluster)
 
-            advConfDialog.setData(clusterAdvModels[selectedClusterDetail.name] ?: SparkSubmitAdvancedConfigModel())
-            advConfDialog.setAuthenticationAutoVerify(selectedClusterDetail?.name)
-            advConfDialog.isModal = true
-            advConfDialog.setCallbackOnOk {
-                val advModel = SparkSubmitAdvancedConfigModel()
-
-                // Get current advanced config model
-                advConfDialog.getData(advModel)
-                advModel.clusterName = selectedClusterDetail?.name
-
-                // Save the advanced config for the specified cluster
-                if (selectedClusterDetail?.name?.isNotBlank() == true) {
-                    clusterAdvModels[selectedClusterDetail.name] = advModel
-                }
-
-                // After the dialog closed, save password into secure store
-                if (advModel.enableRemoteDebug &&
-                        advModel.sshAuthType == SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword) {
-                    ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
-                            advModel.credentialStoreAccount, advModel.sshUserName, advModel.sshPassword)
-                }
-            }
-            advConfDialog.isVisible = true
-        })
+        advancedConfigCtrl.selectCluster(cluster.name)
     }
 
     override fun setData(data: SparkSubmitModel) {
         // Data -> Components
         super.setData(data)
 
-        if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
-            // Advanced Configuration Dialog
-            if (data.clusterName?.isNotBlank() == true) {
-                data.advancedConfigModel.clusterName = data.clusterName
-                clusterAdvModels[data.clusterName] = data.advancedConfigModel
-            }
-        }
+        // Advanced Configuration panel
+        advancedConfigPanel.setData(data.advancedConfigModel.apply { clusterName = data.clusterName })
     }
 
     override fun getData(data: SparkSubmitModel) {
         // Components -> Data
         super.getData(data)
 
-        // Read Advanced configure after it's closed
-        if (!submissionDebuggablePanel.advancedConfigDialog.isVisible) {
-            // Advanced Configuration Dialog
-            data.advancedConfigModel.apply {
-                clusterName = selectedClusterDetail?.name
-                clusterAdvModels[clusterName]?.also {
-                    enableRemoteDebug = it.enableRemoteDebug
-                    sshUserName = it.sshUserName
-                    sshAuthType = it.sshAuthType
-                    sshPrivateKeyPath = it.sshPrivateKeyPath
+        // Advanced Configuration panel
+        advancedConfigPanel.getData(data.advancedConfigModel)
+        data.advancedConfigModel.clusterName = selectedClusterDetail?.name
+    }
+
+    override fun validate() {
+        super.validate()
+
+        if (advancedConfigPanel.isRemoteDebugEnabled) {
+            if (advancedConfigCtrl.resultMessage.isNotBlank() &&
+                !advancedConfigCtrl.isCheckPassed) {
+                throw RuntimeConfigurationError("Can't save the configuration since ${advancedConfigCtrl.resultMessage}")
+            }
+
+            val advModel = advancedConfigPanel.model
+            when (advModel.sshAuthType) {
+                UsePassword -> if (StringUtils.isBlank(advModel.sshPassword)) {
+                    throw RuntimeConfigurationError("Can't save the configuration since password is blank")
+                }
+                UseKeyFile -> if (advModel.sshKeyFile?.exists() != true) {
+                    throw RuntimeConfigurationError("Can't save the configuration since SSh key file isn't set or doesn't exist")
                 }
             }
         }

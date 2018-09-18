@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.common;
 import com.intellij.util.xmlb.annotations.Attribute;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
+import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
 import java.io.File;
@@ -36,6 +37,13 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     @Transient
     @Nullable
     private String clusterName;
+
+    @Transient
+    private boolean isChecking = false;
+
+    @Transient
+    @NotNull
+    private String checkingMessage = "";
 
     @Attribute("remote_debug_enabled")
     public boolean enableRemoteDebug = false;
@@ -103,5 +111,26 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     @Nullable
     public String getSshPassword() {
         return super.getSshPassword();
+    }
+
+    @Transient
+    public boolean isChecking() {
+        return isChecking;
+    }
+
+    @Transient
+    public void setChecking(boolean checking) {
+        isChecking = checking;
+    }
+
+    @Transient
+    @NotNull
+    public String getCheckingMessage() {
+        return checkingMessage;
+    }
+
+    @Transient
+    public void setCheckingMessage(@NotNull String checkingMessage) {
+        this.checkingMessage = checkingMessage;
     }
 }
