@@ -22,7 +22,6 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.google.common.collect.ImmutableSortedSet;
-import com.intellij.execution.configurations.RuntimeConfigurationError;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.impl.jar.JarFileSystemImpl;
@@ -40,7 +39,6 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import com.microsoft.azuretools.utils.Pair;
 import com.microsoft.intellij.helpers.ManifestFileUtilsEx;
 import org.apache.commons.lang3.StringUtils;
 import rx.Observable;
@@ -106,7 +104,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                     PsiClass selected = submissionPanel.getLocalArtifactRadioButton().isSelected() ?
                             new ManifestFileUtilsEx(myProject).selectMainClass(
                                     new JarFileSystemImpl().findFileByPath(
-                                            submissionPanel.getSelectedArtifactTextField().getText() + "!/")) :
+                                            submissionPanel.getLocalArtifactTextField().getText() + "!/")) :
                             ManifestFileUtil.selectMainClass(myProject, submissionPanel.getMainClassTextField().getText());
                     if (selected != null) {
                         submissionPanel.getMainClassTextField().setText(selected.getQualifiedName());
@@ -245,7 +243,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             submissionPanel.getLocalArtifactRadioButton().setSelected(true);
         }
 
-        submissionPanel.getSelectedArtifactTextField().setText(data.getLocalArtifactPath());
+        submissionPanel.getLocalArtifactTextField().setText(data.getLocalArtifactPath());
         submissionPanel.getMainClassTextField().setText(data.getMainClassName());
         submissionPanel.getCommandLineTextField().setText(String.join(" ", data.getCommandLineArgs()));
         submissionPanel.getReferencedJarsTextField().setText(String.join(";", data.getReferenceJars()));
@@ -267,7 +265,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         String className = submissionPanel.getMainClassTextField().getText().trim();
 
-        String localArtifactPath = submissionPanel.getSelectedArtifactTextField().getText();
+        String localArtifactPath = submissionPanel.getLocalArtifactTextField().getText();
 
         String selectedClusterName = Optional.ofNullable(getSelectedClusterDetail())
                 .map(IClusterDetail::getName)
@@ -311,18 +309,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
     }
 
     public void validate() throws ConfigurationException {
-        // FIXME!!! Need to re-design submission panel
-        SubmissionTableModel confTableModel = ((SubmissionTableModel)getSubmissionPanel().getJobConfigurationTable().getModel());
-        for (Pair<String, String> confEntry : confTableModel.getJobConfigMap()) {
-            if (StringUtils.isNotBlank(confEntry.first()) && StringUtils.containsWhitespace(confEntry.first())) {
-                throw new RuntimeConfigurationError("The Spark config key with whitespace is not allowed: (" + confEntry.first() + ")");
-            }
-        }
-
-        List<String> errors = submissionPanel.getErrorMessages();
-        if (!errors.isEmpty()) {
-            throw new ConfigurationException(String.join("; \n", errors));
-        }
+        getSubmissionPanel().checkInputs();
     }
 
     public SparkSubmissionContentPanel getSubmissionPanel() {

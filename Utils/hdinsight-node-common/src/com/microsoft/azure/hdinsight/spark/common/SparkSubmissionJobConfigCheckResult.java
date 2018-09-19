@@ -47,11 +47,11 @@ public class SparkSubmissionJobConfigCheckResult implements Comparable<SparkSubm
             // Equal
             return 0;
         } else if (this.getStatus() == SparkSubmissionJobConfigCheckStatus.Warning && other.getStatus() == SparkSubmissionJobConfigCheckStatus.Error) {
-            // This is less than other, Warning < Error
-            return -1;
-        } else {
-            // This is great than other, Error > Warning
+            // This is great than other, Error < Warning, put Error first
             return 1;
+        } else {
+            // This is less than other, Warning > Error, put Error first
+            return -1;
         }
     }
 }
