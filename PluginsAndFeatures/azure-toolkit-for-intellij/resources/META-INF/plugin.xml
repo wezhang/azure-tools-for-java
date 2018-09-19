@@ -36,10 +36,12 @@
       <ul>
         <li>
           <a href="https://github.com/Microsoft/azure-tools-for-java/issues/1968" rel="nofollow">#1968</a>
+          Runtime information is not clear enough for Azure Web Apps
         </li>
-        <li> The issue of Azure Data Lake Spark resource pool `Update` dialog pop up multi times.
+        <li>
           <a href="https://github.com/Microsoft/azure-tools-for-java/issues/1779" rel="nofollow">#1779</a>
           <a href="https://github.com/Microsoft/azure-tools-for-java/issues/1920" rel="nofollow">#1920</a>
+         The issue of Azure Data Lake Spark resource pool `Update` dialog pop up multi times.
         </li>
       </ul>
       <h3>[3.11.0]</h3>
