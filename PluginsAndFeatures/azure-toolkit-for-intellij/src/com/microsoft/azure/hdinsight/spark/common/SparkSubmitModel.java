@@ -31,15 +31,14 @@ import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.*;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.utils.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -219,6 +218,23 @@ public class SparkSubmitModel {
         getSubmissionParameter().getReferencedFiles().addAll(refFiles);
     }
 
+    @XCollection(style = XCollection.Style.v2)
+    public List<String[]> getJobConfigs() {
+        return getTableModel()
+                .getJobConfigMap()
+                .stream()
+                .map(p -> new String[] { p.first(), p.second() } )
+                .collect(Collectors.toList());
+    }
+
+    @XCollection(style = XCollection.Style.v2)
+    public void setJobConfigs(List<String[]> jobConf) {
+        setTableModel(new SubmissionTableModel(
+                jobConf.stream()
+                       .map(kv -> new Pair<>(kv[0], kv[1]))
+                       .collect(Collectors.toList())));
+    }
+
     @Transient
     @NotNull
     public Project getProject() {
@@ -274,34 +290,17 @@ public class SparkSubmitModel {
 
     public Element exportToElement() throws WriteExternalException {
         try {
-            Element submitModelElement = XmlSerializer.serialize(this);
-
-            // To keep back-compatible of XML serialization
-            submitModelElement.addContent(new Element(SUBMISSION_CONTENT_JOB_CONF)
-                    .setAttributes(this.tableModel.getJobConfigMap().stream()
-                            .filter(entry -> entry.first() != null &&
-                                    !entry.first().trim().isEmpty() &&
-                                    !StringUtils.containsWhitespace(entry.first()))
-                            .map(entry -> new org.jdom.Attribute(entry.first(), entry.second()))
-                            .collect(Collectors.toList())));
-
-            return submitModelElement;
+            return XmlSerializer.serialize(this);
         } catch (Exception ex) {
             throw new WriteExternalException("Can't export Spark submit model to XML element", ex);
         }
     }
 
     public SparkSubmitModel applyFromElement(@NotNull Element rootElement) throws InvalidDataException{
-        XmlSerializer.deserializeInto(this, rootElement);
-
-        // To keep back-compatible of XML serialization
-        Element jobConfElem = rootElement.getChild(SUBMISSION_CONTENT_JOB_CONF);
-        if (jobConfElem != null) {
-            List<Pair<String, String>> jobConf = jobConfElem.getAttributes().stream()
-                    .map(attribute -> new Pair<>(attribute.getName(), attribute.getValue()))
-                    .collect(Collectors.toList());
-
-            setTableModel(new SubmissionTableModel(jobConf));
+        try {
+            XmlSerializer.deserializeInto(this, rootElement);
+        } catch (Exception ex) {
+            throw new InvalidDataException("Configuration is broken or not compatible", ex);
         }
 
         return this;

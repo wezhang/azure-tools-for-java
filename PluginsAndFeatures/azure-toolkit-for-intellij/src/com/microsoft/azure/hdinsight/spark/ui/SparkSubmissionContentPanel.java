@@ -598,9 +598,16 @@ public class SparkSubmissionContentPanel extends JPanel{
 
         SubmissionTableModel confTableModel = ((SubmissionTableModel) getJobConfigurationTable().getModel());
         for (Pair<String, String> confEntry : confTableModel.getJobConfigMap()) {
-            if (StringUtils.isNotBlank(confEntry.first()) && StringUtils.containsWhitespace(confEntry.first())) {
-                throw new RuntimeConfigurationError("The Spark config key with whitespace is not allowed: (" + confEntry.first() + ")");
+            String entryKey = confEntry.first();
+
+            if (!StringUtils.isAlpha(entryKey.substring(0, 1)) && !StringUtils.startsWith(entryKey, "_")) {
+                throw new RuntimeConfigurationError("The Spark config key should start with a latter or underscore");
             }
+
+            if (!StringUtils.containsOnly(entryKey.toLowerCase(), "abcdefghijklmnopqrstuvwxyz1234567890_-.")) {
+                throw new RuntimeConfigurationError("The Spark config key should only contains letters, digits, hyphens, underscores, and periods: (" + entryKey + ")");
+            }
+
         }
 
     }
