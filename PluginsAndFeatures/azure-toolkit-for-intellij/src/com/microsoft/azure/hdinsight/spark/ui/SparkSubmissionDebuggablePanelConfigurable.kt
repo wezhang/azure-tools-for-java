@@ -84,6 +84,7 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project,
                 UseKeyFile -> if (advModel.sshKeyFile?.exists() != true) {
                     throw RuntimeConfigurationError("Can't save the configuration since SSh key file isn't set or doesn't exist")
                 }
+                else -> {}
             }
         }
     }
