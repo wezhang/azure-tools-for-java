@@ -431,9 +431,7 @@ public class SparkSubmissionContentPanel extends JPanel{
         jobConfigurationTable.setFillsViewportHeight(true);
         scrollPane.setMinimumSize(jobConfigurationTableSize);
 
-        jobConfigurationTable.addPropertyChangeListener((evt)-> {
-            checkInputsWithErrorLabels();
-        });
+        jobConfigurationTable.addPropertyChangeListener((evt)-> checkInputsWithErrorLabels());
 
         add(scrollPane,
                 new GridBagConstraints(1, displayLayoutCurrentRow,
@@ -520,11 +518,11 @@ public class SparkSubmissionContentPanel extends JPanel{
                 JBUI.insets(margin, margin, 0, margin), 0, 0));
     }
 
-    private void setVisibleForFixedErrorMessageLabel(@NotNull ErrorMessage label, @NotNull boolean isVisible) {
+    private void setVisibleForFixedErrorMessageLabel(@NotNull ErrorMessage label, boolean isVisible) {
         setStatusForMessageLabel(label, isVisible, null);
     }
 
-    private void setStatusForMessageLabel(@NotNull ErrorMessage label, @NotNull boolean isVisible, @Nullable String message, boolean isWarning) {
+    private void setStatusForMessageLabel(@NotNull ErrorMessage label, boolean isVisible, @Nullable String message, boolean isWarning) {
         if (!StringHelper.isNullOrWhiteSpace(message)) {
             errorMessageLabels[label.ordinal()].setText(message);
         }
@@ -533,7 +531,7 @@ public class SparkSubmissionContentPanel extends JPanel{
         this.errorMessageLabels[label.ordinal()].setVisible(isVisible);
     }
 
-    private void setStatusForMessageLabel(@NotNull ErrorMessage label, @NotNull boolean isVisible, @Nullable String message) {
+    private void setStatusForMessageLabel(@NotNull ErrorMessage label, boolean isVisible, @Nullable String message) {
         setStatusForMessageLabel(label, isVisible, message, false);
     }
 
@@ -543,7 +541,7 @@ public class SparkSubmissionContentPanel extends JPanel{
         }
     }
 
-    public void cleanUp() {
+    private void cleanUp() {
         clusterSelectedSubject.onCompleted();
     }
 
@@ -601,7 +599,7 @@ public class SparkSubmissionContentPanel extends JPanel{
             String entryKey = confEntry.first();
 
             if (!StringUtils.isAlpha(entryKey.substring(0, 1)) && !StringUtils.startsWith(entryKey, "_")) {
-                throw new RuntimeConfigurationError("The Spark config key should start with a latter or underscore");
+                throw new RuntimeConfigurationError("The Spark config key should start with a letter or underscore");
             }
 
             if (!StringUtils.containsOnly(entryKey.toLowerCase(), "abcdefghijklmnopqrstuvwxyz1234567890_-.")) {
