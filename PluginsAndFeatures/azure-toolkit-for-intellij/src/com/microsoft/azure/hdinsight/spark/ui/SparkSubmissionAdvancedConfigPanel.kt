@@ -210,6 +210,13 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
         FileChooser.chooseFile(fileChooserDescriptor, null, null)?.run { sshKeyFileTextField.text = path }
     }
 
+    override fun removeNotify() {
+        super.removeNotify()
+
+        // Stop the SSH authentication check
+        sshCheckSubject.onCompleted()
+    }
+
     override fun setData(data: SparkSubmitAdvancedConfigModel) {
         // Data -> Component
         val applyData: () -> Unit = {
