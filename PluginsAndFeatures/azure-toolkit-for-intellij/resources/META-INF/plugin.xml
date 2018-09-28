@@ -225,7 +225,7 @@
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.RemoteDebugRunConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.ServerlessSparkConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.SparkFailureTaskDebugConfigurationType"/>
-    <actionPromoter implementation="com.microsoft.azure.hdinsight.spark.console.SparkExecuteInConsoleActionPromoter"/>
+    <actionPromoter implementation="com.microsoft.azure.hdinsight.spark.console.SparkExecuteInConsoleActionPromoterDelegate"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobLocalRunConfigurationProducer"/>
     <programRunner implementation="com.microsoft.intellij.runner.webapp.webappconfig.WebAppRunner"/>
     <programRunner implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunner" />

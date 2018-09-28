@@ -29,35 +29,17 @@ import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import java.lang.reflect.Method
 
 // The Action is a bridge to connect Scala related actions with dependent Scala Plugin actions by reflection
-open class RunSparkConsoleAction(private val sparkScalaActionClassName: String) : AzureAnAction(), ILogger {
+open class RunSparkConsoleAction(sparkScalaActionClassName: String) : AzureAnAction(), ILogger {
+    private val delegate = SparkScalaPluginDelegate(sparkScalaActionClassName)
+
     val isEnabled
-        get() = isScalaPluginEnabled() && updateMethod != null && actionPerformedMethod != null
-
-    private val actionClass: Class<*>?
-        get() = try {
-            val clazz = Class.forName(sparkScalaActionClassName)
-
-            log().debug("class ${clazz.canonicalName} is loaded from ${clazz.protectionDomain.codeSource.location}")
-            clazz
-        } catch (err: Exception) {
-            log().debug("Class $sparkScalaActionClassName is not found", err)
-            null
-        }
+        get() = delegate.isEnabled && updateMethod != null && actionPerformedMethod != null
 
     private val updateMethod: Method?
-        get() = getAnActionMethod("update")
+        get() = delegate.getMethod("update", AnActionEvent::class.java)
 
     private val actionPerformedMethod: Method?
-        get() = getAnActionMethod("actionPerformed")
-
-    private fun getAnActionMethod(methodName: String): Method? = try {
-                actionClass?.getMethod(methodName, AnActionEvent::class.java)
-            } catch (err: Exception) {
-                log().debug("Method `$methodName` is not found", err)
-                null
-            }
-
-    private val sparkScalaAction: Any by lazy { actionClass!!.newInstance() }
+        get() = delegate.getMethod("actionPerformed", AnActionEvent::class.java)
 
     override fun update(actionEvent: AnActionEvent?) {
         val presentation = actionEvent?.presentation ?: return
@@ -67,12 +49,12 @@ open class RunSparkConsoleAction(private val sparkScalaActionClassName: String) 
         presentation.isEnabled = isEnabled
 
         if (isEnabled) {
-            updateMethod?.invoke(sparkScalaAction, actionEvent)
+            updateMethod?.invoke(delegate.sparkScalaObj, actionEvent)
         }
     }
 
     override fun onActionPerformed(actionEvent: AnActionEvent) {
-        actionPerformedMethod?.invoke(sparkScalaAction, actionEvent)
+        actionPerformedMethod?.invoke(delegate.sparkScalaObj, actionEvent)
     }
 }
 
