@@ -24,12 +24,11 @@ package com.microsoft.azure.hdinsight.spark.console
 
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.spark.console.ScalaPluginUtils.isScalaPluginEnabled
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import java.lang.reflect.Method
 
 // The Action is a bridge to connect Scala related actions with dependent Scala Plugin actions by reflection
-open class RunSparkConsoleAction(sparkScalaActionClassName: String) : AzureAnAction(), ILogger {
+open class RunSparkConsoleActionDelegate(sparkScalaActionClassName: String) : AzureAnAction(), ILogger {
     private val delegate = SparkScalaPluginDelegate(sparkScalaActionClassName)
 
     val isEnabled
@@ -58,5 +57,5 @@ open class RunSparkConsoleAction(sparkScalaActionClassName: String) : AzureAnAct
     }
 }
 
-class RunSparkLocalConsoleAction : RunSparkConsoleAction("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLocalConsoleAction")
-class RunSparkLivyConsoleAction : RunSparkConsoleAction("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLivyConsoleAction")
+class RunSparkLocalConsoleActionDelegate : RunSparkConsoleActionDelegate("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLocalConsoleAction")
+class RunSparkLivyConsoleActionDelegate : RunSparkConsoleActionDelegate("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLivyConsoleAction")

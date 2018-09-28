@@ -305,10 +305,10 @@
             text="Disconnect" description="Disconnect the log view from remote Spark Job"
             icon="/icons/SparkJobDisconnect.png">
     </action>
-    <action id="Spark.RunScalaLocalConsole" class="com.microsoft.azure.hdinsight.spark.console.RunSparkLocalConsoleAction"
+    <action id="Spark.RunScalaLocalConsole" class="com.microsoft.azure.hdinsight.spark.console.RunSparkLocalConsoleActionDelegate"
             text="Run Spark Local Console(Scala)" description="Run Spark Local Console (Scala language)">
     </action>
-    <action id="Spark.RunScalaLivyConsole" class="com.microsoft.azure.hdinsight.spark.console.RunSparkLivyConsoleAction"
+    <action id="Spark.RunScalaLivyConsole" class="com.microsoft.azure.hdinsight.spark.console.RunSparkLivyConsoleActionDelegate"
             text="Run Spark Livy Interactive Session Console(Scala)" description="Run Spark Livy Interactive Session Console (Scala language)">
     </action>
     <action id="SparkConsole.Execute" class="com.microsoft.azure.hdinsight.spark.console.SparkConsoleExecuteAction" text="Execute Spark Console Statement">
