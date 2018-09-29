@@ -25,7 +25,7 @@ package com.microsoft.azure.hdinsight.spark.console
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 
 object ScalaPluginUtils : ILogger {
-    fun isScalaPluginEnabled(): Boolean = try {
+    val isScalaPluginEnabled: Boolean = try {
         val clazz = Class.forName("org.jetbrains.plugins.scala.ScalaLanguage")
 
         log().debug("class ${clazz.canonicalName} is loaded from ${clazz.protectionDomain.codeSource.location}")

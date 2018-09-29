@@ -23,14 +23,12 @@
 package com.microsoft.azure.hdinsight.spark.console
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.spark.console.ScalaPluginUtils.isScalaPluginEnabled
 import java.lang.reflect.Method
 
 class SparkScalaPluginDelegate(val sparkScalaClassName: String) : ILogger {
     val sparkScalaObj : Any by lazy { sparkScalaClass!!.newInstance() }
 
-    val isEnabled
-        get() = isScalaPluginEnabled() && sparkScalaClass != null
+    val isEnabled = ScalaPluginUtils.isScalaPluginEnabled && sparkScalaClass != null
 
     private val sparkScalaClass: Class<*>?
         get() = try {

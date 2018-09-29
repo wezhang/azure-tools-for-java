@@ -33,10 +33,11 @@ open class SparkActionPromoterScalaDelegate(sparkScalaPromoterClassName: String)
     private val delegate = SparkScalaPluginDelegate(sparkScalaPromoterClassName)
 
     private val promoteMethod: Method?
-        get() = delegate.getMethod("promote", listOf<AnAction>().javaClass, DataContext::class.java)
+        get() = delegate.getMethod("promote", List::class.java, DataContext::class.java)
 
     override fun promote(actions: MutableList<AnAction>?, context: DataContext?): MutableList<AnAction>? {
-        return promoteMethod?.invoke(actions, context) as? MutableList<AnAction>
+        return (promoteMethod?.invoke(delegate.sparkScalaObj, actions, context) as? MutableList<*>)
+                ?.filterIsInstance(AnAction::class.java)?.toMutableList()
     }
 }
 
