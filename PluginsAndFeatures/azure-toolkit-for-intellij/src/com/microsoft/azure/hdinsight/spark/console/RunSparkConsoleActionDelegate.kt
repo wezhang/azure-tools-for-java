@@ -59,3 +59,4 @@ open class RunSparkConsoleActionDelegate(sparkScalaActionClassName: String) : Az
 
 class RunSparkLocalConsoleActionDelegate : RunSparkConsoleActionDelegate("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLocalConsoleAction")
 class RunSparkLivyConsoleActionDelegate : RunSparkConsoleActionDelegate("com.microsoft.azure.hdinsight.spark.console.RunSparkScalaLivyConsoleAction")
+class SparkSendSelectionToConsoleActionDelegate : RunSparkConsoleActionDelegate("com.microsoft.azure.hdinsight.spark.console.SparkSendSelectionToConsoleAction")
