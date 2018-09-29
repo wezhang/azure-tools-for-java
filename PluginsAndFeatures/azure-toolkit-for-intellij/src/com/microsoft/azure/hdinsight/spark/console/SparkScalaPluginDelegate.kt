@@ -38,14 +38,14 @@ class SparkScalaPluginDelegate(val sparkScalaClassName: String) : ILogger {
 
             log().debug("class ${clazz.canonicalName} is loaded from ${clazz.protectionDomain.codeSource.location}")
             clazz
-        } catch (err: Exception) {
+        } catch (err: Throwable) {
             log().debug("Class $sparkScalaClassName is not found", err)
             null
         }
 
     fun getMethod(methodName: String, vararg args: Class<*>): Method? = try {
         sparkScalaClass?.getMethod(methodName, *args)
-    } catch (err: Exception) {
+    } catch (err: Throwable) {
         log().debug("Method `$methodName` is not found", err)
         null
     }
