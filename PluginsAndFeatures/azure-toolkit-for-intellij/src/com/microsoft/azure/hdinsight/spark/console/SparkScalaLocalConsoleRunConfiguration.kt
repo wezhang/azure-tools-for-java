@@ -105,14 +105,14 @@ class SparkScalaLocalConsoleRunConfiguration(
         val iterator = ProjectLibraryTable.getInstance(project).libraryIterator
 
         while (iterator.hasNext()) {
-            val libEntry = iterator.next()
+            val libEntryName = iterator.next().name ?: continue
 
             // Replace `core` to `repl` with the title removed, such as:
             //     Maven: org.apache.spark:spark-core_2.11:2.1.0 => org.apache.spark:spark-repl_2.11:2.1.0
             //     ^^^^^^^                       ^^^^                                      ^^^^
-            val replCoord = sparkCoreCoodRegex.replace(libEntry.name ?: "") { "${it.groupValues[1]}repl${it.groupValues[3]}" }
+            val replCoord = sparkCoreCoodRegex.replace(libEntryName) { "${it.groupValues[1]}repl${it.groupValues[3]}" }
 
-            if (replCoord != libEntry.name) {
+            if (replCoord != libEntryName) {
                 // Found and replaced
                 return replCoord
             }
