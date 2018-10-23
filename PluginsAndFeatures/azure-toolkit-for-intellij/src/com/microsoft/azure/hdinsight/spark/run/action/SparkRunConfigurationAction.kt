@@ -47,10 +47,10 @@ abstract class SparkRunConfigurationAction : AzureAnAction, ILogger {
             setting.configuration is RemoteDebugRunConfiguration &&
                     RunnerRegistry.getInstance().getRunner(runExecutor.id, setting.configuration) != null
 
-    override fun update(actionEvent: AnActionEvent?) {
+    override fun update(actionEvent: AnActionEvent) {
         super.update(actionEvent)
 
-        val project = actionEvent?.project ?: return
+        val project = actionEvent.project ?: return
         val runManagerEx = RunManagerEx.getInstanceEx(project)
         val selectedConfigSettings = runManagerEx.selectedConfiguration ?: return
         val presentation = actionEvent.presentation
