@@ -196,7 +196,7 @@ public class SbtProjectGenerator {
             return;
         }
 
-        final VirtualFile projectFile = VfsUtil.findFile(Paths.get(root + "/build.sbt"), true);
+        final VirtualFile projectFile = VfsUtil.findFile(Paths.get(root, "build.sbt"), true);
         if (projectFile != null) {
             ApplicationManager.getApplication().invokeLater(() -> {
                 AddModuleWizard wizard = ImportModuleAction.createImportWizard(project,
