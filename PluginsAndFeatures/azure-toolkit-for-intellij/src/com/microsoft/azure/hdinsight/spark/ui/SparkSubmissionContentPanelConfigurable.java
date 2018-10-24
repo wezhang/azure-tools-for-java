@@ -75,7 +75,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
     public SparkSubmissionContentPanelConfigurable(@NotNull Project project, @NotNull SparkSubmissionContentPanel submissionPanel) {
         this.submissionPanel = submissionPanel;
-        this.storageWithUploadPathPanel = submissionPanel.storageWithUploadPathPanel;
+        this.storageWithUploadPathPanel = submissionPanel.getStorageWithUploadPathPanel();
         this.myProject = project;
 
         this.jobUploadStorageCtrl = new SparkSubmissionJobUploadStorageCtrl(this.storageWithUploadPathPanel) {
@@ -128,7 +128,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         });
 
         submissionPanel.getMainClassTextField().addActionListener(e -> {
-                    PsiClass selected = submissionPanel.getLocalArtifactRadioButton().isSelected() ?
+                    PsiClass selected = submissionPanel.getLocalArtifactPrompt().isSelected() ?
                             new ManifestFileUtilsEx(myProject).selectMainClass(
                                     new JarFileSystemImpl().findFileByPath(
                                             submissionPanel.getLocalArtifactTextField().getText() + "!/")) :
@@ -157,7 +157,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             }
         });
 
-        this.submissionPanel.getIntelliJArtifactRadioButton().addActionListener(e ->
+        this.submissionPanel.getIdeaArtifactPrompt().addActionListener(e ->
                 refreshAndSelectArtifact(getSelectedArtifact() == null ? null : getSelectedArtifact().getName()));
 
         this.submissionPanel.updateTableColumn();
@@ -295,7 +295,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             }
 
             if (data.getIsLocalArtifact()) {
-                submissionPanel.getLocalArtifactRadioButton().setSelected(true);
+                submissionPanel.getLocalArtifactPrompt().setSelected(true);
             }
 
             submissionPanel.getLocalArtifactTextField().setText(data.getLocalArtifactPath());
@@ -345,7 +345,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
 
-        boolean isLocalArtifact = submissionPanel.getLocalArtifactRadioButton().isSelected();
+        boolean isLocalArtifact = submissionPanel.getLocalArtifactPrompt().isSelected();
         SubmissionTableModel tableModel = (SubmissionTableModel) submissionPanel.getJobConfigurationTable().getModel();
 
         // submission parameters

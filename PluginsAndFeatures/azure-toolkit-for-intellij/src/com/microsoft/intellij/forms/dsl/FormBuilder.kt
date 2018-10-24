@@ -55,7 +55,7 @@ class FormBuilder(var columnTemplate: ColumnTemplate? = null) {
                 .max() ?: -1 ) + 1
 
     inner class Row(val index: Int, val comps: MutableList<ColComponent> = mutableListOf()) {
-        fun c(component: Component?, block: GridConstraints.() -> Unit) {
+        fun c(component: Component? = null, block: GridConstraints.() -> Unit = {}) {
             synchronized(comps) {
                 val colComponent = ColComponent(
                         component,
@@ -107,19 +107,19 @@ The Form DSL can be used as following codes:
             }
         }
         row {
-            c(enableRemoteDebugCheckBox) { indent = 0 };    c(helpButton) {};   c(checkSshCertIndicator) {}
+            c(enableRemoteDebugCheckBox) { indent = 0 };    c(helpButton);   c(checkSshCertIndicator)
         }
         row {
-            c(sshUserNameLabel) { indent = 1 };             c(null) {};         c(sshUserNameTextField) {}
+            c(sshUserNameLabel) { indent = 1 };             c();             c(sshUserNameTextField)
         }
         row {
             c(sshAuthTypeLabel) { indent = 1 }
         }
         row {
-            c(sshUsePasswordRadioButton) { indent = 2 };    c(null) {};         c(sshPasswordField) {}
+            c(sshUsePasswordRadioButton) { indent = 2 };    c();             c(sshPasswordField)
         }
         row {
-            c(sshUseKeyFileRadioButton) { indent = 2 };     c(null) {};         c(sshKeyFileTextField) {}
+            c(sshUseKeyFileRadioButton) { indent = 2 };     c();             c(sshKeyFileTextField)
         }
     }
 
