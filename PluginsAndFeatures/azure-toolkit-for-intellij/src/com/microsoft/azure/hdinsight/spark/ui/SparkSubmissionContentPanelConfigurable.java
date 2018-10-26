@@ -236,9 +236,14 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         for (int i = 0; i < clustersModel.getSize(); i++) {
             if (StringUtils.equals(clusterProperty, clusterPropertyMapper.apply(clustersModel.getElementAt(i)))) {
                 clustersModel.setSelectedItem(clustersModel.getElementAt(i));
-
-                return true;
+                break;
             }
+        }
+
+        if (clustersModel.getSelectedItem() != null) {
+            onClusterSelected((IClusterDetail) clustersModel.getSelectedItem());
+
+            return true;
         }
 
         return false;
@@ -266,7 +271,9 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         // 2. Cluster refresh in progress, the list model is empty, save cluster name in submit model
         // 3. Cluster list got, but no selection before, select cluster by cluster name
         ApplicationManager.getApplication().invokeAndWait(() -> {
-            submissionPanel.setClustersModel(data.getClusterComboBoxModel());
+            if (data.getClusterComboBoxModel() != null) {
+                submissionPanel.setClustersModel(data.getClusterComboBoxModel());
+            }
             submissionPanel.getSelectedArtifactComboBox().setModel(data.getArtifactComboBoxModel());
 
             if (!selectCluster(data.getClusterName(), IClusterDetail::getName)) {
@@ -339,6 +346,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         data.setCommandLineArgs(argsList);
 
         data.setTableModel(tableModel);
+        data.setClusterComboBoxModel(submissionPanel.getClustersModel());
 
         // get Job upload storage panel data
         getStorageWithUploadPathPanel().getData(data.getJobUploadStorageModel());
