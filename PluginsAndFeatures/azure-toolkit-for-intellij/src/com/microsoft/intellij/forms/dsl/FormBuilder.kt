@@ -23,6 +23,7 @@
 package com.microsoft.intellij.forms.dsl
 
 import com.intellij.uiDesigner.core.GridConstraints
+import com.intellij.uiDesigner.core.GridConstraints.*
 import com.intellij.uiDesigner.core.GridLayoutManager
 import java.awt.Component
 import javax.swing.JPanel
@@ -60,9 +61,14 @@ class FormBuilder(var columnTemplate: ColumnTemplate? = null) {
                 val colComponent = ColComponent(
                         component,
                         (columnTemplate?.columnConstraints?.getOrNull(comps.size)?.clone() as? GridConstraints ?:
-                                GridConstraints().apply { column = comps.size })
-                                        .apply(block)
-                                        .apply { row = index })
+                                GridConstraints().apply {
+                                    column = comps.size
+                                    anchor = ANCHOR_WEST
+                                    hSizePolicy = SIZEPOLICY_WANT_GROW
+                                    fill = FILL_BOTH
+                                })
+                                .apply(block)
+                                .apply { row = index })
 
                 comps.add(colComponent)
             }

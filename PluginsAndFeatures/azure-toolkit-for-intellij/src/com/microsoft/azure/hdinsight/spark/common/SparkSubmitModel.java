@@ -30,6 +30,7 @@ import com.intellij.packaging.artifacts.ArtifactManager;
 import com.intellij.util.xmlb.XmlSerializer;
 import com.intellij.util.xmlb.annotations.*;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.spark.ui.ImmutableComboBoxModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.utils.Pair;
 import org.jdom.Element;
@@ -62,7 +63,7 @@ public class SparkSubmitModel {
     final private SparkSubmitJobUploadStorageModel jobUploadStorageModel;
 
     @Transient
-    private DefaultComboBoxModel<IClusterDetail> clusterComboBoxModel;
+    private ImmutableComboBoxModel<IClusterDetail> clusterComboBoxModel;
 
     @Transient
     private DefaultComboBoxModel<Artifact> artifactComboBoxModel;
@@ -81,7 +82,7 @@ public class SparkSubmitModel {
 
     public SparkSubmitModel(@NotNull Project project, @NotNull SparkSubmissionParameter submissionParameter) {
         this.project = project;
-        this.clusterComboBoxModel = new DefaultComboBoxModel<>();
+        this.clusterComboBoxModel = new ImmutableComboBoxModel<>(new IClusterDetail[0]);
         this.artifactComboBoxModel = new DefaultComboBoxModel<>();
         this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
         this.jobUploadStorageModel = new SparkSubmitJobUploadStorageModel();
@@ -106,7 +107,7 @@ public class SparkSubmitModel {
 
     @Transient
     @NotNull
-    public DefaultComboBoxModel<IClusterDetail> getClusterComboBoxModel() {
+    public ImmutableComboBoxModel<IClusterDetail> getClusterComboBoxModel() {
         return clusterComboBoxModel;
     }
 

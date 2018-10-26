@@ -32,18 +32,18 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.packaging.artifacts.Artifact
 import com.intellij.ui.ComboboxWithBrowseButton
+import com.intellij.ui.ListCellRendererWrapper
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.DarkThemeManager
 import com.microsoft.azure.hdinsight.common.StreamUtil
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus.Error
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmissionJobConfigCheckStatus.Warning
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitHelper
 import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel
-import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveRenderer
-import com.microsoft.azure.hdinsight.spark.uihelper.InteractiveTableModel
 import com.microsoft.azuretools.authmanage.AuthMethodManager
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper
 import com.microsoft.intellij.forms.dsl.panel
@@ -107,14 +107,17 @@ open class SparkSubmissionContentPanel : JPanel() {
         toolTipText = "The HDInsight Spark cluster you want to submit your application to. Only Linux cluster is supported."
     }
 
-    val clustersListComboBox: ComboboxWithBrowseButton = ComboboxWithBrowseButton().apply {
+    val clustersListComboBox: ComboboxWithBrowseButton = ComboboxWithBrowseButton(JComboBox<IClusterDetail>(ImmutableComboBoxModel.empty())).apply {
         setButtonIcon(StreamUtil.getImageResourceFile(REFRESH_BUTTON_PATH))
 
         button.toolTipText = "Refresh"
         comboBox.toolTipText = clustersSelectionPrompt.toolTipText
+        comboBox.setRenderer(object: ListCellRendererWrapper<IClusterDetail>() {
+            override fun customize(list: JList<*>?, cluster: IClusterDetail?, index: Int, selected: Boolean, hasFocus: Boolean) =
+                    setText(cluster?.title)
+        })
         comboBox.addPropertyChangeListener { checkInputsWithErrorLabels() }
         comboBox.addItemListener {
-            clusterSelectedSubject.onNext(if (it.stateChange == ItemEvent.SELECTED) it.item.toString() else null)
             setVisibleForFixedErrorMessage(ErrorMessage.ClusterName, comboBox.itemCount == 0)
         }
     }
@@ -125,6 +128,11 @@ open class SparkSubmissionContentPanel : JPanel() {
 
     val selectedArtifactComboBox: ComboBox<Artifact> = ComboBox<Artifact>().apply {
         toolTipText = artifactSelectLabel.toolTipText
+
+        setRenderer(object: ListCellRendererWrapper<Artifact>() {
+            override fun customize(list: JList<*>?, artifact: Artifact?, index: Int, selected: Boolean, hasFocus: Boolean) =
+                    setText(artifact?.name)
+        })
     }
 
     val localArtifactTextField: TextFieldWithBrowseButton = TextFieldWithBrowseButton().apply {
@@ -232,7 +240,13 @@ open class SparkSubmissionContentPanel : JPanel() {
     private val errorMessages: List<String>
         get() = errorMessageLabels.filter { it.isVisible && it.foreground == currentErrorColor }
                                   .map { it.text }
-    val box = Box.createVerticalBox()
+
+    @Suppress("UNCHECKED_CAST")
+    var clustersModel: ImmutableComboBoxModel<IClusterDetail>
+        get() = clustersListComboBox.comboBox.model as ImmutableComboBoxModel<IClusterDetail>
+        set(model) {
+            clustersListComboBox.comboBox.model = model as ComboBoxModel<Any>
+        }
 
     init {
         val formBuilder = panel {
@@ -264,9 +278,7 @@ open class SparkSubmissionContentPanel : JPanel() {
             row { c(storageWithUploadPathPanel) { colSpan = 2; fill = FILL_HORIZONTAL }; }
         }
 
-        box.add(formBuilder.buildPanel())
-
-        this.add(box)
+        this.add(formBuilder.buildPanel())
         this.addContainerListener(object : ContainerAdapter() {
             override fun componentRemoved(e: ContainerEvent) {
                 cleanUp()
@@ -280,11 +292,6 @@ open class SparkSubmissionContentPanel : JPanel() {
 
     fun addClusterListRefreshActionListener(actionListener: ActionListener) =
             clustersListComboBox.button.addActionListener(actionListener)
-
-    fun updateTableColumn() {
-        val keyColumn = jobConfigurationTable.columnModel.getColumn(InteractiveTableModel.KEY_INDEX)
-        keyColumn.cellRenderer = InteractiveRenderer(InteractiveTableModel.KEY_INDEX)
-    }
 
     private fun setVisibleForFixedErrorMessage(label: ErrorMessage,
                                                isVisible: Boolean,

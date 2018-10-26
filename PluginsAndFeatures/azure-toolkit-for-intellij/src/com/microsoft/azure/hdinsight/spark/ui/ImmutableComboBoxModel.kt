@@ -22,18 +22,30 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.intellij.ui.HideableTitledPanel
-import java.awt.GridBagConstraints
-import java.awt.Insets
+import javax.swing.DefaultComboBoxModel
 
-class SparkSubmissionDebuggableContentPanel : SparkSubmissionContentPanel() {
+class ImmutableComboBoxModel<T>(values: Array<T>) : DefaultComboBoxModel<T>(values) {
+    companion object {
+        inline fun <reified E> empty() = ImmutableComboBoxModel<E>(emptyArray())
+    }
 
-    val advancedConfigPanel = SparkSubmissionAdvancedConfigPanel()
-    private val hidableAdvancedConfigPanel = HideableTitledPanel(
-            "Advanced Configuration (Remote Debugging)", true, this.advancedConfigPanel, false)
+    override fun addElement(anObject: T) {
+        throw UnsupportedOperationException("Unsupported modification to an immutable ComboBox model")
+    }
 
+    override fun removeAllElements() {
+        throw UnsupportedOperationException("Unsupported modification to an immutable ComboBox model")
+    }
 
-    init {
-        box.add(hidableAdvancedConfigPanel)
+    override fun removeElementAt(index: Int) {
+        throw UnsupportedOperationException("Unsupported modification to an immutable ComboBox model")
+    }
+
+    override fun insertElementAt(anObject: T, index: Int) {
+        throw UnsupportedOperationException("Unsupported modification to an immutable ComboBox model")
+    }
+
+    override fun removeElement(anObject: Any?) {
+        throw UnsupportedOperationException("Unsupported modification to an immutable ComboBox model")
     }
 }
