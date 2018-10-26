@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UsePassword
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAuth.SSHAuthType.UseKeyFile
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionAdvancedConfigCtrl.Companion.passedText
 import com.microsoft.intellij.forms.dsl.panel
 import org.apache.commons.lang3.StringUtils
 import javax.swing.JComponent
@@ -49,7 +50,8 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
         formBuilder.buildPanel()
     }
 
-    private val advancedConfigCtrl = object : SparkSubmissionAdvancedConfigCtrl(advancedConfigPanel) {
+    private val advancedConfigCtrl = object
+        : SparkSubmissionAdvancedConfigCtrl(advancedConfigPanel, advancedConfigPanel.sshCheckSubject) {
         override fun getClusterNameToCheck(): String? = selectedClusterDetail?.name
     }
 
@@ -80,13 +82,20 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
         data.advancedConfigModel.clusterName = selectedClusterDetail?.name
     }
 
+
+    private val isSshCheckPassed
+        get() = advancedConfigPanel.checkSshCertIndicator.text.endsWith(passedText, true)
+
+    private val sshCheckResultMessage
+        get() = advancedConfigPanel.checkSshCertIndicator.text
+
+
     override fun validate() {
         super.validate()
 
         if (advancedConfigPanel.isRemoteDebugEnabled) {
-            if (advancedConfigCtrl.resultMessage.isNotBlank() &&
-                    !advancedConfigCtrl.isCheckPassed) {
-                throw RuntimeConfigurationError("Can't save the configuration since ${advancedConfigCtrl.resultMessage}")
+            if (!sshCheckResultMessage.isNullOrBlank() && !isSshCheckPassed) {
+                throw RuntimeConfigurationError("Can't save the configuration since $sshCheckResultMessage")
             }
 
             val advModel = advancedConfigPanel.model
