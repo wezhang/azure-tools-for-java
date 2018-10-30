@@ -164,7 +164,9 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
         enableRemoteDebugCheckBox.addItemListener {
             setSshAuthenticationUIEnabled(it.stateChange == SELECTED)
 
-            sshCheckSubject.onNext("Enabled remote debug")
+            if (it.stateChange == SELECTED) {
+                sshCheckSubject.onNext("Enabled remote debug")
+            }
         }
 
         // To trigger SSH authentication background check
