@@ -104,9 +104,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
             // validate storage info
             if (itemEvent?.stateChange == ItemEvent.SELECTED) {
                 val selectedItem = itemEvent.item as String
-                validateStorageInfo(selectedItem).subscribe(
-                        { },
-                        { err -> log().warn(ExceptionUtils.getStackTrace(err)) })
+                view.storageCheckSubject.onNext("Selected $selectedItem")
             }
         }
     }
@@ -131,7 +129,6 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
             // set error message to prevent user from applying the changes when validation is not completed
             .map { it.apply { errorMsg = "validating storage info is not completed" } }
             .doOnNext(view::setData)
-            .observeOn(Schedulers.io())
             .map { toUpdate ->
                 when (selectedItem) {
                     view.storagePanel.sparkInteractiveSessionCard.title -> toUpdate.apply {
@@ -151,6 +148,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
                             uploadPath = "-"
                         } else {
                             try {
+                                // IO operations
                                 clusterDetail.getConfigurationInfo()
                                 val defaultStorageAccount = clusterDetail.storageAccount
                                 if (defaultStorageAccount == null) {
