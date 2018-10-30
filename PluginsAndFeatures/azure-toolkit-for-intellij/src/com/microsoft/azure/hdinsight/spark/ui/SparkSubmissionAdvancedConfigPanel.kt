@@ -161,7 +161,11 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
         formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
 
         // To enable/disable all options
-        enableRemoteDebugCheckBox.addItemListener { setSshAuthenticationUIEnabled(it.stateChange == SELECTED) }
+        enableRemoteDebugCheckBox.addItemListener {
+            setSshAuthenticationUIEnabled(it.stateChange == SELECTED)
+
+            sshCheckSubject.onNext("Enabled remote debug")
+        }
 
         // To trigger SSH authentication background check
         val inputListener = object : DocumentAdapter() {
