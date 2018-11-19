@@ -24,38 +24,55 @@ package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitResponse
 import com.microsoft.azure.hdinsight.spark.common.SparkUITest
 import com.microsoft.azure.hdinsight.spark.ui.livy.batch.*
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import org.junit.Ignore
 import org.junit.Test
-import com.microsoft.azure.hdinsight.spark.ui.livy.batch.UniqueColumnNameTableSchema.*
+
+class KillLivyJobAction : AzureAnAction(AllIcons.Actions.Cancel) {
+    override fun onActionPerformed(anActionEvent: AnActionEvent?) {
+        System.out.println("Clicked ${anActionEvent?.place} kill job button")
+    }
+}
+
+class RestartLivyJobAction : AzureAnAction(AllIcons.Actions.Restart) {
+    override fun onActionPerformed(anActionEvent: AnActionEvent?) {
+        System.out.println("Clicked ${anActionEvent?.place} restart job button")
+    }
+}
+
+const val killActionColName = "KillAction"
+const val restartActionColName = "RestartAction"
+const val idColName = "ID"
+const val appIdColName = "AppID"
+const val stateColName = "State"
+
+class SparkLivyJobsTableSchema
+    : UniqueColumnNameTableSchema(arrayOf(
+        UniqueTableActionsColumnInfo(killActionColName),
+        UniqueTableActionsColumnInfo(restartActionColName),
+        UniqueTablePlainColumnInfo(idColName),
+        UniqueTablePlainColumnInfo(appIdColName),
+        UniqueTablePlainColumnInfo(stateColName))) {
+
+    inner class SparkJobDescriptor(val jobStatus: SparkSubmitResponse) : RowDescriptor(
+            killActionColName to KillLivyJobAction(),
+            restartActionColName to RestartLivyJobAction(),
+            idColName to jobStatus.id,
+            appIdColName to jobStatus.appId,
+            stateColName to jobStatus.state)
+
+}
 
 @Ignore
 class SparkJobTableTest : SparkUITest() {
     @Test
     fun testLivyTable() {
-        class KillLivyJobAction : AzureAnAction(AllIcons.Actions.Cancel) {
-            override fun onActionPerformed(anActionEvent: AnActionEvent?) {
-                System.out.println("Clicked ${anActionEvent?.place} kill job button")
-            }
-        }
-
-        class RestartLivyJobAction : AzureAnAction(AllIcons.Actions.Restart) {
-            override fun onActionPerformed(anActionEvent: AnActionEvent?) {
-                System.out.println("Clicked ${anActionEvent?.place} restart job button")
-            }
-        }
 
         val jobView = LivyBatchJobView()
-        val columnInfos = arrayOf(
-                UniqueTableActionsColumnInfo("KillAction"),
-                UniqueTableActionsColumnInfo("RestartAction"),
-                UniqueTablePlainColumnInfo("id"),
-                UniqueTablePlainColumnInfo("appId"),
-                UniqueTablePlainColumnInfo("state")
-        )
-        val tableSchema = UniqueColumnNameTableSchema(columnInfos)
+        val tableSchema = SparkLivyJobsTableSchema()
         val model = LivyBatchJobViewModel(LivyBatchJobTableModel(tableSchema))
 
         model.tableModel.firstPage = object : LivyBatchJobTablePage {
@@ -65,34 +82,24 @@ class SparkJobTableTest : SparkUITest() {
 
             override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
                 return listOf(
-                        // varargs
-                        tableSchema.RowDescriptor(
-                                "KillAction" to KillLivyJobAction(),
-                                "RestartAction" to RestartLivyJobAction(),
-                                "id" to "id-1",
-                                "appId" to "appId-1",
-                                "state" to "state-1"
-                        ),
-                        // null cell values
-                        tableSchema.RowDescriptor(
-                                "KillAction" to KillLivyJobAction(),
-                                "RestartAction" to RestartLivyJobAction(),
-                                "id" to "id-2",
-                                "appId" to null,
-                                "state" to "state-2"
-                        ),
-                        tableSchema.RowDescriptor(
-                                "KillAction" to KillLivyJobAction(),
-                                "RestartAction" to RestartLivyJobAction(),
-                                "id" to "id-3",
-                                "state" to "state-3"
-                        ),
-                        tableSchema.RowDescriptor(
-                                "KillAction" to KillLivyJobAction(),
-                                "RestartAction" to RestartLivyJobAction(),
-                                "id" to "id-4",
-                                "appId" to "appId-4"
-                        )
+                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 1,
+                           "appId": "application-134124194-1",
+                           "state": "running"
+                        }""".trimIndent())),
+                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 2,
+                           "appId": null,
+                           "state": "dead"
+                        }""".trimIndent())),
+                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 3,
+                           "state": "success"
+                        }""".trimIndent())),
+                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 4,
+                           "appId": "application-134124194-4"
+                        }""".trimIndent()))
                 )
             }
         }

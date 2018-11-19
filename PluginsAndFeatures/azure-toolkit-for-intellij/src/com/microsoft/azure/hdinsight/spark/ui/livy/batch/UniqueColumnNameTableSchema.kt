@@ -27,10 +27,10 @@ import com.intellij.util.ui.ColumnInfo
 import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
-class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out Any>>) {
+open class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out Any>>) {
 
     //interface
-    inner class RowDescriptor(vararg kvPairs: Pair<String, Any?>)
+    open inner class RowDescriptor(vararg kvPairs: Pair<String, Any?>)
         : AbstractMap<String, Any?>() {
 
         init {
