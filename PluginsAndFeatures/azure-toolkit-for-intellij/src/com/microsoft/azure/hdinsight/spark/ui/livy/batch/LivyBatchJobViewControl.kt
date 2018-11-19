@@ -20,35 +20,9 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.common
+package com.microsoft.azure.hdinsight.spark.ui.livy.batch
 
-import com.intellij.testFramework.IdeaTestCase
-import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
-import org.junit.Before
-import org.junit.Ignore
-import org.junit.Test
-import javax.swing.JDialog
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControl
 
-/*
- * Ignore those UI tests, since they are helpers to do manually tests
- */
-@Ignore
-open class SparkUITest : IdeaTestCase() {
-    protected var dialog: JDialog? = null
-
-    @Before
-    override fun setUp() {
-        super.setUp()
-
-        dialog = JDialog().apply { isModal = true }
-    }
-
-    @Test
-    fun testSparkBatchJobConfigurable() {
-        dialog!!.apply {
-            contentPane.add(SparkBatchJobConfigurable(project).component)
-            pack()
-            isVisible = true
-        }
-    }
+class LivyBatchJobViewControl(private val view : IdeaSettableControl<LivyBatchJobViewModel>) {
 }
