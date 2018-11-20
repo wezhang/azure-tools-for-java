@@ -30,6 +30,8 @@ import com.microsoft.azure.hdinsight.spark.ui.livy.batch.*
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import org.junit.Ignore
 import org.junit.Test
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 
 class KillLivyJobAction : AzureAnAction(AllIcons.Actions.Cancel) {
     override fun onActionPerformed(anActionEvent: AnActionEvent?) {
@@ -109,6 +111,12 @@ class SparkJobTableTest : SparkUITest() {
         dialog!!.apply {
             contentPane.add(jobView.component)
             pack()
+
+            addWindowListener(object: WindowAdapter() {
+                override fun windowClosing(e: WindowEvent?) {
+                    jobView.dispose()
+                }
+            })
             isVisible = true
         }
     }

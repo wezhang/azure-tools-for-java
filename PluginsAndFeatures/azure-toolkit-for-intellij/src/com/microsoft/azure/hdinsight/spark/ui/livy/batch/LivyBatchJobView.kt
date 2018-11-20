@@ -22,15 +22,17 @@
 
 package com.microsoft.azure.hdinsight.spark.ui.livy.batch
 
-import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.editor.EditorFactory
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.UIUtil
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControl
-import com.microsoft.intellij.forms.dsl.panel
 import java.awt.Component
 import java.awt.Graphics
+import javax.swing.JSplitPane
+import javax.swing.JSplitPane.HORIZONTAL_SPLIT
 import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
@@ -57,24 +59,37 @@ class LivyBatchJobTable : JBTable(LivyBatchJobTableModel()) {
     }
 }
 
-class LivyBatchJobView : IdeaSettableControl<LivyBatchJobViewModel> {
+class LivyBatchJobView : Disposable, IdeaSettableControl<LivyBatchJobViewModel> {
+    private val jobDetailNotSetMessage = "<Click the job item row to get details>"
+
     private var jobsMainTable = LivyBatchJobTable()
+    private val jobDetailDocument = EditorFactory.getInstance().createDocument(jobDetailNotSetMessage)
+    private val jobDetailViewer = EditorFactory.getInstance().createViewer(jobDetailDocument)
+
     val control = LivyBatchJobViewControl(this)
 
     val component: Component by lazy {
-        val formBuilder = panel {
-            row { c(JBScrollPane(jobsMainTable)) }
+        JSplitPane(HORIZONTAL_SPLIT, JBScrollPane(jobsMainTable), JBScrollPane(jobDetailViewer.component)).apply {
+            dividerSize = 6
+            dividerLocation = 600
         }
+    }
 
-        formBuilder.buildPanel()
+    override fun dispose() {
+        EditorFactory.getInstance().releaseEditor(jobDetailViewer)
     }
 
     override fun getData(to: LivyBatchJobViewModel) {
         to.tableModel = jobsMainTable.model as? LivyBatchJobTableModel
                 ?: throw IllegalArgumentException("Broken Spark Batch Job view model")
+        to.jobDetail = jobDetailDocument.text
     }
 
     override fun setDataInDispatch(from: LivyBatchJobViewModel) {
-        jobsMainTable.model = from.tableModel
+        if (jobsMainTable.model != from.tableModel) {
+            jobsMainTable.model = from.tableModel
+        }
+
+        jobDetailDocument.setText(from.jobDetail ?: jobDetailNotSetMessage)
     }
 }

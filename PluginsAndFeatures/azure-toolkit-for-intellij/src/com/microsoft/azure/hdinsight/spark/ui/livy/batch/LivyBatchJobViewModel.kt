@@ -106,5 +106,6 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
 }
 
 data class LivyBatchJobViewModel(
-        var tableModel: LivyBatchJobTableModel
+        var tableModel: LivyBatchJobTableModel,
+        var jobDetail: String? = null
 )
