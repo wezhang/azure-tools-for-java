@@ -30,8 +30,10 @@ import com.microsoft.azure.hdinsight.spark.ui.livy.batch.*
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import org.junit.Ignore
 import org.junit.Test
+import rx.Observable
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import java.util.concurrent.TimeUnit
 
 class KillLivyJobAction : AzureAnAction(AllIcons.Actions.Cancel) {
     override fun onActionPerformed(anActionEvent: AnActionEvent?) {
@@ -51,7 +53,7 @@ const val idColName = "ID"
 const val appIdColName = "AppID"
 const val stateColName = "State"
 
-class SparkLivyJobsTableSchema
+class MockSparkLivyJobsTableSchema
     : UniqueColumnNameTableSchema(arrayOf(
         UniqueTableActionsColumnInfo(killActionColName),
         UniqueTableActionsColumnInfo(restartActionColName),
@@ -59,7 +61,7 @@ class SparkLivyJobsTableSchema
         UniqueTablePlainColumnInfo(appIdColName),
         UniqueTablePlainColumnInfo(stateColName))) {
 
-    inner class SparkJobDescriptor(val jobStatus: SparkSubmitResponse) : RowDescriptor(
+    inner class MockSparkJobDescriptor(val jobStatus: SparkSubmitResponse) : RowDescriptor(
             killActionColName to KillLivyJobAction(),
             restartActionColName to RestartLivyJobAction(),
             idColName to jobStatus.id,
@@ -68,41 +70,63 @@ class SparkLivyJobsTableSchema
 
 }
 
+class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) : LivyBatchJobViewer.LivyBatchJobViewerControl {
+    override fun onJobSelected(jobSelected: UniqueColumnNameTableSchema.RowDescriptor?) {
+        val sparkJobDesc = (jobSelected as? MockSparkLivyJobsTableSchema.MockSparkJobDescriptor)?.let { arrayOf(it)}
+            ?: emptyArray()
+
+        Observable.from(sparkJobDesc)
+                .delay(500, TimeUnit.MILLISECONDS)
+                .subscribe { view.getModel(LivyBatchJobViewerModel::class.java).apply {
+                    jobDetail = """{"message":"hello ${it.jobStatus.appId}!","error no": 0, "id": ${it.jobStatus.id}}"""
+
+                    view.setData(this)
+                }}
+    }
+}
+
+
+class MockSparkBatchJobViewer : LivyBatchJobViewer() {
+    override val jobViewerControl: LivyBatchJobViewerControl by lazy { MockSparkBatchJobViewerControl(this@MockSparkBatchJobViewer) }
+}
+
 @Ignore
 class SparkJobTableTest : SparkUITest() {
     @Test
     fun testLivyTable() {
 
-        val jobView = LivyBatchJobView()
-        val tableSchema = SparkLivyJobsTableSchema()
-        val model = LivyBatchJobViewModel(LivyBatchJobTableModel(tableSchema))
+        val jobView = MockSparkBatchJobViewer()
+        val tableSchema = MockSparkLivyJobsTableSchema()
+        val model = LivyBatchJobViewerModel(LivyBatchJobTableModel(tableSchema))
 
-        model.tableModel.firstPage = object : LivyBatchJobTablePage {
-            override fun nextPageLink(): String? {
-                return null
-            }
+        model.tableModel?.apply {
+            firstPage = object : LivyBatchJobTablePage {
+                override fun nextPageLink(): String? {
+                    return null
+                }
 
-            override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
-                return listOf(
-                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
+                    return listOf(
+                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 1,
                            "appId": "application-134124194-1",
                            "state": "running"
                         }""".trimIndent())),
-                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 2,
                            "appId": null,
                            "state": "dead"
                         }""".trimIndent())),
-                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 3,
                            "state": "success"
                         }""".trimIndent())),
-                        tableSchema.SparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 4,
                            "appId": "application-134124194-4"
                         }""".trimIndent()))
-                )
+                    )
+                }
             }
         }
 

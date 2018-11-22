@@ -26,8 +26,10 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 
 interface IdeaSettableControl<T> : SettableControl<T> {
+    fun getModel(clazz: Class<T>): T = clazz.newInstance().apply { getData(this) }
+
     override fun setData(from: T) {
-        ApplicationManager.getApplication().invokeLater({ setDataInDispatch(from) }, ModalityState.any())
+        ApplicationManager.getApplication().invokeAndWait({ setDataInDispatch(from) }, ModalityState.any())
     }
 
     fun setDataInDispatch(from: T)

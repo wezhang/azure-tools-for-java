@@ -23,53 +23,34 @@
 package com.microsoft.azure.hdinsight.spark.ui.livy.batch
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.runWriteAction
+import com.intellij.openapi.command.undo.UndoUtil
 import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.editor.EditorKind
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.table.JBTable
-import com.intellij.util.ui.ColumnInfo
-import com.intellij.util.ui.UIUtil
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControl
 import java.awt.Component
-import java.awt.Graphics
 import javax.swing.JSplitPane
 import javax.swing.JSplitPane.HORIZONTAL_SPLIT
-import javax.swing.table.TableCellEditor
-import javax.swing.table.TableCellRenderer
 
-class LivyBatchJobTable : JBTable(LivyBatchJobTableModel()) {
-    val jobTableModel: LivyBatchJobTableModel
-            get() = model as? LivyBatchJobTableModel
-                    ?: throw IllegalArgumentException("LivyBatchJobTable only supports LivyBatchJobTableModel")
+abstract class LivyBatchJobViewer : Disposable, IdeaSettableControl<LivyBatchJobViewerModel> {
+    interface LivyBatchJobViewerControl : LivyBatchJobTable.LivyBatchJobTableControl
 
-    fun getColumnInfoAt(column: Int): ColumnInfo<Any, Any> {
-        return jobTableModel.columnInfos[column]
-    }
-    // Override getCellEditor method since no need to edit the job table, but needs to perform actions
-    override fun getCellEditor(row: Int, column: Int): TableCellEditor {
-        return getColumnInfoAt(column).getEditor(jobTableModel.getJobDescriptor(row)) ?: super.getCellEditor(row, column)
-    }
-
-    override fun getCellRenderer(row: Int, column: Int): TableCellRenderer {
-        return getColumnInfoAt(column).getRenderer(jobTableModel.getJobDescriptor(row)) ?: super.getCellRenderer(row, column)
-    }
-
-    override fun paint(g: Graphics) {
-        super.paint(g)
-        UIUtil.fixOSXEditorBackground(this)
-    }
-}
-
-class LivyBatchJobView : Disposable, IdeaSettableControl<LivyBatchJobViewModel> {
     private val jobDetailNotSetMessage = "<Click the job item row to get details>"
 
-    private var jobsMainTable = LivyBatchJobTable()
-    private val jobDetailDocument = EditorFactory.getInstance().createDocument(jobDetailNotSetMessage)
-    private val jobDetailViewer = EditorFactory.getInstance().createViewer(jobDetailDocument)
+    private val jobsMainTable : LivyBatchJobTable = object : LivyBatchJobTable() {
+        override val control: LivyBatchJobTableControl by lazy { jobViewerControl }
+    }
 
-    val control = LivyBatchJobViewControl(this)
+    private val jobDetailDocument = EditorFactory.getInstance().createDocument(jobDetailNotSetMessage).apply {
+        UndoUtil.disableUndoFor(this)
+    }
+    private val jobDetailViewer = EditorFactory.getInstance().createViewer(jobDetailDocument, null, EditorKind.MAIN_EDITOR)
+
+    abstract val jobViewerControl : LivyBatchJobViewerControl
 
     val component: Component by lazy {
-        JSplitPane(HORIZONTAL_SPLIT, JBScrollPane(jobsMainTable), JBScrollPane(jobDetailViewer.component)).apply {
+        JSplitPane(HORIZONTAL_SPLIT, JBScrollPane(jobsMainTable), jobDetailViewer.component).apply {
             dividerSize = 6
             dividerLocation = 600
         }
@@ -79,17 +60,19 @@ class LivyBatchJobView : Disposable, IdeaSettableControl<LivyBatchJobViewModel> 
         EditorFactory.getInstance().releaseEditor(jobDetailViewer)
     }
 
-    override fun getData(to: LivyBatchJobViewModel) {
+    override fun getData(to: LivyBatchJobViewerModel) {
         to.tableModel = jobsMainTable.model as? LivyBatchJobTableModel
                 ?: throw IllegalArgumentException("Broken Spark Batch Job view model")
         to.jobDetail = jobDetailDocument.text
     }
 
-    override fun setDataInDispatch(from: LivyBatchJobViewModel) {
+    override fun setDataInDispatch(from: LivyBatchJobViewerModel) {
         if (jobsMainTable.model != from.tableModel) {
             jobsMainTable.model = from.tableModel
         }
 
-        jobDetailDocument.setText(from.jobDetail ?: jobDetailNotSetMessage)
+        runWriteAction {
+            jobDetailDocument.setText(from.jobDetail ?: jobDetailNotSetMessage)
+        }
     }
 }

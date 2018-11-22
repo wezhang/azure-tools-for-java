@@ -105,7 +105,7 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
     fun getJobDescriptor(row: Int): UniqueColumnNameTableSchema.RowDescriptor = pagedJobs[row]
 }
 
-data class LivyBatchJobViewModel(
-        var tableModel: LivyBatchJobTableModel,
+data class LivyBatchJobViewerModel(
+        var tableModel: LivyBatchJobTableModel? = null,
         var jobDetail: String? = null
 )
