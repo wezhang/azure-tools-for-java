@@ -27,19 +27,18 @@ import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.command.undo.UndoUtil
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.EditorKind
-import com.intellij.ui.components.JBScrollPane
-import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControl
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlView
 import java.awt.Component
 import javax.swing.JSplitPane
 import javax.swing.JSplitPane.HORIZONTAL_SPLIT
 
-abstract class LivyBatchJobViewer : Disposable, IdeaSettableControl<LivyBatchJobViewerModel> {
-    interface LivyBatchJobViewerControl : LivyBatchJobTable.LivyBatchJobTableControl
+abstract class LivyBatchJobViewer : Disposable, IdeaSettableControlView<LivyBatchJobViewerModel> {
+    interface LivyBatchJobViewerControl : LivyBatchJobTableViewport.LivyBatchJobTableViewportControl
 
     private val jobDetailNotSetMessage = "<Click the job item row to get details>"
 
-    private val jobsMainTable : LivyBatchJobTable = object : LivyBatchJobTable() {
-        override val control: LivyBatchJobTableControl by lazy { jobViewerControl }
+    private val jobTableViewport : LivyBatchJobTableViewport = object : LivyBatchJobTableViewport() {
+        override val viewportControl: LivyBatchJobTableViewportControl by lazy { jobViewerControl }
     }
 
     private val jobDetailDocument = EditorFactory.getInstance().createDocument(jobDetailNotSetMessage).apply {
@@ -50,7 +49,7 @@ abstract class LivyBatchJobViewer : Disposable, IdeaSettableControl<LivyBatchJob
     abstract val jobViewerControl : LivyBatchJobViewerControl
 
     val component: Component by lazy {
-        JSplitPane(HORIZONTAL_SPLIT, JBScrollPane(jobsMainTable), jobDetailViewer.component).apply {
+        JSplitPane(HORIZONTAL_SPLIT, jobTableViewport.component, jobDetailViewer.component).apply {
             dividerSize = 6
             dividerLocation = 600
         }
@@ -61,15 +60,12 @@ abstract class LivyBatchJobViewer : Disposable, IdeaSettableControl<LivyBatchJob
     }
 
     override fun getData(to: LivyBatchJobViewerModel) {
-        to.tableModel = jobsMainTable.model as? LivyBatchJobTableModel
-                ?: throw IllegalArgumentException("Broken Spark Batch Job view model")
+        jobTableViewport.getData(to.tableViewportModel)
         to.jobDetail = jobDetailDocument.text
     }
 
     override fun setDataInDispatch(from: LivyBatchJobViewerModel) {
-        if (jobsMainTable.model != from.tableModel) {
-            jobsMainTable.model = from.tableModel
-        }
+        jobTableViewport.setDataInDispatch(from.tableViewportModel)
 
         runWriteAction {
             jobDetailDocument.setText(from.jobDetail ?: jobDetailNotSetMessage)

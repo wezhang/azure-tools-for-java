@@ -22,55 +22,116 @@
 
 package com.microsoft.azure.hdinsight.spark.ui.livy.batch
 
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.UIUtil
-import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControl
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlView
+import java.awt.Component
 import java.awt.Graphics
-import javax.swing.ListSelectionModel
+import java.awt.Point
 import javax.swing.ListSelectionModel.SINGLE_SELECTION
 import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
-abstract class LivyBatchJobTable : JBTable(LivyBatchJobTableModel()) {
-    interface LivyBatchJobTableControl {
+abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobTableViewport.LivyBatchJobTableViewportModel>{
+    data class LivyBatchJobTableViewportModel(
+            var tableModel: LivyBatchJobTableModel = LivyBatchJobTableModel(),
+            var firstJobPage: LivyBatchJobTablePage? = null
+    )
+
+    interface LivyBatchJobTableViewportControl {
         /**
          * Event handler for Job table row selected
          *
          * @param jobSelected selected job descriptor, null for deselected
          */
         fun onJobSelected(jobSelected: UniqueColumnNameTableSchema.RowDescriptor?)
+
+
+        /**
+         * Event handler for Job table to get next page
+         *
+         * @param nextPageLink next page link to get, null for end of pages
+         */
+        fun onNextPage(nextPageLink: String?): LivyBatchJobTablePage?
     }
 
-    init {
-        this.setSelectionMode(SINGLE_SELECTION)
-        selectionModel.addListSelectionListener {
-            val jobSelected = if (selectedRow >= 0) jobTableModel.getJobDescriptor(selectedRow) else null
+    abstract val viewportControl: LivyBatchJobTableViewportControl
 
-            control.onJobSelected(jobSelected)
+    inner class LivyBatchJobTable: JBTable(LivyBatchJobTableModel()) {
+        init {
+            this.setSelectionMode(SINGLE_SELECTION)
+            selectionModel.addListSelectionListener {
+                val jobSelected = if (selectedRow >= 0) jobTableModel.getJobDescriptor(selectedRow) else null
+
+                viewportControl.onJobSelected(jobSelected)
+            }
         }
-    }
 
-    val jobTableModel: LivyBatchJobTableModel
+        val jobTableModel: LivyBatchJobTableModel
             get() = model as? LivyBatchJobTableModel
                     ?: throw IllegalArgumentException("LivyBatchJobTable only supports LivyBatchJobTableModel")
 
-    abstract val control: LivyBatchJobTableControl
 
-    fun getColumnInfoAt(column: Int): ColumnInfo<Any, Any> {
-        return jobTableModel.columnInfos[column]
-    }
-    // Override getCellEditor method since no need to edit the job table, but needs to perform actions
-    override fun getCellEditor(row: Int, column: Int): TableCellEditor {
-        return getColumnInfoAt(column).getEditor(jobTableModel.getJobDescriptor(row)) ?: super.getCellEditor(row, column)
+        fun getColumnInfoAt(column: Int): ColumnInfo<Any, Any> {
+            return jobTableModel.columnInfos[column]
+        }
+
+        // Override getCellEditor method since no need to edit the job table, but needs to perform actions
+        override fun getCellEditor(row: Int, column: Int): TableCellEditor {
+            return getColumnInfoAt(column).getEditor(jobTableModel.getJobDescriptor(row))
+                    ?: super.getCellEditor(row, column)
+        }
+
+        override fun getCellRenderer(row: Int, column: Int): TableCellRenderer {
+            return getColumnInfoAt(column).getRenderer(jobTableModel.getJobDescriptor(row))
+                    ?: super.getCellRenderer(row, column)
+        }
+
+        override fun paint(g: Graphics) {
+            super.paint(g)
+            UIUtil.fixOSXEditorBackground(this)
+        }
     }
 
-    override fun getCellRenderer(row: Int, column: Int): TableCellRenderer {
-        return getColumnInfoAt(column).getRenderer(jobTableModel.getJobDescriptor(row)) ?: super.getCellRenderer(row, column)
+    private val table = LivyBatchJobTable()
+    private val scrollableTable = JBScrollPane(table).apply {
+        viewport.addChangeListener { _ ->
+            val viewRect = viewport.viewRect
+            val firstRowInView = table.rowAtPoint(Point(0, viewRect.y))
+            if (firstRowInView < 0) {
+                return@addChangeListener
+            }
+
+            val lastTableRow = getModel(LivyBatchJobTableViewportModel::class.java).tableModel.rowCount - 1
+            val lastRowInView = table.rowAtPoint(Point(0, viewRect.y + viewRect.height - 1)).takeIf { it >=0 }
+                ?: lastTableRow
+
+            if (lastRowInView == lastTableRow) {
+                (table.model as? LivyBatchJobTableModel)?.pagedJobs?.apply {
+                    if (hasNextPage()) {
+                        loadNextPage()
+                    }
+                }
+            }
+        }
     }
 
-    override fun paint(g: Graphics) {
-        super.paint(g)
-        UIUtil.fixOSXEditorBackground(this)
+    val component: Component = scrollableTable
+
+    override fun setDataInDispatch(from: LivyBatchJobTableViewportModel) {
+        if (table.model != from.tableModel) {
+            (table.model as? LivyBatchJobTableModel)?.pagedJobs?.fetchNextPage = null
+
+            table.model = from.tableModel.apply {
+                pagedJobs.fetchNextPage = { viewportControl.onNextPage(it) }
+                pagedJobs.firstJobPage = from.firstJobPage
+            }
+        }
+    }
+
+    override fun getData(to: LivyBatchJobTableViewportModel) {
+        to.tableModel = table.jobTableModel
     }
 }

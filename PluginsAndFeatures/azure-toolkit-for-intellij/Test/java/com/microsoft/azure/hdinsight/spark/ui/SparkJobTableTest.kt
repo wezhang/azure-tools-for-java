@@ -71,6 +71,10 @@ class MockSparkLivyJobsTableSchema
 }
 
 class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) : LivyBatchJobViewer.LivyBatchJobViewerControl {
+    override fun onNextPage(nextPageLink: String?): LivyBatchJobTablePage? {
+        return getJobListPage(nextPageLink)
+    }
+
     override fun onJobSelected(jobSelected: UniqueColumnNameTableSchema.RowDescriptor?) {
         val sparkJobDesc = (jobSelected as? MockSparkLivyJobsTableSchema.MockSparkJobDescriptor)?.let { arrayOf(it)}
             ?: emptyArray()
@@ -90,45 +94,77 @@ class MockSparkBatchJobViewer : LivyBatchJobViewer() {
     override val jobViewerControl: LivyBatchJobViewerControl by lazy { MockSparkBatchJobViewerControl(this@MockSparkBatchJobViewer) }
 }
 
-@Ignore
-class SparkJobTableTest : SparkUITest() {
-    @Test
-    fun testLivyTable() {
+val jobView = MockSparkBatchJobViewer()
+val tableSchema = MockSparkLivyJobsTableSchema()
 
-        val jobView = MockSparkBatchJobViewer()
-        val tableSchema = MockSparkLivyJobsTableSchema()
-        val model = LivyBatchJobViewerModel(LivyBatchJobTableModel(tableSchema))
+fun getJobListPage(pageLink: String?): LivyBatchJobTablePage? {
+    return when (pageLink) {
+        "http://page1" -> object : LivyBatchJobTablePage {
+            override fun nextPageLink(): String? {
+                return "http://page2"
+            }
 
-        model.tableModel?.apply {
-            firstPage = object : LivyBatchJobTablePage {
-                override fun nextPageLink(): String? {
-                    return null
-                }
-
-                override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
-                    return listOf(
-                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+            override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
+                return listOf(
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 1,
                            "appId": "application-134124194-1",
                            "state": "running"
                         }""".trimIndent())),
-                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 2,
                            "appId": null,
                            "state": "dead"
                         }""".trimIndent())),
-                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 3,
                            "state": "success"
                         }""".trimIndent())),
-                            tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
                            "id": 4,
                            "appId": "application-134124194-4"
                         }""".trimIndent()))
-                    )
-                }
+                )
             }
         }
+        "http://page2" -> object : LivyBatchJobTablePage {
+            override fun nextPageLink(): String? {
+                return null
+            }
+
+            override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
+                return listOf(
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 5,
+                           "appId": "application-134124194-5",
+                           "state": "running"
+                        }""".trimIndent())),
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 6,
+                           "appId": null,
+                           "state": "dead"
+                        }""".trimIndent())),
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 7,
+                           "state": "success"
+                        }""".trimIndent())),
+                        tableSchema.MockSparkJobDescriptor(SparkSubmitResponse.parseJSON("""{
+                           "id": 8,
+                           "appId": "application-134124194-8"
+                        }""".trimIndent()))
+                )
+            }
+        }
+        else -> null
+    }
+}
+@Ignore
+class SparkJobTableTest : SparkUITest() {
+
+    @Test
+    fun testLivyTable() {
+        val model = LivyBatchJobViewerModel( LivyBatchJobTableViewport.LivyBatchJobTableViewportModel(
+                    LivyBatchJobTableModel(tableSchema), getJobListPage("http://page1")))
 
         jobView.setData(model)
 

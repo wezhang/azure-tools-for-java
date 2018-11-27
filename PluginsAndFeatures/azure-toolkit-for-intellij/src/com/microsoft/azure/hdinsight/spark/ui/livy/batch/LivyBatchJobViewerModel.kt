@@ -42,10 +42,10 @@ class LivyBatchJobPagedList : PagedList<UniqueColumnNameTableSchema.RowDescripto
             setCurrentPage(value)
         }
 
-    override fun nextPage(p0: String?): Page<UniqueColumnNameTableSchema.RowDescriptor>? {
-        // TODO: To implement pagination later
-        return null
-    }
+    override fun nextPage(nextPageLink: String?): Page<UniqueColumnNameTableSchema.RowDescriptor>? =
+            fetchNextPage?.invoke(nextPageLink)
+
+    var fetchNextPage: ((nexPageLink: String?) -> LivyBatchJobTablePage?)? = null
 
     // Override by an empty method since we won't like to load all jobs at once.
     // And all results of size(), toArray(), lastIndexOf() are the currently cached
@@ -53,19 +53,9 @@ class LivyBatchJobPagedList : PagedList<UniqueColumnNameTableSchema.RowDescripto
     override fun loadAll() { }
 }
 
-class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = null)
-    : AbstractTableModel(), SortableColumnModel {
+class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = null) : AbstractTableModel(), SortableColumnModel {
 
-    private val pagedJobs = LivyBatchJobPagedList()
-
-    var firstPage: LivyBatchJobTablePage? = null
-        get() = pagedJobs.firstJobPage
-        set(value) {
-            if (field != value) {
-                pagedJobs.firstJobPage = value
-            }
-        }
-
+    val pagedJobs = LivyBatchJobPagedList()
 
 //    private var myDefaultSortKey: RowSorter.SortKey? = null
 
@@ -106,6 +96,7 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
 }
 
 data class LivyBatchJobViewerModel(
-        var tableModel: LivyBatchJobTableModel? = null,
+        var tableViewportModel: LivyBatchJobTableViewport.LivyBatchJobTableViewportModel =
+                LivyBatchJobTableViewport.LivyBatchJobTableViewportModel(),
         var jobDetail: String? = null
 )
