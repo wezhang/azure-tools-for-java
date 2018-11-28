@@ -27,6 +27,7 @@ import com.intellij.ui.table.JBTable
 import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.UIUtil
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlView
+import com.microsoft.azure.hdinsight.spark.ui.livy.batch.LivyBatchJobTableModel.*
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Point
@@ -34,13 +35,13 @@ import javax.swing.ListSelectionModel.SINGLE_SELECTION
 import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
-abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobTableViewport.LivyBatchJobTableViewportModel>{
-    data class LivyBatchJobTableViewportModel(
+abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobTableViewport.Model>{
+    data class Model(
             var tableModel: LivyBatchJobTableModel = LivyBatchJobTableModel(),
-            var firstJobPage: LivyBatchJobTablePage? = null
+            var firstJobPage: JobPage? = null
     )
 
-    interface LivyBatchJobTableViewportControl {
+    interface Control {
         /**
          * Event handler for Job table row selected
          *
@@ -54,10 +55,10 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
          *
          * @param nextPageLink next page link to get, null for end of pages
          */
-        fun onNextPage(nextPageLink: String?): LivyBatchJobTablePage?
+        fun onNextPage(nextPageLink: String?): JobPage?
     }
 
-    abstract val viewportControl: LivyBatchJobTableViewportControl
+    abstract val viewportControl: Control
 
     inner class LivyBatchJobTable: JBTable(LivyBatchJobTableModel()) {
         init {
@@ -102,7 +103,7 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
                 return@addChangeListener
             }
 
-            val lastTableRow = getModel(LivyBatchJobTableViewportModel::class.java).tableModel.rowCount - 1
+            val lastTableRow = getModel(Model::class.java).tableModel.rowCount - 1
             val lastRowInView = table.rowAtPoint(Point(0, viewRect.y + viewRect.height - 1)).takeIf { it >=0 }
                 ?: lastTableRow
 
@@ -118,7 +119,7 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
 
     val component: Component = scrollableTable
 
-    override fun setDataInDispatch(from: LivyBatchJobTableViewportModel) {
+    override fun setDataInDispatch(from: Model) {
         if (table.model != from.tableModel) {
             (table.model as? LivyBatchJobTableModel)?.pagedJobs?.fetchNextPage = null
 
@@ -133,7 +134,7 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
         }
     }
 
-    override fun getData(to: LivyBatchJobTableViewportModel) {
+    override fun getData(to: Model) {
         to.tableModel = table.jobTableModel
     }
 }

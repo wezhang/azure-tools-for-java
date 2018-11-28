@@ -32,13 +32,18 @@ import java.awt.Component
 import javax.swing.JSplitPane
 import javax.swing.JSplitPane.HORIZONTAL_SPLIT
 
-abstract class LivyBatchJobViewer : Disposable, IdeaSettableControlView<LivyBatchJobViewerModel> {
-    interface LivyBatchJobViewerControl : LivyBatchJobTableViewport.LivyBatchJobTableViewportControl
+abstract class LivyBatchJobViewer : Disposable, IdeaSettableControlView<LivyBatchJobViewer.Model> {
+    data class Model(
+            var tableViewportModel: LivyBatchJobTableViewport.Model = LivyBatchJobTableViewport.Model(),
+            var jobDetail: String? = null
+    )
+
+    interface Control : LivyBatchJobTableViewport.Control
 
     private val jobDetailNotSetMessage = "<Click the job item row to get details>"
 
     private val jobTableViewport : LivyBatchJobTableViewport = object : LivyBatchJobTableViewport() {
-        override val viewportControl: LivyBatchJobTableViewportControl by lazy { jobViewerControl }
+        override val viewportControl: Control by lazy { jobViewerControl }
     }
 
     private val jobDetailDocument = EditorFactory.getInstance().createDocument(jobDetailNotSetMessage).apply {
@@ -46,7 +51,7 @@ abstract class LivyBatchJobViewer : Disposable, IdeaSettableControlView<LivyBatc
     }
     private val jobDetailViewer = EditorFactory.getInstance().createViewer(jobDetailDocument, null, EditorKind.MAIN_EDITOR)
 
-    abstract val jobViewerControl : LivyBatchJobViewerControl
+    abstract val jobViewerControl : Control
 
     val component: Component by lazy {
         JSplitPane(HORIZONTAL_SPLIT, jobTableViewport.component, jobDetailViewer.component).apply {
@@ -59,12 +64,12 @@ abstract class LivyBatchJobViewer : Disposable, IdeaSettableControlView<LivyBatc
         EditorFactory.getInstance().releaseEditor(jobDetailViewer)
     }
 
-    override fun getData(to: LivyBatchJobViewerModel) {
+    override fun getData(to: Model) {
         jobTableViewport.getData(to.tableViewportModel)
         to.jobDetail = jobDetailDocument.text
     }
 
-    override fun setDataInDispatch(from: LivyBatchJobViewerModel) {
+    override fun setDataInDispatch(from: Model) {
         jobTableViewport.setDataInDispatch(from.tableViewportModel)
 
         runWriteAction {

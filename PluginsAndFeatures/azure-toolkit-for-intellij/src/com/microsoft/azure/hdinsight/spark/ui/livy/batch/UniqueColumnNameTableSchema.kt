@@ -57,12 +57,11 @@ open class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out A
 
     abstract class UniqueColumnInfo<T>(name: String) : ColumnInfo<RowDescriptor, T>(name)
 
-    open class UniqueTablePlainColumnInfo(name: String) : UniqueColumnInfo<String>(name) {
+    open class PlainColumnInfo(name: String) : UniqueColumnInfo<String>(name) {
         override fun valueOf(jobDesc: RowDescriptor?): String? = jobDesc?.get(name)?.toString()
     }
 
-    class UniqueTableActionsColumnInfo(name: String)
-        : UniqueColumnInfo<AnAction>(name), HideableHeaderColumn {
+    class ActionColumnInfo(name: String) : UniqueColumnInfo<AnAction>(name), HideableHeaderColumn {
         override var doesHide: Boolean = true
 
         // Share a renderer per column

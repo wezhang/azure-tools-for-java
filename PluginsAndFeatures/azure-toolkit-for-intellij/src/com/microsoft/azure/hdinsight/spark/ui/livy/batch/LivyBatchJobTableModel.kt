@@ -29,34 +29,33 @@ import com.microsoft.azure.PagedList
 import javax.swing.RowSorter
 import javax.swing.table.AbstractTableModel
 
-interface LivyBatchJobTablePage : Page<UniqueColumnNameTableSchema.RowDescriptor> {
-    override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>?
-}
-
-class LivyBatchJobPagedList : PagedList<UniqueColumnNameTableSchema.RowDescriptor>() {
-    var firstJobPage : LivyBatchJobTablePage? = null
-        set(value) {
-            field = value
-
-            clear()
-            setCurrentPage(value)
-        }
-
-    override fun nextPage(nextPageLink: String?): Page<UniqueColumnNameTableSchema.RowDescriptor>? =
-            fetchNextPage?.invoke(nextPageLink)
-
-    var fetchNextPage: ((nexPageLink: String?) -> LivyBatchJobTablePage?)? = null
-
-    // Override by an empty method since we won't like to load all jobs at once.
-    // And all results of size(), toArray(), lastIndexOf() are the currently cached
-    // jobs.
-    override fun loadAll() { }
-}
-
 class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = null)
     : AbstractTableModel(), SortableColumnModel {
+    interface JobPage : Page<UniqueColumnNameTableSchema.RowDescriptor> {
+        override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>?
+    }
 
-    val pagedJobs = LivyBatchJobPagedList()
+    class JobPagedList : PagedList<UniqueColumnNameTableSchema.RowDescriptor>() {
+        var firstJobPage : JobPage? = null
+            set(value) {
+                field = value
+
+                clear()
+                setCurrentPage(value)
+            }
+
+        override fun nextPage(nextPageLink: String?): Page<UniqueColumnNameTableSchema.RowDescriptor>? =
+                fetchNextPage?.invoke(nextPageLink)
+
+        var fetchNextPage: ((nexPageLink: String?) -> JobPage?)? = null
+
+        // Override by an empty method since we won't like to load all jobs at once.
+        // And all results of size(), toArray(), lastIndexOf() are the currently cached
+        // jobs.
+        override fun loadAll() { }
+    }
+
+    val pagedJobs = JobPagedList()
 
     /**
      * Methods from abstract class [AbstractTableModel] and interface [javax.swing.table.TableModel]
@@ -99,9 +98,3 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
 
     fun getJobDescriptor(row: Int): UniqueColumnNameTableSchema.RowDescriptor = pagedJobs[row]
 }
-
-data class LivyBatchJobViewerModel(
-        var tableViewportModel: LivyBatchJobTableViewport.LivyBatchJobTableViewportModel =
-                LivyBatchJobTableViewport.LivyBatchJobTableViewportModel(),
-        var jobDetail: String? = null
-)

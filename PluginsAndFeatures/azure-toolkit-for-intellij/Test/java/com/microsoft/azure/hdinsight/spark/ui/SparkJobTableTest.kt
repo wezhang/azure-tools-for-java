@@ -27,6 +27,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitResponse
 import com.microsoft.azure.hdinsight.spark.common.SparkUITest
 import com.microsoft.azure.hdinsight.spark.ui.livy.batch.*
+import com.microsoft.azure.hdinsight.spark.ui.livy.batch.LivyBatchJobTableModel.JobPage
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import org.junit.Ignore
 import org.junit.Test
@@ -55,11 +56,11 @@ const val stateColName = "State"
 
 class MockSparkLivyJobsTableSchema
     : UniqueColumnNameTableSchema(arrayOf(
-        UniqueTableActionsColumnInfo(killActionColName),
-        UniqueTableActionsColumnInfo(restartActionColName),
-        UniqueTablePlainColumnInfo(idColName),
-        UniqueTablePlainColumnInfo(appIdColName),
-        UniqueTablePlainColumnInfo(stateColName))) {
+        ActionColumnInfo(killActionColName),
+        ActionColumnInfo(restartActionColName),
+        PlainColumnInfo(idColName),
+        PlainColumnInfo(appIdColName),
+        PlainColumnInfo(stateColName))) {
 
     inner class MockSparkJobDescriptor(val jobStatus: SparkSubmitResponse) : RowDescriptor(
             killActionColName to KillLivyJobAction(),
@@ -70,8 +71,8 @@ class MockSparkLivyJobsTableSchema
 
 }
 
-class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) : LivyBatchJobViewer.LivyBatchJobViewerControl {
-    override fun onNextPage(nextPageLink: String?): LivyBatchJobTablePage? {
+class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) : LivyBatchJobViewer.Control {
+    override fun onNextPage(nextPageLink: String?): JobPage? {
         return getJobListPage(nextPageLink)
     }
 
@@ -81,7 +82,7 @@ class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) 
 
         Observable.from(sparkJobDesc)
                 .delay(500, TimeUnit.MILLISECONDS)
-                .subscribe { view.getModel(LivyBatchJobViewerModel::class.java).apply {
+                .subscribe { view.getModel(LivyBatchJobViewer.Model::class.java).apply {
                     jobDetail = """{"message":"hello ${it.jobStatus.appId}!","error no": 0, "id": ${it.jobStatus.id}}"""
 
                     view.setData(this)
@@ -91,17 +92,17 @@ class MockSparkBatchJobViewerControl(private val view: MockSparkBatchJobViewer) 
 
 
 class MockSparkBatchJobViewer : LivyBatchJobViewer() {
-    override val jobViewerControl: LivyBatchJobViewerControl by lazy { MockSparkBatchJobViewerControl(this@MockSparkBatchJobViewer) }
+    override val jobViewerControl: Control by lazy { MockSparkBatchJobViewerControl(this@MockSparkBatchJobViewer) }
 }
 
 val jobView = MockSparkBatchJobViewer()
 val tableSchema = MockSparkLivyJobsTableSchema()
 
-fun getJobListPage(pageLink: String?): LivyBatchJobTablePage? {
+fun getJobListPage(pageLink: String?): JobPage? {
     println("Get job list from $pageLink")
 
     return when (pageLink) {
-        "http://page1" -> object : LivyBatchJobTablePage {
+        "http://page1" -> object : JobPage {
             override fun nextPageLink(): String? {
                 return "http://page2"
             }
@@ -129,7 +130,7 @@ fun getJobListPage(pageLink: String?): LivyBatchJobTablePage? {
                 )
             }
         }
-        "http://page2" -> object : LivyBatchJobTablePage {
+        "http://page2" -> object : JobPage {
             override fun nextPageLink(): String? {
                 return "http://page3"
             }
@@ -157,9 +158,9 @@ fun getJobListPage(pageLink: String?): LivyBatchJobTablePage? {
                 )
             }
         }
-        "http://page3" -> object : LivyBatchJobTablePage {
+        "http://page3" -> object : JobPage {
             override fun nextPageLink(): String? {
-                return "http://page4"
+                return null
             }
 
             override fun items(): List<UniqueColumnNameTableSchema.RowDescriptor>? {
@@ -193,7 +194,7 @@ class SparkJobTableTest : SparkUITest() {
 
     @Test
     fun testLivyTable() {
-        val model = LivyBatchJobViewerModel( LivyBatchJobTableViewport.LivyBatchJobTableViewportModel(
+        val model = LivyBatchJobViewer.Model(LivyBatchJobTableViewport.Model(
                     LivyBatchJobTableModel(tableSchema), getJobListPage("http://page1")))
 
         jobView.setData(model)
