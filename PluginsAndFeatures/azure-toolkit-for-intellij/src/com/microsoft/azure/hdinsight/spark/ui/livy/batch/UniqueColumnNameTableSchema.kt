@@ -28,8 +28,6 @@ import javax.swing.table.TableCellEditor
 import javax.swing.table.TableCellRenderer
 
 open class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out Any>>) {
-
-    //interface
     open inner class RowDescriptor(vararg kvPairs: Pair<String, Any?>)
         : AbstractMap<String, Any?>() {
 
@@ -60,8 +58,7 @@ open class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out A
     abstract class UniqueColumnInfo<T>(name: String) : ColumnInfo<RowDescriptor, T>(name)
 
     open class UniqueTablePlainColumnInfo(name: String) : UniqueColumnInfo<String>(name) {
-        override fun valueOf(jobDesc: RowDescriptor?): String? =
-                jobDesc?.get(name)?.toString()
+        override fun valueOf(jobDesc: RowDescriptor?): String? = jobDesc?.get(name)?.toString()
     }
 
     class UniqueTableActionsColumnInfo(name: String)
@@ -71,23 +68,13 @@ open class UniqueColumnNameTableSchema(val columns: Array<UniqueColumnInfo<out A
         // Share a renderer per column
         private val renderer = ActionButtonTableCellRenderer()
 
-        override fun valueOf(jobDesc: RowDescriptor?): AnAction? {
-            return jobDesc?.get(name) as? AnAction
-        }
+        override fun valueOf(jobDesc: RowDescriptor?): AnAction? = jobDesc?.get(name) as? AnAction
 
-        override fun getRenderer(jobDesc: RowDescriptor?): TableCellRenderer? {
-//            return valueOf(jobDesc)?.let { renderer }
-            return renderer //ActionsIconTableCellRenderer()
-        }
+        override fun getRenderer(jobDesc: RowDescriptor?): TableCellRenderer? = valueOf(jobDesc)?.let { renderer }
 
-        override fun getEditor(jobDesc: RowDescriptor?): TableCellEditor? {
-//            return valueOf(jobDesc)?.let { renderer }
-            return renderer //ActionsIconTableCellRenderer()
-        }
+        override fun getEditor(jobDesc: RowDescriptor?): TableCellEditor? = valueOf(jobDesc)?.let { renderer }
 
-        override fun getColumnClass(): Class<*> {
-            return AnAction::class.java
-        }
+        override fun getColumnClass(): Class<*> = AnAction::class.java
 
         override fun isCellEditable(item: RowDescriptor?): Boolean = true
     }

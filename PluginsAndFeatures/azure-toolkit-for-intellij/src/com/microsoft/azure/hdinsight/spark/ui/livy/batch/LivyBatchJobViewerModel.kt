@@ -53,23 +53,26 @@ class LivyBatchJobPagedList : PagedList<UniqueColumnNameTableSchema.RowDescripto
     override fun loadAll() { }
 }
 
-class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = null) : AbstractTableModel(), SortableColumnModel {
+class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = null)
+    : AbstractTableModel(), SortableColumnModel {
 
     val pagedJobs = LivyBatchJobPagedList()
 
-//    private var myDefaultSortKey: RowSorter.SortKey? = null
+    /**
+     * Methods from abstract class [AbstractTableModel] and interface [javax.swing.table.TableModel]
+     */
 
     override fun getRowCount(): Int = pagedJobs.size
 
     override fun getColumnName(column: Int): String =
-            if ((columnInfos[column] as? UniqueColumnNameTableSchema.HideableHeaderColumn)?.doesHide == true) "" else columnInfos[column].name
+            if ((columnInfos[column] as? UniqueColumnNameTableSchema.HideableHeaderColumn)?.doesHide == true)
+                ""
+            else
+                columnInfos[column].name
 
     override fun getColumnCount(): Int = columnInfos.size
 
-    override fun getColumnClass(columnIndex: Int): Class<*> {
-//        return if (columnIndex == 0) LivyBatchJobActions::class.java else super.getColumnClass(columnIndex)
-        return columnInfos[columnIndex].columnClass
-    }
+    override fun getColumnClass(columnIndex: Int): Class<*> = columnInfos[columnIndex].columnClass
 
     override fun isCellEditable(rowIndex: Int, columnIndex: Int): Boolean {
         return columnInfos[columnIndex].isCellEditable(getJobDescriptor(rowIndex))
@@ -78,7 +81,9 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
     override fun getValueAt(rowIndex: Int, columnIndex: Int): Any? =
             schema?.columns?.get(columnIndex)?.valueOf(getJobDescriptor(rowIndex))
 
-//    fun getObjectAt(row: Int, column: Int): Any? = pagedJobs[row].getObjectAt(column)
+    /**
+     * Methods to support sort operations interface [SortableColumnModel]
+     */
 
     override fun isSortable(): Boolean = true
 
@@ -87,9 +92,9 @@ class LivyBatchJobTableModel(private val schema: UniqueColumnNameTableSchema? = 
 
     override fun setSortable(ignored: Boolean) { }
 
-    override fun getDefaultSortKey(): RowSorter.SortKey? = null //myDefaultSortKey
+    override fun getDefaultSortKey(): RowSorter.SortKey? = null
 
-    // For object
+    // For the row object as a job descriptor
     override fun getRowValue(row: Int): Any = getJobDescriptor(row)
 
     fun getJobDescriptor(row: Int): UniqueColumnNameTableSchema.RowDescriptor = pagedJobs[row]

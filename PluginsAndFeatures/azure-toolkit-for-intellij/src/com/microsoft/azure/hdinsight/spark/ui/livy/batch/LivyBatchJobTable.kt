@@ -74,9 +74,7 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
                     ?: throw IllegalArgumentException("LivyBatchJobTable only supports LivyBatchJobTableModel")
 
 
-        fun getColumnInfoAt(column: Int): ColumnInfo<Any, Any> {
-            return jobTableModel.columnInfos[column]
-        }
+        fun getColumnInfoAt(column: Int): ColumnInfo<Any, Any> = jobTableModel.columnInfos[column]
 
         // Override getCellEditor method since no need to edit the job table, but needs to perform actions
         override fun getCellEditor(row: Int, column: Int): TableCellEditor {
@@ -125,6 +123,10 @@ abstract class LivyBatchJobTableViewport : IdeaSettableControlView<LivyBatchJobT
             (table.model as? LivyBatchJobTableModel)?.pagedJobs?.fetchNextPage = null
 
             table.model = from.tableModel.apply {
+                // TODO: improve the pagination user experiences by async
+                // Currently, the PagedList implementation will fetch the following pages as much as possible
+                // after set the firstJobPage. For better user experiences, the pages loading can be async
+                // and one by one.
                 pagedJobs.fetchNextPage = { viewportControl.onNextPage(it) }
                 pagedJobs.firstJobPage = from.firstJobPage
             }
