@@ -22,24 +22,21 @@ open class CosmosServerlessSparkSubmissionContentPanelConfigurable(project : Pro
         buildPanel()
     }
 
-    @NotNull
-    override fun getClusterDetails(): ImmutableSortedSet<out IClusterDetail> {
-        return ImmutableSortedSet.copyOf({ x, y -> x.title.compareTo(y.title, ignoreCase = true) },
+    override val clusterDetails: ImmutableSortedSet<out IClusterDetail>
+        get() = ImmutableSortedSet.copyOf({ x, y -> x.title.compareTo(y.title, ignoreCase = true) },
                 AzureSparkServerlessClusterManager.getInstance().accounts)
-    }
 
-    @NotNull
     override fun getClusterDetailsWithRefresh(): Observable<ImmutableSortedSet<out IClusterDetail>> {
         return Observable.fromCallable { AzureSparkServerlessClusterManager.getInstance().accounts }
                 .map { list -> ImmutableSortedSet.copyOf({ x, y -> x.title.compareTo(y.title, ignoreCase = true) }, list) }
     }
 
-    override fun onClusterSelected(@NotNull cluster: IClusterDetail) {
+    override fun onClusterSelected(cluster: IClusterDetail) {
         super.onClusterSelected(cluster)
         this.sparkEventsDirectoryPrefixField.text = "adl://${cluster.name}.azuredatalakestore.net/"
     }
 
-    override fun getData(@NotNull data: SparkSubmitModel) {
+    override fun getData(data: SparkSubmitModel) {
         super.getData(data)
         val sparkEventsPath = this.sparkEventsDirectoryField.text
         (data as CosmosServerlessSparkSubmitModel).setSparkEventsDirectoryPath(sparkEventsPath)
@@ -50,9 +47,8 @@ open class CosmosServerlessSparkSubmissionContentPanelConfigurable(project : Pro
         this.sparkEventsDirectoryField.text = (data as CosmosServerlessSparkSubmitModel).getSparkEventsDirectoryPath()
     }
 
-    override fun getComponent(): JComponent {
-        return cosmosServerlessSubmissionPanel
-    }
+    override val component: JComponent
+        get() = cosmosServerlessSubmissionPanel
 
     private val sparkEventsPrompt = JLabel("Spark Events directory:").apply {
         toolTipText = "Directory Path for spark events"

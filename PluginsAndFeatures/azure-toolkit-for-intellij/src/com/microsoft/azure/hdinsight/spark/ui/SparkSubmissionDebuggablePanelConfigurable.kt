@@ -38,7 +38,7 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
 
     private val submissionDebuggablePanel by lazy {
         val formBuilder = panel {
-            row { c(super.getComponent()) }
+            row { c(super.component) }
             row { c(hidableAdvancedConfigPanel) }
         }
 
@@ -56,9 +56,8 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
         advancedConfigCtrl.selectCluster(cluster.name)
     }
 
-    override fun getComponent(): JComponent {
-        return submissionDebuggablePanel
-    }
+    override val component: JComponent
+        get() = submissionDebuggablePanel
 
     override fun setData(data: SparkSubmitModel) {
         // Data -> Components

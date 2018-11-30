@@ -26,5 +26,5 @@ import com.intellij.openapi.project.Project
 
 class CosmosServerlessSparkSubmissionPanelConfigurable(project: Project)
     : CosmosServerlessSparkSubmissionContentPanelConfigurable(project) {
-    override fun getType(): String = "Cosmos Serverless Spark"
+    override val type: String = "Cosmos Serverless Spark"
 }

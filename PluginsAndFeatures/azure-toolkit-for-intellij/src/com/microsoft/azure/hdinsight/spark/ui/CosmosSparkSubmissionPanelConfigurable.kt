@@ -34,17 +34,16 @@ import rx.Observable
 
 class CosmosSparkSubmissionPanelConfigurable(project: Project)
     : SparkSubmissionContentPanelConfigurable(project), ILogger {
-    override fun getType(): String = "Azure Data Lake Spark Pool"
+    override val type: String = "Azure Data Lake Spark Pool"
 
-    override fun getClusterDetails(): ImmutableSortedSet<out IClusterDetail> {
-        return AzureSparkServerlessClusterManager.getInstance().clusters
-    }
+    override val clusterDetails: ImmutableSortedSet<out IClusterDetail>
+        get() = AzureSparkServerlessClusterManager.getInstance().clusters
 
     override fun getClusterDetailsWithRefresh(): Observable<ImmutableSortedSet<out IClusterDetail>> {
         return AzureSparkServerlessClusterManager.getInstance().fetchClusters().map { it.clusters }
     }
 
-    override fun getData(data: SparkSubmitModel?) {
+    override fun getData(data: SparkSubmitModel) {
         // Component -> Data
         val serverlessData = data as CosmosSparkSubmitModel
         val cluster = selectedClusterDetail as? AzureSparkServerlessCluster
