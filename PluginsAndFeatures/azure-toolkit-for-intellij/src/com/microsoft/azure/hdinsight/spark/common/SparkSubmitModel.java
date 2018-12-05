@@ -35,6 +35,7 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.utils.Pair;
 import org.jdom.Element;
+import rx.subjects.BehaviorSubject;
 
 import javax.swing.*;
 import java.util.*;
@@ -48,7 +49,7 @@ public class SparkSubmitModel {
 
     @Transient
     @NotNull
-    final private Project project;
+    private Project project;
 
     @Transient
     @NotNull
@@ -63,14 +64,13 @@ public class SparkSubmitModel {
     final private SparkSubmitJobUploadStorageModel jobUploadStorageModel;
 
     @Transient
-    @Nullable
-    private ImmutableComboBoxModel<IClusterDetail> clusterComboBoxModel = null;
-
-    @Transient
-    private DefaultComboBoxModel<Artifact> artifactComboBoxModel;
-
-    @Transient
     private List<String> errors = new ArrayList<>();
+
+    @Transient
+    private boolean isClusterSelectable = true;
+
+    @Transient
+    private boolean isClustersRefreshable = true;
 
     @Transient
     @NotNull
@@ -86,7 +86,6 @@ public class SparkSubmitModel {
 
     public SparkSubmitModel(@NotNull Project project, @NotNull SparkSubmissionParameter submissionParameter) {
         this.project = project;
-        this.artifactComboBoxModel = new DefaultComboBoxModel<>();
         this.advancedConfigModel = new SparkSubmitAdvancedConfigModel();
         this.jobUploadStorageModel = new SparkSubmitJobUploadStorageModel();
         this.submissionParameter = submissionParameter;
@@ -109,20 +108,23 @@ public class SparkSubmitModel {
     }
 
     @Transient
-    @Nullable
-    public ImmutableComboBoxModel<IClusterDetail> getClusterComboBoxModel() {
-        return clusterComboBoxModel;
+    public boolean isClusterSelectable() {
+        return isClusterSelectable;
     }
 
     @Transient
-    public void setClusterComboBoxModel(@Nullable ImmutableComboBoxModel<IClusterDetail> clusterComboBoxModel) {
-        this.clusterComboBoxModel = clusterComboBoxModel;
+    public void setClusterSelectable(boolean clusterSelectable) {
+        isClusterSelectable = clusterSelectable;
     }
 
     @Transient
-    @NotNull
-    public DefaultComboBoxModel<Artifact> getArtifactComboBoxModel() {
-        return artifactComboBoxModel;
+    public boolean isClustersRefreshable() {
+        return isClustersRefreshable;
+    }
+
+    @Transient
+    public void setClustersRefreshable(boolean clustersRefreshable) {
+        isClustersRefreshable = clustersRefreshable;
     }
 
     @Attribute("cluster_name")
@@ -256,6 +258,11 @@ public class SparkSubmitModel {
     @NotNull
     public Project getProject() {
         return project;
+    }
+
+    @Transient
+    public void setProject(@NotNull Project project) {
+        this.project = project;
     }
 
     @NotNull

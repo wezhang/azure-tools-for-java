@@ -22,31 +22,23 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.google.common.collect.ImmutableSortedSet
 import com.intellij.openapi.project.Project
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster
-import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessClusterManager
 import com.microsoft.azure.hdinsight.spark.common.CosmosSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
-import rx.Observable
 
-class CosmosSparkSubmissionPanelConfigurable(project: Project)
-    : SparkSubmissionContentPanelConfigurable(project), ILogger {
-    override val type: String = "Azure Data Lake Spark Pool"
+class CosmosSparkSubmissionPanel(project: Project)
+    : SparkSubmissionContentPanel(project, "Azure Data Lake Spark Pool"), ILogger {
 
-    override val clusterDetails: ImmutableSortedSet<out IClusterDetail>
-        get() = AzureSparkServerlessClusterManager.getInstance().clusters
-
-    override fun getClusterDetailsWithRefresh(): Observable<ImmutableSortedSet<out IClusterDetail>> {
-        return AzureSparkServerlessClusterManager.getInstance().fetchClusters().map { it.clusters }
-    }
+    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { CosmosSparkClustersCombo() }
 
     override fun getData(data: SparkSubmitModel) {
         // Component -> Data
-        val serverlessData = data as CosmosSparkSubmitModel
-        val cluster = selectedClusterDetail as? AzureSparkServerlessCluster
+        super.getData(data)
+
+        val serverlessData = data as? CosmosSparkSubmitModel ?: return
+        val cluster = control.getSelectedCluster() as? AzureSparkServerlessCluster
 
         if (cluster != null) {
             serverlessData.tenantId = cluster.subscription.tenantId
@@ -54,7 +46,5 @@ class CosmosSparkSubmissionPanelConfigurable(project: Project)
             serverlessData.clusterId = cluster.guid
             serverlessData.livyUri = cluster.livyUri?.toString() ?: ""
         }
-
-        super.getData(data)
     }
 }

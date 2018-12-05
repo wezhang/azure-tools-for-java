@@ -39,7 +39,7 @@ import com.intellij.util.PathUtil
 import com.microsoft.azure.hdinsight.spark.common.SparkLocalRunConfigurableModel
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView
-import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable
+import com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunParamsPanel
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle
 import org.apache.commons.lang3.SystemUtils
 import java.io.File
@@ -128,8 +128,8 @@ open class SparkBatchLocalRunState(val myProject: Project, val model: SparkLocal
                 .addAt(0, "--master local[" + (if (model.isIsParallelExecution) 2 else 1) + "]")
 
         if (SystemUtils.IS_OS_WINDOWS) {
-            if (!Optional.ofNullable(params.env[SparkLocalRunConfigurable.HADOOP_HOME_ENV])
-                            .map { hadoopHome -> Paths.get(hadoopHome, "bin", SparkLocalRunConfigurable.WINUTILS_EXE_NAME).toString() }
+            if (!Optional.ofNullable(params.env[SparkLocalRunParamsPanel.HADOOP_HOME_ENV])
+                            .map { hadoopHome -> Paths.get(hadoopHome, "bin", SparkLocalRunParamsPanel.WINUTILS_EXE_NAME).toString() }
                             .map { File(it) }
                             .map { it.exists() }
                             .orElse(false)) {

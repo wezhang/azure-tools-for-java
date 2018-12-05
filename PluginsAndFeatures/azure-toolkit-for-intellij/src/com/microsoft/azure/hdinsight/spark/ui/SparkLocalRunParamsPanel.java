@@ -51,7 +51,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Optional;
 
-public class SparkLocalRunConfigurable {
+public class SparkLocalRunParamsPanel {
     public final static String HADOOP_HOME_ENV = "HADOOP_HOME";
     public final static String WINUTILS_EXE_NAME = "winutils.exe";
 
@@ -76,7 +76,7 @@ public class SparkLocalRunConfigurable {
     @NotNull
     private final Project myProject;
 
-    public SparkLocalRunConfigurable(@NotNull final Project project) {
+    public SparkLocalRunParamsPanel(@NotNull final Project project) {
         this.myProject = project;
         myVersionDetector = new JreVersionDetector();
 
@@ -116,7 +116,7 @@ public class SparkLocalRunConfigurable {
         }
     }
 
-    public SparkLocalRunConfigurable withInitialize() {
+    public SparkLocalRunParamsPanel withInitialize() {
         myModuleSelector = new ConfigurationModuleSelector(myProject, myClasspathModule.getComponent());
         myCommonProgramParameters.setModuleContext(myModuleSelector.getModule());
         modules.setSelectedModule(

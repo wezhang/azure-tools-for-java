@@ -29,12 +29,14 @@ package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.icons.AllIcons.Actions.Help
 import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.popup.IconButton
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.InplaceButton
 import com.intellij.uiDesigner.core.GridConstraints.*
@@ -46,6 +48,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel
 import com.microsoft.azuretools.securestore.SecureStore
 import com.microsoft.azuretools.service.ServiceManager
 import com.microsoft.intellij.forms.dsl.panel
+import com.microsoft.intellij.rxjava.DisposableObservers
 import org.apache.commons.lang3.StringUtils
 import rx.subjects.PublishSubject
 import java.awt.event.ItemEvent.DESELECTED
@@ -56,8 +59,7 @@ import javax.swing.*
 import javax.swing.event.DocumentEvent
 
 // View and Control combined class
-class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitAdvancedConfigModel> {
-
+class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitAdvancedConfigModel>, Disposable {
     private val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
 
     // FIXME!!! Since the Intellij has no locale setting, just set en-us here.
@@ -151,7 +153,11 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
         }
     }
 
-    val sshCheckSubject: PublishSubject<String> = PublishSubject.create()
+    inner class ViewModel: DisposableObservers() {
+        val sshCheckSubject: PublishSubject<String> = disposableSubjectOf { PublishSubject.create() }
+    }
+
+    val viewModel = ViewModel().apply { Disposer.register(this@SparkSubmissionAdvancedConfigPanel, this@apply) }
 
     init {
         setSshAuthenticationUIEnabled(false)
@@ -165,21 +171,21 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
             setSshAuthenticationUIEnabled(it.stateChange == SELECTED)
 
             if (it.stateChange == SELECTED) {
-                sshCheckSubject.onNext("Enabled remote debug")
+                viewModel.sshCheckSubject.onNext("Enabled remote debug")
             }
         }
 
         // To trigger SSH authentication background check
         val inputListener = object : DocumentAdapter() {
-            override fun textChanged(ev: DocumentEvent) = sshCheckSubject.onNext(ev.document.toString())
+            override fun textChanged(ev: DocumentEvent) = viewModel.sshCheckSubject.onNext(ev.document.toString())
         }
 
         sshUserNameTextField.document.addDocumentListener(inputListener)
         sshPasswordField.document.addDocumentListener(inputListener)
         sshKeyFileTextField.textField.document.addDocumentListener(inputListener)
 
-        sshUsePasswordRadioButton.addActionListener { sshCheckSubject.onNext(it.toString()) }
-        sshUseKeyFileRadioButton.addActionListener { sshCheckSubject.onNext(it.toString()) }
+        sshUsePasswordRadioButton.addActionListener { viewModel.sshCheckSubject.onNext(it.toString()) }
+        sshUseKeyFileRadioButton.addActionListener { viewModel.sshCheckSubject.onNext(it.toString()) }
 
         // To change SSH authentication type
         sshUsePasswordRadioButton.addItemListener { setSshPasswordInputEnabled(it.stateChange == SELECTED) }
@@ -230,7 +236,7 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
         super.removeNotify()
 
         // Stop the SSH authentication check
-        sshCheckSubject.onCompleted()
+        viewModel.dispose()
     }
 
     override fun setData(data: SparkSubmitAdvancedConfigModel) {
@@ -315,5 +321,8 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
 
         // Keep this line at the ending
         data.enableRemoteDebug = enableRemoteDebugCheckBox.isSelected
+    }
+
+    override fun dispose() {
     }
 }

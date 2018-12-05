@@ -23,10 +23,10 @@
 package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
+import com.microsoft.azure.hdinsight.spark.ui.ArisSparkClusterListRefreshableCombo
+import com.microsoft.azure.hdinsight.spark.ui.SparkClusterListRefreshableCombo
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel
 
-class ArisSparkConfigurable(project: Project) : SparkBatchJobConfigurable(project) {
-    override fun createSubmissionPanel(): SparkSubmissionContentPanel =
-            ArisSparkSubmissionContentPanel(project)
+class ArisSparkSubmissionContentPanel(project: Project) : SparkSubmissionContentPanel(project, "Aris Spark") {
+    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { ArisSparkClusterListRefreshableCombo() }
 }

@@ -40,8 +40,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable.HADOOP_HOME_ENV;
-import static com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunConfigurable.WINUTILS_EXE_NAME;
+import static com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunParamsPanel.HADOOP_HOME_ENV;
+import static com.microsoft.azure.hdinsight.spark.ui.SparkLocalRunParamsPanel.WINUTILS_EXE_NAME;
 
 @Tag("spark-local-run-configurable-model")
 public class SparkLocalRunConfigurableModel implements CommonJavaRunConfigurationParameters, ILogger {

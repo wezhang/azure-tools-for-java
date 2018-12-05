@@ -53,6 +53,7 @@ class LivySparkRunConfigurationSettingsEditor(val jobConfigurable: SparkBatchJob
     }
 
     override fun disposeEditor() {
+        Disposer.dispose(jobConfigurable)
         Disposer.dispose(this)
 
         super.disposeEditor()

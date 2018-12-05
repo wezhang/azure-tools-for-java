@@ -32,7 +32,6 @@ import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.cluster.ClusterDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightLivyLinkClusterDetail
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.AzureSparkClusterManager
 import com.microsoft.azure.hdinsight.sdk.common.HDIException
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster
@@ -59,10 +58,11 @@ import java.awt.event.ItemEvent
 import java.util.concurrent.TimeUnit
 import javax.swing.DefaultComboBoxModel
 
-abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobUploadStorageWithUploadPathPanel) : ILogger {
-    val isCheckPassed
+abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobUploadStorageWithUploadPathPanel) :
+        SparkSubmissionJobUploadStorageWithUploadPathPanel.Control, ILogger {
+    override val isCheckPassed
         get() = StringUtils.isEmpty(resultMessage)
-    val resultMessage
+    override val resultMessage
         get() = view.storagePanel.errorMessage
 
     //storage check event for storageCheckSubject in panel
@@ -71,8 +71,6 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
     class StorageCheckSignInOutEvent() : StorageCheckEvent("After user clicked sign in/off in ADLS Gen 1 storage type")
     class StorageCheckPathFocusLostEvent(val rootPathType: String) : StorageCheckEvent("$rootPathType root path focus lost")
     class StorageCheckSelectedStorageTypeEvent(val storageType: String) : StorageCheckEvent("Selected storage type: $storageType")
-
-    abstract fun getClusterName(): String?
 
     init {
         // check storage info when cluster selection changes
@@ -161,9 +159,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
                     },
                     { err -> log().warn(ExceptionUtils.getStackTrace(err)) })
 
-    abstract fun getClusterDetail(): IClusterDetail?
-
-    fun setDefaultStorageType(checkEvent:StorageCheckEvent) {
+    private fun setDefaultStorageType(checkEvent:StorageCheckEvent) {
         synchronized(view.storagePanel) {
             if (checkEvent is StorageCheckSelectedClusterEvent) {
 
@@ -174,7 +170,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
                 val azureBlobTitle = view.storagePanel.azureBlobCard.title
                 val adlsTitle = view.storagePanel.adlsCard.title
 
-                val clusterDetail = getClusterDetail()
+                val clusterDetail = getSelectedCluster()
                 view.storagePanel.storageTypeComboBox.selectedItem = null
                 view.storagePanel.storageTypeComboBox.model = when (clusterDetail) {
                     is ClusterDetail ->{
@@ -244,7 +240,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
 
                 when (it.storageAccountType) {
                     SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION -> it.apply {
-                        if (getClusterDetail() != null) {
+                        if (getSelectedCluster() != null) {
                             errorMsg = null
                             uploadPath = "/SparkSubmission/"
                         } else {
@@ -253,7 +249,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
                         }
                     }
                     SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT -> it.apply {
-                        val clusterDetail = getClusterDetail()
+                        val clusterDetail = getSelectedCluster()
                         if (clusterDetail == null) {
                             errorMsg = "Cluster not exist"
                             uploadPath = "-"
@@ -320,7 +316,7 @@ abstract class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobU
 
                             uploadPath = "${formatWebHdfsRootPath}/SparkSubmission/"
 
-                            val clusterDetail = getClusterDetail()
+                            val clusterDetail = getSelectedCluster()
                             when (clusterDetail) {
                                 is SqlBigDataLivyLinkClusterDetail -> webHdfsAuthUser = clusterDetail.httpUserName
                                 else -> webHdfsAuthUser = SparkSubmissionJobUploadWebHdfsSignOutCard.defaultAuthUser

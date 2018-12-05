@@ -20,13 +20,19 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.intellij.rxjava
 
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel
+import com.intellij.openapi.Disposable
+import rx.Observer
 
-class ArisSparkConfigurable(project: Project) : SparkBatchJobConfigurable(project) {
-    override fun createSubmissionPanel(): SparkSubmissionContentPanel =
-            ArisSparkSubmissionContentPanel(project)
+open class DisposableObservers: Disposable {
+    private val observables = mutableListOf<Observer<*>>()
+
+    override fun dispose() {
+        observables.forEach { it.onCompleted() }
+    }
+
+    fun <T: Observer<*>> disposableSubjectOf(cons: () -> T): T {
+        return cons().apply { observables.add(this@apply) }
+    }
 }

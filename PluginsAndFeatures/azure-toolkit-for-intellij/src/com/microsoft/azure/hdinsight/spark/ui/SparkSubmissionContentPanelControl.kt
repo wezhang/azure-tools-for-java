@@ -20,13 +20,13 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.azure.hdinsight.spark.ui
 
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel
+import com.microsoft.azure.hdinsight.common.logger.ILogger
+import com.microsoft.azure.hdinsight.common.mvc.SettableControl
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 
-class ArisSparkConfigurable(project: Project) : SparkBatchJobConfigurable(project) {
-    override fun createSubmissionPanel(): SparkSubmissionContentPanel =
-            ArisSparkSubmissionContentPanel(project)
-}
+open class SparkSubmissionContentPanelControl(private val submitView: SettableControl<SparkSubmitModel>,
+                                              private val jobUploadStorageCtrl: SparkSubmissionJobUploadStorageCtrl)
+    : SparkSubmissionJobUploadStorageWithUploadPathPanel.Control by jobUploadStorageCtrl,
+      SparkSubmissionContentPanel.Control, ILogger

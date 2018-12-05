@@ -33,14 +33,15 @@ import com.microsoft.azure.hdinsight.spark.common.SparkBatchRemoteDebugJobSshAut
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitAdvancedConfigModel
 import com.microsoft.azuretools.securestore.SecureStore
 import com.microsoft.azuretools.service.ServiceManager
-import org.apache.commons.lang3.StringUtils
+import rx.Observable
 import rx.Subscription
-import rx.subjects.PublishSubject
 import java.util.concurrent.TimeUnit
 
-abstract class SparkSubmissionAdvancedConfigCtrl(
-        val view: SettableControl<SparkSubmitAdvancedConfigModel>,
-        private val sshCheckSubject: PublishSubject<String>) : ILogger {
+open class SparkSubmissionDebuggablePanelCtrl(val view: SettableControl<SparkSubmitAdvancedConfigModel>,
+                                              private val viewModel: SparkSubmissionDebuggablePanel.ViewModel,
+                                              private val submissionContentCtrl: SparkSubmissionContentPanel.Control)
+    : SparkSubmissionContentPanel.Control by submissionContentCtrl,
+        SparkSubmissionDebuggablePanel.Control, ILogger {
     companion object {
         const val passedText = "passed"
 
@@ -87,22 +88,16 @@ abstract class SparkSubmissionAdvancedConfigCtrl(
         registerAsyncSshAuthCheck()
     }
 
-    fun selectCluster(clusterName: String) {
-        sshCheckSubject.onNext("Selected cluster $clusterName")
-    }
-
-    abstract fun getClusterNameToCheck(): String?
-
     private fun isReadyToCheck(model: SparkSubmitAdvancedConfigModel) = model.enableRemoteDebug && isParameterReady(model)
 
-    private fun registerAsyncSshAuthCheck(): Subscription = sshCheckSubject
-            .throttleWithTimeout(500, TimeUnit.MILLISECONDS)
-            .doOnNext { log().debug("Receive checking message $it") }
-            .map { getClusterNameToCheck() }
-            .filter { StringUtils.isNotBlank(it) }
-            .map { selectedClusterName -> model.apply {
-                clusterName = selectedClusterName
-            }}
+    private fun registerAsyncSshAuthCheck(): Subscription = Observable
+            .combineLatest(
+                    viewModel.advancedConfig.sshCheckSubject
+                            .throttleWithTimeout(500, TimeUnit.MILLISECONDS)
+                            .doOnNext { log().info("Receive checking message $it") },
+                    viewModel.clusterSelection.clusterIsSelected) { _, cluster -> cluster }
+            .filter { it != null }
+            .map { it -> model.apply { clusterName = it!!.name }}
             .filter { isReadyToCheck(it) }
             .doOnNext { modelToProbe ->
                 log().info("Check SSH authentication for cluster ${modelToProbe.clusterName} ...")

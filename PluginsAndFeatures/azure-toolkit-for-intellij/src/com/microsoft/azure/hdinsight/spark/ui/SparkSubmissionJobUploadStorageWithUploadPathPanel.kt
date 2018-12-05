@@ -41,6 +41,13 @@ import java.awt.CardLayout
 import javax.swing.*
 
 open class SparkSubmissionJobUploadStorageWithUploadPathPanel : JPanel(), SettableControl<SparkSubmitJobUploadStorageModel> {
+    interface Control {
+        val isCheckPassed: Boolean
+        val resultMessage: String?
+        fun getSelectedClusterName(): String?
+        fun getSelectedCluster(): IClusterDetail?
+    }
+
     val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
     val jobUploadStorageTitle = "Job Upload Storage"
     private val uploadPathLabel = JLabel("Upload Path")

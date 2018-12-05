@@ -20,13 +20,21 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run.configuration
+package com.microsoft.intellij.ui.util
 
-import com.intellij.openapi.project.Project
-import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel
+import javax.swing.ComboBoxModel
 
-class ArisSparkConfigurable(project: Project) : SparkBatchJobConfigurable(project) {
-    override fun createSubmissionPanel(): SparkSubmissionContentPanel =
-            ArisSparkSubmissionContentPanel(project)
+fun <T> ComboBoxModel<T>.findFirst(propertyMatcher: (T) -> Boolean): T? {
+    synchronized(this) {
+        for (i in 0 until this.size) {
+            val itemToCheck = this.getElementAt(i)
+
+            if (propertyMatcher(itemToCheck)) {
+                return itemToCheck
+            }
+        }
+    }
+
+    return null
 }
+

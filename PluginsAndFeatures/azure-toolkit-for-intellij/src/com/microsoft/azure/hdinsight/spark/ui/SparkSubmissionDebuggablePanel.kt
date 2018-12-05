@@ -23,16 +23,17 @@
 package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.HideableTitledPanel
-import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import com.microsoft.intellij.forms.dsl.panel
 import javax.swing.JComponent
 
-class SparkSubmissionDebuggablePanelConfigurable(project: Project)
-    : SparkSubmissionContentPanelConfigurable(project) {
+class SparkSubmissionDebuggablePanel(project: Project) : SparkSubmissionContentPanel(project) {
+    private val advancedConfigPanel = SparkSubmissionAdvancedConfigPanel().apply {
+        Disposer.register(this@SparkSubmissionDebuggablePanel, this@apply)
+    }
 
-    private val advancedConfigPanel = SparkSubmissionAdvancedConfigPanel()
     private val hidableAdvancedConfigPanel = HideableTitledPanel(
             "Advanced Configuration (Remote Debugging)", true, advancedConfigPanel, false)
 
@@ -45,16 +46,20 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
         formBuilder.buildPanel()
     }
 
-    private val advancedConfigCtrl = object
-        : SparkSubmissionAdvancedConfigCtrl(advancedConfigPanel, advancedConfigPanel.sshCheckSubject) {
-        override fun getClusterNameToCheck(): String? = selectedClusterDetail?.name
+    inner class ViewModel: SparkSubmissionContentPanel.ViewModel() {
+        val advancedConfig = advancedConfigPanel.viewModel
+        override fun dispose() {
+            super.dispose()
+
+            advancedConfig.dispose()
+        }
     }
 
-    override fun onClusterSelected(cluster: IClusterDetail) {
-        super.onClusterSelected(cluster)
+    override val viewModel = ViewModel().apply { Disposer.register(this@SparkSubmissionDebuggablePanel, this@apply) }
 
-        advancedConfigCtrl.selectCluster(cluster.name)
-    }
+    interface Control : SparkSubmissionContentPanel.Control
+
+    override val control = SparkSubmissionDebuggablePanelCtrl(advancedConfigPanel, viewModel, super.control)
 
     override val component: JComponent
         get() = submissionDebuggablePanel
@@ -74,6 +79,6 @@ class SparkSubmissionDebuggablePanelConfigurable(project: Project)
 
         // Advanced Configuration panel
         advancedConfigPanel.getData(data.advancedConfigModel)
-        data.advancedConfigModel.clusterName = selectedClusterDetail?.name
+        data.advancedConfigModel.clusterName = data.clusterName
     }
 }
