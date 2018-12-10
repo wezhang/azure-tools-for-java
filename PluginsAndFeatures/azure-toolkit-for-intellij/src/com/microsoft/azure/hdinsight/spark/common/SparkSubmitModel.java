@@ -37,7 +37,6 @@ import com.microsoft.azuretools.utils.Pair;
 import org.jdom.Element;
 
 import javax.swing.*;
-import javax.swing.event.TableModelEvent;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -264,8 +263,6 @@ public class SparkSubmitModel {
 
     @Transient
     public synchronized void setTableModel(@NotNull SubmissionTableModel tableModel) {
-        initializeTableModel(tableModel);
-
         // Apply from table model
         submissionParameter.applyFlattedJobConf(tableModel.getJobConfigMap());
 
@@ -283,24 +280,8 @@ public class SparkSubmitModel {
 
     @NotNull
     @Transient
-    protected Stream<Pair<String, ? extends Object>> getDefaultParameters() {
+    public Stream<Pair<String, ? extends Object>> getDefaultParameters() {
         return Arrays.stream(SparkSubmissionParameter.defaultParameters);
-    }
-
-    private void initializeTableModel(final SubmissionTableModel tableModel) {
-        if (tableModel.getJobConfigMap().isEmpty()) {
-            tableModel.loadJobConfigMap(getDefaultParameters()
-                                            .map(kv -> new Pair<>(kv.first(), kv.second() == null ? "" : kv.second().toString()))
-                                            .collect(Collectors.toList()));
-        }
-
-        tableModel.addTableModelListener(e -> {
-            if (e.getType() == TableModelEvent.UPDATE &&
-                    (e.getLastRow() + 1) == getTableModel().getRowCount() &&
-                    (!getTableModel().hasEmptyRow())) {
-                tableModel.addEmptyRow();
-            }
-        });
     }
 
     public Element exportToElement() throws WriteExternalException {

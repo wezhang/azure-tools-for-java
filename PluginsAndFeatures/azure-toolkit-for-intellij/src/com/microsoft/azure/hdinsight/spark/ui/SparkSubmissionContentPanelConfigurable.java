@@ -295,7 +295,19 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
             submissionPanel.getReferencedFilesTextField().setText(String.join(";", data.getReferenceFiles()));
 
             // update job configuration table
-            submissionPanel.getJobConfigurationTable().setModel(data.getTableModel());
+            if (submissionPanel.getJobConfigurationTable().getModel() != data.getTableModel()) {
+                SubmissionTableModel tableModel = data.getTableModel();
+
+                submissionPanel.getJobConfigurationTable().setModel(tableModel);
+
+                if (tableModel.getJobConfigMap().isEmpty()) {
+                    tableModel.loadJobConfigMap(
+                            data.getDefaultParameters()
+                                    .map(kv -> new com.microsoft.azuretools.utils.Pair<>(
+                                            kv.first(), kv.second() == null ? "" : kv.second().toString()))
+                                    .collect(Collectors.toList()));
+                }
+            }
 
             refreshAndSelectArtifact(data.getArtifactName());
         }, ModalityState.any());
