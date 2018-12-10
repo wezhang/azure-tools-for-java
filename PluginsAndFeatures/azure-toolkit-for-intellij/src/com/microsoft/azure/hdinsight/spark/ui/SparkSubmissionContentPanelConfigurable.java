@@ -22,7 +22,6 @@
 package com.microsoft.azure.hdinsight.spark.ui;
 
 import com.google.common.collect.ImmutableSortedSet;
-import com.intellij.execution.configurations.RuntimeConfigurationError;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.options.ConfigurationException;
@@ -36,7 +35,7 @@ import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.metadata.ClusterMetaDataService;
-import com.microsoft.azure.hdinsight.sdk.cluster.*;
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel;
 import com.microsoft.azure.hdinsight.spark.common.SubmissionTableModel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -366,6 +365,7 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
 
         // get Job upload storage panel data
         getStorageWithUploadPathPanel().getData(data.getJobUploadStorageModel());
+        data.getErrors().add(jobUploadStorageCtrl.getResultMessage());
     }
 
     @Nullable
@@ -373,13 +373,8 @@ public class SparkSubmissionContentPanelConfigurable implements SettableControl<
         return (IClusterDetail) getSubmissionPanel().getClustersModel().getSelectedItem();
     }
 
-    public void validate() throws ConfigurationException {
-        getSubmissionPanel().checkInputs();
-
-        if (!jobUploadStorageCtrl.isCheckPassed()) {
-            throw new RuntimeConfigurationError("Can't save the configuration since "
-                    + jobUploadStorageCtrl.getResultMessage().toLowerCase());
-        }
+    public void validateInputs() throws ConfigurationException {
+        getSubmissionPanel().validateInputs();
     }
 
     private SparkSubmissionContentPanel getSubmissionPanel() {

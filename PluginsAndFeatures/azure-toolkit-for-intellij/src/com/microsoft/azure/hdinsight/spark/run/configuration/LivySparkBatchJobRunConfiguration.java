@@ -49,6 +49,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import rx.subjects.PublishSubject;
 
 import java.io.File;
 import java.util.*;
@@ -135,43 +136,66 @@ public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration
             getModel().setFocusedTabIndex(1);
 
             // Check remote submission
-            checkSubmissionConfiguration();
+            checkSubmissionConfigurationBeforeRun((SparkSubmissionRunner) runner);
         } else {
             // Focus on the local run tab
             getModel().setFocusedTabIndex(0);
 
-            checkLocalRunConfiguration();
+            checkLocalRunConfigurationBeforeRun();
         }
 
         super.checkRunnerSettings(runner, runnerSettings, configurationPerRunnerSettings);
     }
 
-    private void checkSubmissionConfiguration() throws RuntimeConfigurationException {
+    protected void checkBuildSparkJobBeforeRun(@NotNull SparkSubmissionRunner runner,
+                                               @NotNull SparkSubmitModel submitModel) throws RuntimeConfigurationError {
+        try {
+            runner.buildSparkBatchJob(submitModel, PublishSubject.create());
+        } catch (Exception err) {
+            throw new RuntimeConfigurationError(err.getMessage());
+        }
+    }
+
+    protected void checkSubmissionConfigurationBeforeRun(@NotNull SparkSubmissionRunner runner) throws RuntimeConfigurationException {
         SparkSubmissionParameter parameter = getSubmitModel().getSubmissionParameter();
         if (StringUtils.isBlank(parameter.getClusterName())) {
             throw new RuntimeConfigurationError("The cluster should be selected as the target for Spark application submission");
         }
 
-        if (!parameter.isLocalArtifact() && StringUtils.isBlank(parameter.getArtifactName())) {
-            throw new RuntimeConfigurationError("Couldn't find the artifact to submit, please create one and select it, or select a local artifact");
-        }
+        if (!parameter.isLocalArtifact()) {
+            if (StringUtils.isBlank(parameter.getArtifactName())) {
+                throw new RuntimeConfigurationError("Couldn't find the artifact to submit, please create one and select it, or select a local artifact");
+            }
 
-        if (parameter.isLocalArtifact() && !new File(parameter.getLocalArtifactPath()).exists()) {
-            throw new RuntimeConfigurationError(String.format(
-                    "The specified local artifact path %s doesn't exist", parameter.getLocalArtifactPath()));
-        }
-
-        if (!getSubmitModel().getArtifactPath().isPresent()) {
-            throw new RuntimeConfigurationError(String.format(
-                    "No artifact selected or selected artifact %s is gone.", getSubmitModel().getArtifactName()));
+            if (!getSubmitModel().getArtifactPath().isPresent()) {
+                throw new RuntimeConfigurationError(String.format(
+                        "No artifact selected or selected artifact %s is gone.", getSubmitModel().getArtifactName()));
+            }
+        } else {
+            if (!new File(parameter.getLocalArtifactPath()).exists()) {
+                throw new RuntimeConfigurationError(String.format(
+                        "The specified local artifact path %s doesn't exist", parameter.getLocalArtifactPath()));
+            }
         }
 
         if (StringUtils.isBlank(parameter.getMainClassName())) {
             throw new RuntimeConfigurationError("The main class name should not be empty");
         }
+
+        if (getSubmitModel().getTableModel().getFirstCheckResults() != null) {
+            throw new RuntimeConfigurationError("There are Spark job configuration issues, fix it before continue, please: " +
+                    getSubmitModel().getTableModel().getFirstCheckResults().getMessaqge());
+        }
+
+        if (StringUtils.isNotBlank(StringUtils.join(getSubmitModel().getErrors(), ""))) {
+            throw new RuntimeConfigurationError("There are errors in submit model: " +
+                    StringUtils.join(getSubmitModel().getErrors(), "\\n"));
+        }
+
+        checkBuildSparkJobBeforeRun(runner, getSubmitModel());
     }
 
-    private void checkLocalRunConfiguration() throws RuntimeConfigurationException {
+    private void checkLocalRunConfigurationBeforeRun() throws RuntimeConfigurationException {
         if (StringUtils.isBlank(getModel().getLocalRunConfigurableModel().getRunClass())) {
             throw new RuntimeConfigurationError("The main class name should not be empty");
         }

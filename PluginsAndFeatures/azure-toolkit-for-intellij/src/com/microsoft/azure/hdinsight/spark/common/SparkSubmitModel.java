@@ -70,6 +70,9 @@ public class SparkSubmitModel {
     private DefaultComboBoxModel<Artifact> artifactComboBoxModel;
 
     @Transient
+    private List<String> errors = new ArrayList<>();
+
+    @Transient
     @NotNull
     private SubmissionTableModel tableModel = new SubmissionTableModel();
 
@@ -300,5 +303,11 @@ public class SparkSubmitModel {
         }
 
         return this;
+    }
+
+    @NotNull
+    @Transient
+    public List<String> getErrors() {
+        return errors;
     }
 }
