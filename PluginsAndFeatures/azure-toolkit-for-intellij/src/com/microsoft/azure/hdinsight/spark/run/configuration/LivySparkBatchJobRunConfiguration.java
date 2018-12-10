@@ -25,6 +25,7 @@ import com.intellij.compiler.options.CompileStepBeforeRun;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.Executor;
 import com.intellij.execution.JavaExecutionUtil;
+import com.intellij.execution.RunnerAndConfigurationSettings;
 import com.intellij.execution.configuration.AbstractRunConfiguration;
 import com.intellij.execution.configurations.*;
 import com.intellij.execution.executors.DefaultDebugExecutor;
@@ -133,10 +134,11 @@ public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration
     public void checkRunnerSettings(@NotNull ProgramRunner runner, @Nullable RunnerSettings runnerSettings, @Nullable ConfigurationPerRunnerSettings configurationPerRunnerSettings) throws RuntimeConfigurationException {
         if (runner instanceof SparkSubmissionRunner) {
             // Focus on the submission tab
-            getModel().setFocusedTabIndex(1);
+            SparkSubmissionRunner submissionRunner = (SparkSubmissionRunner) runner;
+            submissionRunner.setFocus(this);
 
             // Check remote submission
-            checkSubmissionConfigurationBeforeRun((SparkSubmissionRunner) runner);
+            checkSubmissionConfigurationBeforeRun(submissionRunner);
         } else {
             // Focus on the local run tab
             getModel().setFocusedTabIndex(0);

@@ -43,6 +43,7 @@ import com.microsoft.azure.hdinsight.sdk.cluster.LivyCluster;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration;
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionAdvancedConfigCtrl;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -331,11 +332,22 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
     @Override
     public ISparkBatchJob buildSparkBatchJob(@NotNull SparkSubmitModel submitModel, @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) throws ExecutionException {
         try {
+            SparkSubmissionAdvancedConfigCtrl.Companion.checkSettings(submitModel.getAdvancedConfigModel());
+
             return SparkBatchRemoteDebugJob.factory(submitModel.getSubmissionParameter(),
                                                     SparkBatchSubmission.getInstance(),
                                                     ctrlSubject);
         } catch (DebugParameterDefinedException e) {
             throw new ExecutionException(e);
+        }
+    }
+
+    @Override
+    public void setFocus(@NotNull RunConfiguration runConfiguration) {
+        if (runConfiguration instanceof LivySparkBatchJobRunConfiguration) {
+            LivySparkBatchJobRunConfiguration livyRunConfig = (LivySparkBatchJobRunConfiguration) runConfiguration;
+            livyRunConfig.getModel().setFocusedTabIndex(1);
+            livyRunConfig.getModel().getSubmitModel().getAdvancedConfigModel().setUIExpanded(true);
         }
     }
 }
