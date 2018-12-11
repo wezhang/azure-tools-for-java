@@ -20,14 +20,11 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.console
+package com.microsoft.azure.hdinsight.spark.run.configuration
 
-import com.microsoft.azure.hdinsight.common.logger.ILogger
-import org.jetbrains.plugins.scala.console.ScalaConsoleRunConfigurationFactory
+import com.intellij.execution.configurations.RunConfigurationModule
+import com.intellij.openapi.project.Project
 
-class RunSparkScalaLivyConsoleAction : RunSparkScalaConsoleAction(), ILogger {
-    override val consoleRunConfigurationFactory: ScalaConsoleRunConfigurationFactory
-        get() = SparkScalaLivyConsoleConfigurationType().confFactory()
-
-    override fun getNewSettingName(): String = "Spark Livy Interactive Session Console(Scala)"
+class ArisSparkConfigurationModule(project: Project) : RunConfigurationModule(project) {
+     val model = ArisSparkConfigurableModel(project)
 }

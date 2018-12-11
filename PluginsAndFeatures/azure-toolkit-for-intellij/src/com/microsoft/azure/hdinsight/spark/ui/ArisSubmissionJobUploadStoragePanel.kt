@@ -20,14 +20,16 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.console
+package com.microsoft.azure.hdinsight.spark.ui
 
-import com.microsoft.azure.hdinsight.common.logger.ILogger
-import org.jetbrains.plugins.scala.console.ScalaConsoleRunConfigurationFactory
+import com.intellij.openapi.ui.ComboBox
+import java.awt.CardLayout
+import javax.swing.JPanel
 
-class RunSparkScalaLivyConsoleAction : RunSparkScalaConsoleAction(), ILogger {
-    override val consoleRunConfigurationFactory: ScalaConsoleRunConfigurationFactory
-        get() = SparkScalaLivyConsoleConfigurationType().confFactory()
-
-    override fun getNewSettingName(): String = "Spark Livy Interactive Session Console(Scala)"
+class ArisSubmissionJobUploadStoragePanel : SparkSubmissionJobUploadStoragePanel() {
+    override fun createStorageTypeComboBox() = ComboBox(arrayOf(sparkInteractiveSessionCard.title, webHdfsCard.title))
+    override fun createStorageCardsPanel() = JPanel(CardLayout()).apply {
+        add(sparkInteractiveSessionCard, sparkInteractiveSessionCard.title)
+        add(webHdfsCard, webHdfsCard.title)
+    }
 }

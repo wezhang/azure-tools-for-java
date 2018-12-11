@@ -20,14 +20,11 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.console
+package com.microsoft.azure.hdinsight.spark.ui
 
-import com.microsoft.azure.hdinsight.common.logger.ILogger
-import org.jetbrains.plugins.scala.console.ScalaConsoleRunConfigurationFactory
+import com.intellij.ui.HideableTitledPanel
 
-class RunSparkScalaLivyConsoleAction : RunSparkScalaConsoleAction(), ILogger {
-    override val consoleRunConfigurationFactory: ScalaConsoleRunConfigurationFactory
-        get() = SparkScalaLivyConsoleConfigurationType().confFactory()
-
-    override fun getNewSettingName(): String = "Spark Livy Interactive Session Console(Scala)"
+class ArisSubmissionJobUploadStorageWithUploadPathPanel : SparkSubmissionJobUploadStorageWithUploadPathPanel() {
+    override fun createStoragePanel() = ArisSubmissionJobUploadStoragePanel()
+    override fun createHideableJobUploadStoragePanel() = HideableTitledPanel(jobUploadStorageTitle, true, storagePanel, false)
 }
