@@ -226,7 +226,7 @@ open class SparkSubmissionContentPanel : JPanel() {
     }
 
     val storageWithUploadPathPanel: SparkSubmissionJobUploadStorageWithUploadPathPanel =
-        SparkSubmissionJobUploadStorageWithUploadPathPanel()
+            createJobUploadStorageWithUploadPathPanel()
 
     val clusterSelectedSubject: BehaviorSubject<String> = BehaviorSubject.create<String>()
 
@@ -286,6 +286,8 @@ open class SparkSubmissionContentPanel : JPanel() {
             }
         })
     }
+
+    open fun createJobUploadStorageWithUploadPathPanel() = SparkSubmissionJobUploadStorageWithUploadPathPanel()
 
     fun setClustersListRefreshEnabled(enabled: Boolean) = clustersListComboBox.setButtonEnabled(enabled)
 
