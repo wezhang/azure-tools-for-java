@@ -21,6 +21,8 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.xmlb.annotations.Attribute;
 import com.intellij.util.xmlb.annotations.Tag;
 import com.intellij.util.xmlb.annotations.Transient;
@@ -37,13 +39,6 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     @Transient
     @Nullable
     private String clusterName;
-
-    @Transient
-    private boolean isChecking = false;
-
-    @Transient
-    @NotNull
-    private String checkingMessage = "";
 
     @Attribute("remote_debug_enabled")
     public boolean enableRemoteDebug = false;
@@ -117,27 +112,6 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     }
 
     @Transient
-    public boolean isChecking() {
-        return isChecking;
-    }
-
-    @Transient
-    public void setChecking(boolean checking) {
-        isChecking = checking;
-    }
-
-    @Transient
-    @NotNull
-    public String getCheckingMessage() {
-        return checkingMessage;
-    }
-
-    @Transient
-    public void setCheckingMessage(@NotNull String checkingMessage) {
-        this.checkingMessage = checkingMessage;
-    }
-
-    @Transient
     public boolean isUIExpanded() {
         return isUIExpanded;
     }
@@ -145,5 +119,23 @@ public class SparkSubmitAdvancedConfigModel extends SparkBatchRemoteDebugJobSshA
     @Transient
     public void setUIExpanded(boolean UIExpanded) {
         isUIExpanded = UIExpanded;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof SparkSubmitAdvancedConfigModel)) {
+            return false;
+        }
+
+        if (this == obj) {
+            return true;
+        }
+
+        SparkSubmitAdvancedConfigModel other = (SparkSubmitAdvancedConfigModel) obj;
+
+        return this.enableRemoteDebug == other.enableRemoteDebug && this.getSshAuthType() == other.getSshAuthType() &&
+                (this.getSshAuthType() == SSHAuthType.UseKeyFile ?
+                        (FileUtil.compareFiles(this.getSshKeyFile(), other.getSshKeyFile()) == 0) :
+                        (StringUtil.compare(this.getSshPassword(), other.getSshPassword(), false) == 0));
     }
 }

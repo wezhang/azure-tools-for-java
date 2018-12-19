@@ -48,18 +48,20 @@ class SparkSubmissionDebuggablePanel(project: Project) : SparkSubmissionContentP
 
     inner class ViewModel: SparkSubmissionContentPanel.ViewModel() {
         val advancedConfig = advancedConfigPanel.viewModel
+
+        private val clusterSelectionSub = clusterSelection.clusterIsSelected
+                .subscribe { advancedConfig.clusterSelectedSubject.onNext(it) }
+
+
         override fun dispose() {
             super.dispose()
 
             advancedConfig.dispose()
+            clusterSelectionSub.unsubscribe()
         }
     }
 
     override val viewModel = ViewModel().apply { Disposer.register(this@SparkSubmissionDebuggablePanel, this@apply) }
-
-    interface Control : SparkSubmissionContentPanel.Control
-
-    override val control = SparkSubmissionDebuggablePanelCtrl(advancedConfigPanel, viewModel, super.control)
 
     override val component: JComponent
         get() = submissionDebuggablePanel

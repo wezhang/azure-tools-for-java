@@ -23,54 +23,67 @@
 package com.microsoft.azure.hdinsight.common.viewmodels
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.ui.ComponentWithBrowseButton
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import javax.swing.ComboBoxModel
 import javax.swing.JComboBox
+import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
-abstract class SwingComponentPropertyDelegated<T>: ILogger {
-    operator fun setValue(ref: Any, property: KProperty<*>, v: T) {
+abstract class SwingComponentPropertyDelegated<T>: ILogger, ReadWriteProperty<Any?, T>  {
+    override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         try {
-            ApplicationManager.getApplication().invokeAndWait {
-                setValueInDispatch(ref, property, v)
-            }
+            ApplicationManager.getApplication().invokeAndWait({
+                setValueInDispatch(thisRef, property, value)
+            }, ModalityState.any())
         } catch (ex: ProcessCanceledException) {
             log().debug(ex.message)
         }
     }
 
-    abstract fun setValueInDispatch(ref: Any, property: KProperty<*>, v: T)
+    abstract fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: T)
+}
+
+inline fun <T> swingPropertyDelegated(crossinline getter: (property: KProperty<*>) -> T,
+                                      crossinline setterInDispatch: (property: KProperty<*>, newValue: T) -> Unit)
+        : ReadWriteProperty<Any?, T> = object: SwingComponentPropertyDelegated<T>(){
+    override fun getValue(thisRef: Any?, property: KProperty<*>): T = getter(property)
+
+    override fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: T) {
+        setterInDispatch(property, v)
+    }
 }
 
 class ComponentWithBrowseButtonEnabledDelegated(private val componentWithBrowseButton: ComponentWithBrowseButton<*>) {
-    operator fun getValue(ref: Any, property: KProperty<*>): Boolean {
+    operator fun getValue(ref: Any?, property: KProperty<*>): Boolean {
         return componentWithBrowseButton.button.isEnabled
     }
 
-    operator fun setValue(ref: Any, property: KProperty<*>, v: Boolean) {
+    operator fun setValue(ref: Any?, property: KProperty<*>, v: Boolean) {
         componentWithBrowseButton.setButtonEnabled(v)
     }
 }
 
 class ComboBoxSelectionDelegated<T>(private val comboBox: JComboBox<T>): SwingComponentPropertyDelegated<T>() {
-    operator fun getValue(ref: Any, property: KProperty<*>): T? {
-        return comboBox.selectedItem as? T
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        @Suppress("UNCHECKED_CAST")
+        return comboBox.selectedItem as T
     }
 
-    override fun setValueInDispatch(ref: Any, property: KProperty<*>, v: T) {
+    override fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: T) {
         comboBox.selectedItem = v
     }
 
 }
 
 class ComboBoxModelDelegated<T>(private val comboBox: JComboBox<T>) {
-    operator fun getValue(ref: Any, property: KProperty<*>): ComboBoxModel<T> {
+    operator fun getValue(ref: Any?, property: KProperty<*>): ComboBoxModel<T> {
         return comboBox.model
     }
 
-    operator fun setValue(ref: Any, property: KProperty<*>, v: ComboBoxModel<T>) {
+    operator fun setValue(ref: Any?, property: KProperty<*>, v: ComboBoxModel<T>) {
         if (comboBox.model != v) {
             comboBox.model = v
         }

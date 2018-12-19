@@ -85,25 +85,14 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
         data.setFocusedTabIndex(executionTypeTabPane.getSelectedIndex());
     }
 
-    public SparkLocalRunParamsPanel getLocalRunConfigurable() {
-        return localRunParamsPanel;
-    }
-
-    public SparkSubmissionContentPanel getClusterSubmissionConfigurable() {
-        return submissionContentPanel;
-    }
-
     @NotNull
     public Project getProject() {
         return myProject;
     }
 
-    protected void setLocalRunParamsPanel(SparkLocalRunParamsPanel localRunParamsPanel) {
-        this.localRunParamsPanel = localRunParamsPanel;
-    }
-
     protected synchronized void setClusterSubmissionPanel(SparkSubmissionContentPanel clusterSubmissionPanel) {
         this.submissionContentPanel = clusterSubmissionPanel;
+        Disposer.register(this, this.submissionContentPanel);
         remoteConfigScrollPane.setViewportView(clusterSubmissionPanel.getComponent());
     }
 
@@ -117,6 +106,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
 
     @Override
     public void dispose() {
-        Disposer.dispose(getClusterSubmissionConfigurable());
+        // Dispose self since it's a root node
+        Disposer.dispose(this);
     }
 }

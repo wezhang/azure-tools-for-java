@@ -386,8 +386,8 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
 
     interface Control : SparkSubmissionJobUploadStorageWithUploadPathPanel.Control
 
-    open val control: Control by lazy {
-        SparkSubmissionContentPanelControl(this, object: SparkSubmissionJobUploadStorageCtrl(storageWithUploadPathPanel) {
+    val control: Control by lazy {
+        SparkSubmissionContentPanelControl(object: SparkSubmissionJobUploadStorageCtrl(storageWithUploadPathPanel) {
             override fun getSelectedClusterName(): String? =
                     viewModel.clusterSelection.toSelectClusterByIdBehavior.value as? String
 
@@ -500,6 +500,9 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
     }
 
     override fun dispose() {
-        Disposer.dispose(this)
     }
 }
+
+class SparkSubmissionContentPanelControl(private val jobUploadStorageCtrl: SparkSubmissionJobUploadStorageCtrl)
+    : SparkSubmissionJobUploadStorageWithUploadPathPanel.Control by jobUploadStorageCtrl,
+        SparkSubmissionContentPanel.Control, ILogger

@@ -43,7 +43,7 @@ import com.microsoft.azure.hdinsight.sdk.cluster.LivyCluster;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration;
 import com.microsoft.azure.hdinsight.spark.ui.SparkJobLogConsoleView;
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionDebuggablePanelCtrl;
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionAdvancedConfigPanel;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -332,7 +332,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
     @Override
     public ISparkBatchJob buildSparkBatchJob(@NotNull SparkSubmitModel submitModel, @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) throws ExecutionException {
         try {
-            SparkSubmissionDebuggablePanelCtrl.Companion.checkSettings(submitModel.getAdvancedConfigModel());
+            SparkSubmissionAdvancedConfigPanel.Companion.checkSettings(submitModel.getAdvancedConfigModel());
 
             return SparkBatchRemoteDebugJob.factory(submitModel.getSubmissionParameter(),
                                                     SparkBatchSubmission.getInstance(),

@@ -89,7 +89,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
         button.apply {
             toolTipText = "Refresh"
             addActionListener {
-                viewModel.doRefreshBehavior.onNext(true)
+                viewModel.doRefreshSubject.onNext(true)
             }
         }
     }}
@@ -109,7 +109,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
 
         val toSelectClusterByIdBehavior: BehaviorSubject<Any> = disposableSubjectOf { BehaviorSubject.create() }
 
-        val doRefreshBehavior: PublishSubject<Boolean> = disposableSubjectOf { PublishSubject.create() }
+        val doRefreshSubject: PublishSubject<Boolean> = disposableSubjectOf { PublishSubject.create() }
 
         private var isRefreshButtonEnabled: Boolean by ComponentWithBrowseButtonEnabledDelegated(clustersSelection)
 
@@ -147,7 +147,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
             )
 
             // Refreshing behavior
-            doRefreshBehavior
+            doRefreshSubject
                     .throttleWithTimeout(200, TimeUnit.MILLISECONDS)
                     .flatMap { doesRefresh -> if (doesRefresh) {
                         isRefreshButtonEnabled = false
