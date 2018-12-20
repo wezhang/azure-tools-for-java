@@ -249,7 +249,9 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
     }
 
     private val storageWithUploadPathPanel: SparkSubmissionJobUploadStorageWithUploadPathPanel =
-            SparkSubmissionJobUploadStorageWithUploadPathPanel()
+            SparkSubmissionJobUploadStorageWithUploadPathPanel().apply {
+                Disposer.register(this@SparkSubmissionContentPanel, this@apply)
+            }
 
     private val currentErrorColor
         get() = DarkThemeManager.getInstance().errorMessageColor
@@ -386,27 +388,20 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
 
     interface Control : SparkSubmissionJobUploadStorageWithUploadPathPanel.Control
 
-    val control: Control by lazy {
-        SparkSubmissionContentPanelControl(object: SparkSubmissionJobUploadStorageCtrl(storageWithUploadPathPanel) {
-            override fun getSelectedClusterName(): String? =
-                    viewModel.clusterSelection.toSelectClusterByIdBehavior.value as? String
-
-            override fun getSelectedCluster(): IClusterDetail? {
-                return viewModel.clusterSelection.clusterListModelBehavior.value?.selectedItem as? IClusterDetail
-            }
-        })
-    }
+    val control: Control by lazy { SparkSubmissionContentPanelControl(storageWithUploadPathPanel.control) }
 
     open inner class ViewModel: DisposableObservers() {
         val clusterSelection by lazy { clustersSelection.viewModel.apply {
-            clusterIsSelected.subscribe { checkInputsWithErrorLabels() }
+            clusterIsSelected.subscribe {
+                storageWithUploadPathPanel.viewModel.clusterSelectedSubject.onNext(it)
+
+                if (it != null) {
+                    storageWithUploadPathPanel.viewModel.uploadStorage.storageCheckSubject.onNext(
+                            SparkSubmissionJobUploadStorageCtrl.StorageCheckSelectedClusterEvent(it))
+                }
+                checkInputsWithErrorLabels()
+            }
         }}
-
-        override fun dispose() {
-            super.dispose()
-
-            this.clusterSelection.dispose()
-        }
     }
 
     open val viewModel = ViewModel().apply { Disposer.register(this@SparkSubmissionContentPanel, this@apply) }
@@ -500,6 +495,6 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
     }
 }
 
-class SparkSubmissionContentPanelControl(private val jobUploadStorageCtrl: SparkSubmissionJobUploadStorageCtrl)
+class SparkSubmissionContentPanelControl(private val jobUploadStorageCtrl: SparkSubmissionJobUploadStorageWithUploadPathPanel.Control)
     : SparkSubmissionJobUploadStorageWithUploadPathPanel.Control by jobUploadStorageCtrl,
         SparkSubmissionContentPanel.Control, ILogger

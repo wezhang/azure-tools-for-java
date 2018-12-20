@@ -41,7 +41,9 @@ class CosmosSparkSubmissionPanel(project: Project)
         super.getData(data)
 
         val serverlessData = data as? CosmosSparkSubmitModel ?: return
-        val cluster = control.getSelectedCluster() as? AzureSparkServerlessCluster
+        val cluster = viewModel.clusterSelection.let {
+            it.findClusterById(it.clusterListModelBehavior.value, it.toSelectClusterByIdBehavior.value) as? AzureSparkServerlessCluster
+        }
 
         if (cluster != null) {
             serverlessData.tenantId = cluster.subscription.tenantId

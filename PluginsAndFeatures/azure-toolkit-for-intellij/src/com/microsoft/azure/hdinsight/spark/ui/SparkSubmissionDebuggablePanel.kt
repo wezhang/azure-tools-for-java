@@ -53,13 +53,6 @@ class SparkSubmissionDebuggablePanel(project: Project) : SparkSubmissionContentP
             clusterSelection.clusterIsSelected
                     .subscribe { advancedConfig.clusterSelectedSubject.onNext(it) }
         }
-
-
-        override fun dispose() {
-            super.dispose()
-
-            advancedConfig.dispose()
-        }
     }
 
     override val viewModel = ViewModel().apply { Disposer.register(this@SparkSubmissionDebuggablePanel, this@apply) }

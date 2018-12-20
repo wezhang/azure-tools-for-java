@@ -35,7 +35,7 @@ import kotlin.reflect.KProperty
 abstract class SwingComponentPropertyDelegated<T>: ILogger, ReadWriteProperty<Any?, T>  {
     override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
         try {
-            ApplicationManager.getApplication().invokeAndWait({
+            ApplicationManager.getApplication().invokeLater({
                 setValueInDispatch(thisRef, property, value)
             }, ModalityState.any())
         } catch (ex: ProcessCanceledException) {
@@ -56,12 +56,13 @@ inline fun <T> swingPropertyDelegated(crossinline getter: (property: KProperty<*
     }
 }
 
-class ComponentWithBrowseButtonEnabledDelegated(private val componentWithBrowseButton: ComponentWithBrowseButton<*>) {
-    operator fun getValue(ref: Any?, property: KProperty<*>): Boolean {
+class ComponentWithBrowseButtonEnabledDelegated(private val componentWithBrowseButton: ComponentWithBrowseButton<*>)
+    : SwingComponentPropertyDelegated<Boolean>() {
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
         return componentWithBrowseButton.button.isEnabled
     }
 
-    operator fun setValue(ref: Any?, property: KProperty<*>, v: Boolean) {
+    override fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: Boolean) {
         componentWithBrowseButton.setButtonEnabled(v)
     }
 }

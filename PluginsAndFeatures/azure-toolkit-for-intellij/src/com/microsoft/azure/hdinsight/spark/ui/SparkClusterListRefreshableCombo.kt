@@ -37,6 +37,7 @@ import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServe
 import com.microsoft.azure.sqlbigdata.sdk.cluster.SqlBigDataLivyLinkClusterDetail
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
+import com.microsoft.intellij.rxjava.IdeaSchedulers
 import com.microsoft.intellij.ui.util.findFirst
 import rx.Observable
 import rx.Observable.*
@@ -135,13 +136,10 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
             get() = interval(200, TimeUnit.MILLISECONDS)
                     .takeUntil { Disposer.isDisposed(this) }
                     .map { clusterComboBoxSelection }
-                    .withLatestFrom(toSelectClusterByIdBehavior
-                            .distinctUntilChanged()
-                            .flatMap {
-                                concat(from(initClusters), clusterDetailsWithRefresh.flatMap { clusters -> from(clusters) })
-                                        .firstOrDefault(null) { cluster -> clusterIdMapper(cluster) == it as? String }}) {
-                        selected, toSelect -> selected ?: toSelect
-                    }
+                    .distinctUntilChanged()
+                    .doOnNext { if (it == null) {
+                        doRefreshSubject.onNext(true)
+                    }}
                     .distinctUntilChanged()
                     .doOnNext { log().info("Selected ${clusterIdMapper(it)}, (you may get duplicated outputs for each subscriptions)") }
 
@@ -161,6 +159,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
             // Refreshing behavior
             doRefreshSubject
                     .throttleWithTimeout(200, TimeUnit.MILLISECONDS)
+                    .observeOn(IdeaSchedulers(null).processBarVisibleAsync("Refreshing Spark clusters list"))
                     .flatMap { doesRefresh -> if (doesRefresh) {
                         isRefreshButtonEnabled = false
                         clusterDetailsWithRefresh.doOnEach { isRefreshButtonEnabled = true }
