@@ -204,42 +204,39 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
                 getter = { CheckIndicatorState(checkSshCertIndicator.text, false) },
                 setterInDispatch = { _, v -> checkSshCertIndicator.setTextAndStatus(v.message, v.isRunning) })
 
-        private val authCheckSub = rx.Observable
-                .combineLatest(
-                        sshCheckSubject
-                                .throttleWithTimeout(500, TimeUnit.MILLISECONDS)
-                                .doOnNext { log().info("Receive checking message $it") },
-                        clusterSelectedSubject) { _, cluster -> cluster }
-                .filter { it != null }
-                .map { it -> Pair(advConfModel.apply { clusterName = it!!.name }, it) }
-                .filter { (model, _) -> model.enableRemoteDebug && isParameterReady(model) }
-                .doOnNext { (_, cluster) ->
-                    log().info("Check SSH authentication for cluster ${cluster.name} ...")
-                    checkStatus = CheckIndicatorState("SSH Authentication is checking...", true)
-                }
-                .map { (model, cluster) -> probeAuth(model, cluster).apply {
-                    if (this.message == passedText) {
-                        ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
-                                model.credentialStoreAccount, model.sshUserName, model.sshPassword)
+        init {
+            rx.Observable
+                    .combineLatest(
+                            sshCheckSubject
+                                    .throttleWithTimeout(500, TimeUnit.MILLISECONDS)
+                                    .doOnNext { log().info("Receive checking message $it") },
+                            clusterSelectedSubject) { _, cluster -> cluster }
+                    .filter { it != null }
+                    .map { it -> Pair(advConfModel.apply { clusterName = it!!.name }, it) }
+                    .filter { (model, _) -> model.enableRemoteDebug && isParameterReady(model) }
+                    .doOnNext { (_, cluster) ->
+                        log().info("Check SSH authentication for cluster ${cluster.name} ...")
+                        checkStatus = CheckIndicatorState("SSH Authentication is checking...", true)
                     }
-                }}
-                .subscribe { (probedModel, message) ->
-                    log().info("...Result: $message")
+                    .map { (model, cluster) -> probeAuth(model, cluster).apply {
+                        if (this.message == passedText) {
+                            ServiceManager.getServiceProvider(SecureStore::class.java)?.savePassword(
+                                    model.credentialStoreAccount, model.sshUserName, model.sshPassword)
+                        }
+                    }}
+                    .subscribe { (probedModel, message) ->
+                        log().info("...Result: $message")
 
-                    // Double check the the result is met the current user input
-                    val checkingResultMessage = if (probedModel == advConfModel) {
-                        // Checked parameter is matched with current content
-                        "SSH Authentication is $message"
-                    } else {
-                        ""
+                        // Double check the the result is met the current user input
+                        val checkingResultMessage = if (probedModel == advConfModel) {
+                            // Checked parameter is matched with current content
+                            "SSH Authentication is $message"
+                        } else {
+                            ""
+                        }
+
+                        checkStatus = CheckIndicatorState(checkingResultMessage, false)
                     }
-
-                    checkStatus = CheckIndicatorState(checkingResultMessage, false)
-                }
-
-        override fun dispose() {
-            super.dispose()
-            authCheckSub.unsubscribe()
         }
     }
 

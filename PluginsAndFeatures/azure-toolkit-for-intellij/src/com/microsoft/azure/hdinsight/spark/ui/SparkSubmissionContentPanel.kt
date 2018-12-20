@@ -398,17 +398,14 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
     }
 
     open inner class ViewModel: DisposableObservers() {
-        private var clusterSelectedSub: Subscription? = null
-
         val clusterSelection by lazy { clustersSelection.viewModel.apply {
-            clusterSelectedSub = clusterIsSelected.subscribe { checkInputsWithErrorLabels() }
+            clusterIsSelected.subscribe { checkInputsWithErrorLabels() }
         }}
 
         override fun dispose() {
             super.dispose()
 
             this.clusterSelection.dispose()
-            clusterSelectedSub?.unsubscribe()
         }
     }
 

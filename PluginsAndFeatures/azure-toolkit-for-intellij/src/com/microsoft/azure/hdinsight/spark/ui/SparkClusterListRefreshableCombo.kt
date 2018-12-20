@@ -129,6 +129,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
         // Monitoring cluster selection
         val clusterIsSelected: Observable<IClusterDetail?>
             get() = Observable.interval(200, TimeUnit.MILLISECONDS)
+                    .takeUntil { Disposer.isDisposed(this) }
                     .map { clusterComboBoxSelection }
                     .distinctUntilChanged()
                     .doOnNext { log().info("Selected ${it?.name}, (you may get duplicated outputs for each subscriptions)") }
