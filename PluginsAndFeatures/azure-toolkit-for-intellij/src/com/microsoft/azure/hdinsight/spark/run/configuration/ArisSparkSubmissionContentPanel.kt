@@ -23,10 +23,13 @@
 package com.microsoft.azure.hdinsight.spark.run.configuration
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.microsoft.azure.hdinsight.spark.ui.ArisSparkClusterListRefreshableCombo
 import com.microsoft.azure.hdinsight.spark.ui.SparkClusterListRefreshableCombo
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel
 
 class ArisSparkSubmissionContentPanel(project: Project) : SparkSubmissionContentPanel(project, "Aris Spark") {
-    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { ArisSparkClusterListRefreshableCombo() }
+    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { ArisSparkClusterListRefreshableCombo().apply {
+        Disposer.register(this@ArisSparkSubmissionContentPanel, this@apply)
+    } }
 }

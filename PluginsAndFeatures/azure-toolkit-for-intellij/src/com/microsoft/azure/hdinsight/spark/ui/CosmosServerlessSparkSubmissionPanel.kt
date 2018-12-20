@@ -17,7 +17,9 @@ import javax.swing.JTextField
 open class CosmosServerlessSparkSubmissionPanel(private val project: Project)
     : SparkSubmissionContentPanel(project, "Cosmos Serverless Spark") {
 
-    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { CosmosServerlessSparkAccountsCombo() }
+    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { CosmosServerlessSparkAccountsCombo().apply {
+        Disposer.register(this@CosmosServerlessSparkSubmissionPanel, this@apply)
+    }}
 
     override fun getData(data: SparkSubmitModel) {
         super.getData(data)

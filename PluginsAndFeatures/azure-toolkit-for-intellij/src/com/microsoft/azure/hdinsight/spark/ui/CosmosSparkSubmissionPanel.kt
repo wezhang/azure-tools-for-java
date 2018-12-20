@@ -23,6 +23,7 @@
 package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessCluster
 import com.microsoft.azure.hdinsight.spark.common.CosmosSparkSubmitModel
@@ -31,7 +32,9 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 class CosmosSparkSubmissionPanel(project: Project)
     : SparkSubmissionContentPanel(project, "Azure Data Lake Spark Pool"), ILogger {
 
-    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { CosmosSparkClustersCombo() }
+    override val clustersSelection: SparkClusterListRefreshableCombo by lazy { CosmosSparkClustersCombo().apply {
+        Disposer.register(this@CosmosSparkSubmissionPanel, this@apply)
+    }}
 
     override fun getData(data: SparkSubmitModel) {
         // Component -> Data
