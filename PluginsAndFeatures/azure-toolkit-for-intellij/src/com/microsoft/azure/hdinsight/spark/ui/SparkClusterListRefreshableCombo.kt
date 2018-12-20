@@ -39,6 +39,7 @@ import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
 import com.microsoft.intellij.ui.util.findFirst
 import rx.Observable
+import rx.Observable.*
 import rx.subjects.BehaviorSubject
 import rx.subjects.PublishSubject
 import java.awt.Font
@@ -102,7 +103,10 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
         formBuilder.buildPanel()
     }
 
-    open inner class ViewModel(initClusters: Array<IClusterDetail>): DisposableObservers() {
+    open inner class ViewModel(private val initClusters: Array<IClusterDetail>,
+                               private val clusterIdMapper: (IClusterDetail?) -> String? = { cluster -> cluster?.name })
+        : DisposableObservers() {
+
         val clusterListModelBehavior: BehaviorSubject<ImmutableComboBoxModel<IClusterDetail>> = disposableSubjectOf {
             BehaviorSubject.create(ImmutableComboBoxModel(initClusters))
         }
@@ -119,7 +123,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
 
         // Only getter here since the select setter has a special behavior
         open val clusterDetailsWithRefresh: Observable<ImmutableList<out IClusterDetail>>
-            get() = Observable.fromCallable { ImmutableList.copyOf(
+            get() = fromCallable { ImmutableList.copyOf(
                 ClusterManagerEx.getInstance().clusterDetails.asSequence()
                         .filter { ClusterManagerEx.getInstance().hdInsightClusterFilterPredicate.test(it) }
                         .sortedBy { it.title }
@@ -128,15 +132,22 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
 
         // Monitoring cluster selection
         val clusterIsSelected: Observable<IClusterDetail?>
-            get() = Observable.interval(200, TimeUnit.MILLISECONDS)
+            get() = interval(200, TimeUnit.MILLISECONDS)
                     .takeUntil { Disposer.isDisposed(this) }
                     .map { clusterComboBoxSelection }
+                    .withLatestFrom(toSelectClusterByIdBehavior
+                            .distinctUntilChanged()
+                            .flatMap {
+                                concat(from(initClusters), clusterDetailsWithRefresh.flatMap { clusters -> from(clusters) })
+                                        .firstOrDefault(null) { cluster -> clusterIdMapper(cluster) == it as? String }}) {
+                        selected, toSelect -> selected ?: toSelect
+                    }
                     .distinctUntilChanged()
-                    .doOnNext { log().info("Selected ${it?.name}, (you may get duplicated outputs for each subscriptions)") }
+                    .doOnNext { log().info("Selected ${clusterIdMapper(it)}, (you may get duplicated outputs for each subscriptions)") }
 
         init {
             // To select cluster with refresh
-            Observable.combineLatest(clusterListModelBehavior.distinctUntilChanged(),
+            combineLatest(clusterListModelBehavior.distinctUntilChanged(),
                                      toSelectClusterByIdBehavior.distinctUntilChanged()) {
                 clustersModel, clusterId -> clustersModel.apply { selectedItem = findClusterById(clustersModel, clusterId) }
             }.subscribe(
@@ -155,7 +166,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
                         clusterDetailsWithRefresh.doOnEach { isRefreshButtonEnabled = true }
                     } else  {
                         // TODO: We can add cancelling operation here
-                        Observable.empty()
+                        empty()
                     }}
                     .subscribe(
                             { clusterListModelBehavior.onNext(ImmutableComboBoxModel(it.toTypedArray())) },
@@ -165,7 +176,7 @@ open class SparkClusterListRefreshableCombo: ILogger, Disposable {
         }
 
         open fun findClusterById(clustersModel: ComboBoxModel<IClusterDetail>, id: Any?): IClusterDetail? {
-            return clustersModel.findFirst { it.name == id as? String }
+            return clustersModel.findFirst { clusterIdMapper(it) == id as? String }
         }
     }
 
@@ -199,7 +210,7 @@ class ArisSparkClusterListRefreshableCombo: SparkClusterListRefreshableCombo() {
             .toTypedArray()) {
 
         override val clusterDetailsWithRefresh: Observable<ImmutableList<out IClusterDetail>>
-            get() = Observable.fromCallable<ImmutableList<out IClusterDetail>> { ImmutableList.copyOf(
+            get() = fromCallable<ImmutableList<out IClusterDetail>> { ImmutableList.copyOf(
                     ClusterManagerEx.getInstance().clusterDetails
                             .filter { it is SqlBigDataLivyLinkClusterDetail }
                             .listIterator()
