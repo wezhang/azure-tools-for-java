@@ -106,7 +106,5 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
 
     @Override
     public void dispose() {
-        // Dispose self since it's a root node
-        Disposer.dispose(this);
     }
 }

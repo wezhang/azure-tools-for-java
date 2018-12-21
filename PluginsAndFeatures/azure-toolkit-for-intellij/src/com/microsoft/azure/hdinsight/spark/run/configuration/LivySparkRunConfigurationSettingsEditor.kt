@@ -34,6 +34,9 @@ import com.microsoft.azure.hdinsight.spark.ui.SparkBatchJobConfigurable
 import javax.swing.JComponent
 
 class LivySparkRunConfigurationSettingsEditor(val jobConfigurable: SparkBatchJobConfigurable) : SettingsEditor<LivySparkBatchJobRunConfiguration>() {
+    init {
+        Disposer.register(this, jobConfigurable)
+    }
 
     override fun resetEditorFrom(livySparkBatchJobRunConfiguration: LivySparkBatchJobRunConfiguration) {
         // Reset the panel from the RunConfiguration
@@ -53,7 +56,6 @@ class LivySparkRunConfigurationSettingsEditor(val jobConfigurable: SparkBatchJob
     }
 
     override fun disposeEditor() {
-        Disposer.dispose(jobConfigurable)
         Disposer.dispose(this)
 
         super.disposeEditor()
