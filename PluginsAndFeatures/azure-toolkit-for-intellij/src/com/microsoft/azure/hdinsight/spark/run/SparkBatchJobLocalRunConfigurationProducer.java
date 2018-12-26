@@ -41,6 +41,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.Optional;
 
+import static com.intellij.openapi.roots.TestSourcesFilter.isTestSources;
+
 public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigurationProducerBase<LivySparkBatchJobRunConfiguration> {
     private SparkApplicationType applicationType;
 
@@ -57,8 +59,10 @@ public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigura
         } else {
             return Optional.ofNullable(context.getModule())
                     .map(Module::getProject)
-                    .flatMap(project -> Optional.ofNullable(SparkContextUtilsKt.getSparkMainClassWithElement(context))
-                            .filter(mainClass -> SparkContextUtilsKt.isSparkContext(mainClass.getContainingFile())))
+                    .flatMap(project -> Optional
+                            .ofNullable(SparkContextUtilsKt.getSparkMainClassWithElement(context))
+                            .filter(mainClass -> SparkContextUtilsKt.isSparkContext(mainClass.getContainingFile()) &&
+                                    !isTestSources(mainClass.getContainingFile().getVirtualFile(), project)))
                     .map(mainClass -> {
                         setupConfiguration(configuration, mainClass, context);
 
@@ -98,6 +102,10 @@ public class SparkBatchJobLocalRunConfigurationProducer extends JavaRunConfigura
                 .map(mainClass -> {
                     if (!StringUtils.equals(jobConfiguration.getModel().getLocalRunConfigurableModel().getRunClass(),
                             SparkContextUtilsKt.getNormalizedClassNameForSpark(mainClass))) {
+                        return false;
+                    }
+
+                    if (isTestSources(mainClass.getContainingFile().getVirtualFile(), jobConfiguration.getProject())) {
                         return false;
                     }
 

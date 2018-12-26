@@ -28,6 +28,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.RunnerRegistry
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.roots.TestSourcesFilter.isTestSources
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
 import com.microsoft.azure.hdinsight.spark.run.getNormalizedClassNameForSpark
@@ -58,11 +59,15 @@ abstract class SparkRunConfigurationAction : AzureAnAction, ILogger {
         val runManagerEx = RunManagerEx.getInstanceEx(project)
         val selectedConfigSettings = runManagerEx.selectedConfiguration
 
+        val mainClass = actionEvent.dataContext.getSparkConfigurationContext()?.getSparkMainClassWithElement()
+        if (mainClass?.containingFile?.let { isTestSources(it.virtualFile, project) } == true) {
+            return
+        }
+
         presentation.apply {
             when {
-                actionEvent.isFromActionToolbar -> {
-                    isEnabledAndVisible = canRun(selectedConfigSettings?: return)
-                }
+
+                actionEvent.isFromActionToolbar -> isEnabledAndVisible = canRun(selectedConfigSettings?: return)
                 else -> {
                     // From context menu or Line marker action menu
                     isEnabledAndVisible = actionEvent.dataContext.isSparkContext()
