@@ -60,7 +60,7 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
     private JTextField clusterNameOrUrlField;
     private JPanel livyServiceCard;
     protected JTextField livyEndpointField;
-    protected JTextField errorMessageField;
+    protected JTextArea errorMessageField;
     private JPanel authComboBoxPanel;
     protected JComboBox authComboBox;
     protected JPanel authCardsPanel;
@@ -74,6 +74,10 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
     protected JLabel userNameLabel;
     protected JLabel passwordLabel;
     protected JLabel livyClusterNameLabel;
+    protected JTextField arisPortField;
+    protected JTextField arisHostField;
+    protected HintTextField arisClusterNameField;
+    protected JPanel arisLivyServiceCard;
     @NotNull
     private RefreshableNode hdInsightModule;
     @NotNull
@@ -119,12 +123,13 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
         Arrays.asList(clusterComboBox, authComboBox).forEach(comp -> comp.addActionListener(event -> basicValidate()));
 
         Arrays.asList(clusterNameOrUrlField, userNameField, passwordField, livyEndpointField, livyClusterNameField,
-                yarnEndpointField).forEach(comp -> comp.getDocument().addDocumentListener(new DocumentAdapter() {
-            @Override
-            protected void textChanged(DocumentEvent e) {
-                basicValidate();
-            }
-        }));
+                yarnEndpointField, arisHostField, arisPortField, arisClusterNameField).forEach(
+                        comp -> comp.getDocument().addDocumentListener(new DocumentAdapter() {
+                    @Override
+                    protected void textChanged(DocumentEvent e) {
+                        basicValidate();
+                    }
+                }));
 
         // load all cluster details to cache for validation check
         loadClusterDetails();
@@ -190,10 +195,11 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
                 });
     }
 
-    private void createUIComponents() {
+    protected void createUIComponents() {
         clusterNameOrUrlField = new HintTextField("Example: spk22 or https://spk22.azurehdinsight.net");
         livyEndpointField = new HintTextField("Example: http://headnodehost:8998");
         yarnEndpointField = new HintTextField("(Optional)Example: http://hn0-spark2:8088");
+        arisClusterNameField = new HintTextField("(Optional) Cluster name");
     }
 
     public SparkClusterType getSparkClusterType() {
