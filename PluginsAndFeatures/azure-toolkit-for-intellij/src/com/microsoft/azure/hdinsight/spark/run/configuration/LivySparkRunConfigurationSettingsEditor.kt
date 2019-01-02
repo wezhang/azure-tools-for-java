@@ -51,6 +51,7 @@ class LivySparkRunConfigurationSettingsEditor(val jobConfigurable: SparkBatchJob
         if (advModel.enableRemoteDebug && advModel.sshAuthType == UsePassword) {
             // Load password for no password input
             try {
+                advModel.clusterName = livySparkBatchJobRunConfiguration.submitModel.clusterName
                 advModel.sshPassword = secureStore?.loadPassword(advModel.credentialStoreAccount, advModel.sshUserName)
             } catch (ignored: Exception) { }
         }
