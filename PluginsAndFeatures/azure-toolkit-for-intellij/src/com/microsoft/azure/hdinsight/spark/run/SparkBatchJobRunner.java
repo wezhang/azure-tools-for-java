@@ -91,8 +91,12 @@ public class SparkBatchJobRunner extends DefaultProgramRunner implements SparkSu
         IClusterDetail clusterDetail = ClusterManagerEx.getInstance().getClusterDetailByName(clusterName)
                 .orElseThrow(() -> new ExecutionException("Can't find cluster named " + clusterName));
 
-        SparkSubmitStorageType storageAcccountType = submitModel.getJobUploadStorageModel().getStorageAccountType();
-        switch (storageAcccountType) {
+        SparkSubmitStorageType storageAccountType = submitModel.getJobUploadStorageModel().getStorageAccountType();
+        if (storageAccountType == null) {
+            throw new ExecutionException("The artifact deployment target storage type isn't specified");
+        }
+
+        switch (storageAccountType) {
             case BLOB:
                 String storageAccountName = submitModel.getJobUploadStorageModel().getStorageAccount();
                 if (StringUtils.isBlank(storageAccountName)) {

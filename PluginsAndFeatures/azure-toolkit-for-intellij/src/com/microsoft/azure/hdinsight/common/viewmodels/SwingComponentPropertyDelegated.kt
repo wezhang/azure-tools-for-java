@@ -32,11 +32,34 @@ import javax.swing.JComboBox
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
+object UnsetSwingProperty
+
 abstract class SwingComponentPropertyDelegated<T>: ILogger, ReadWriteProperty<Any?, T>  {
+    private var isPending: Boolean = false
+    private var pendingValue: Any? = UnsetSwingProperty   // Should be accessed with isPending lock
+
+    override operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+        synchronized(isPending) {
+            if (isPending) {
+                return pendingValue as T
+            }
+        }
+
+        return getValueFromUI(thisRef, property)
+    }
+
     override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        synchronized(isPending) {
+            isPending = true
+            pendingValue = value
+        }
+
         try {
             ApplicationManager.getApplication().invokeLater({
                 setValueInDispatch(thisRef, property, value)
+                synchronized(isPending) {
+                    isPending = false
+                }
             }, ModalityState.any())
         } catch (ex: ProcessCanceledException) {
             log().debug(ex.message)
@@ -44,12 +67,15 @@ abstract class SwingComponentPropertyDelegated<T>: ILogger, ReadWriteProperty<An
     }
 
     abstract fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: T)
+    abstract fun getValueFromUI(thisRef: Any?, property: KProperty<*>): T
 }
 
 inline fun <T> swingPropertyDelegated(crossinline getter: (property: KProperty<*>) -> T,
                                       crossinline setterInDispatch: (property: KProperty<*>, newValue: T) -> Unit)
         : ReadWriteProperty<Any?, T> = object: SwingComponentPropertyDelegated<T>(){
-    override fun getValue(thisRef: Any?, property: KProperty<*>): T = getter(property)
+    override fun getValueFromUI(thisRef: Any?, property: KProperty<*>): T {
+        return getter(property)
+    }
 
     override fun setValueInDispatch(ref: Any?, property: KProperty<*>, v: T) {
         setterInDispatch(property, v)
@@ -58,7 +84,7 @@ inline fun <T> swingPropertyDelegated(crossinline getter: (property: KProperty<*
 
 class ComponentWithBrowseButtonEnabledDelegated(private val componentWithBrowseButton: ComponentWithBrowseButton<*>)
     : SwingComponentPropertyDelegated<Boolean>() {
-    override operator fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
+    override fun getValueFromUI(thisRef: Any?, property: KProperty<*>): Boolean {
         return componentWithBrowseButton.button.isEnabled
     }
 
@@ -68,7 +94,7 @@ class ComponentWithBrowseButtonEnabledDelegated(private val componentWithBrowseB
 }
 
 class ComboBoxSelectionDelegated<T>(private val comboBox: JComboBox<T>): SwingComponentPropertyDelegated<T>() {
-    override operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
+    override fun getValueFromUI(thisRef: Any?, property: KProperty<*>): T {
         @Suppress("UNCHECKED_CAST")
         return comboBox.selectedItem as T
     }
@@ -90,4 +116,3 @@ class ComboBoxModelDelegated<T>(private val comboBox: JComboBox<T>) {
         }
     }
 }
-

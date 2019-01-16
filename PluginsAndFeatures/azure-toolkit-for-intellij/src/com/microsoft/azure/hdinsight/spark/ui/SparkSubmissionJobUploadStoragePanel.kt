@@ -77,14 +77,16 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable {
         })
     }
 
-    private val storageTypeComboBox = ComboBox<SparkSubmitStorageType>(arrayOf(
-            SparkSubmitStorageType.BLOB,
-            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION,
-            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT,
-            SparkSubmitStorageType.ADLS_GEN1,
-            SparkSubmitStorageType.WEBHDFS,
-            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE
-    )).apply {
+    private val storageTypeComboBox = ComboBox<SparkSubmitStorageType>(
+//            arrayOf(
+//            SparkSubmitStorageType.BLOB,
+//            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION,
+//            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT,
+//            SparkSubmitStorageType.ADLS_GEN1,
+//            SparkSubmitStorageType.WEBHDFS,
+//            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE
+//    )
+    ).apply {
         // validate storage info after storage type is selected
         addItemListener { itemEvent ->
             // change panel
