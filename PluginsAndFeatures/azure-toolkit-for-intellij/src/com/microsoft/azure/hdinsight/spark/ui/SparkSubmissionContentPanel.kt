@@ -386,7 +386,10 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
             row { c(storageWithUploadPathPanel) { colSpan = 2; fill = FILL_HORIZONTAL }; }
         }
 
-        formBuilder.buildPanel()
+        formBuilder.buildPanel().apply {
+            // Add a margin for the panel
+            border = BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        }
     }
 
     open val component: JComponent

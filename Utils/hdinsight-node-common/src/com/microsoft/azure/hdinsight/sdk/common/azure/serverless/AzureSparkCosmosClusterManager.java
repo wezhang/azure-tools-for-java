@@ -52,8 +52,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import static rx.Observable.concat;
-import static rx.Observable.from;
+import static rx.Observable.*;
 
 public class AzureSparkCosmosClusterManager implements ClusterContainer,
                                                            ILogger {
@@ -236,6 +235,11 @@ public class AzureSparkCosmosClusterManager implements ClusterContainer,
                     return getHttp(subAccountBasicPair.getLeft())
                             .withUuidUserAgent()
                             .get(accountDetailUri.toString(), null, null, DataLakeAnalyticsAccount.class)
+                            .onErrorResumeNext(err -> {
+                                log().warn("Failed to get the account detail: " + accountDetailUri, err);
+
+                                return empty();
+                            })
                             .map(accountDetail -> Triple.of(
                                     subAccountBasicPair.getLeft(), subAccountBasicPair.getRight(), accountDetail));
                 })
