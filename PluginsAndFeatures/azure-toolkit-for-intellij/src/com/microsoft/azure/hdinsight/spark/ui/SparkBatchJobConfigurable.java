@@ -33,6 +33,9 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 import javax.swing.*;
 
+import static javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER;
+import static javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED;
+
 public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobConfigurableModel>, Disposable {
     private JTabbedPane executionTypeTabPane;
     private JPanel myWholePanel;
@@ -54,7 +57,7 @@ public class SparkBatchJobConfigurable implements SettableControl<SparkBatchJobC
 
     protected void createUIComponents() {
         localRunParamsPanel = new SparkLocalRunParamsPanel(getProject()).withInitialize();
-        remoteConfigScrollPane = new JBScrollPane();
+        remoteConfigScrollPane = new JBScrollPane(VERTICAL_SCROLLBAR_AS_NEEDED, HORIZONTAL_SCROLLBAR_NEVER);
         setClusterSubmissionPanel(createSubmissionPanel());
     }
 
