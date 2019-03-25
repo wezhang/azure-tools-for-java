@@ -56,6 +56,11 @@ case class FailureTask(
 //  conf: String,
   bcs: Array[BroadcastValue],
   shuffleDeps: Array[ShuffleDeps],
-  isResult: Boolean
+  isResult: Boolean,
+  version: String = FailureTask.version
 )
+
+object FailureTask {
+  val version = "0.1"
+}
 
