@@ -27,6 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.{Base64, Date}
 
 import org.apache.commons.io.IOUtils
+import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileUtil, Path}
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
@@ -249,13 +250,22 @@ class DAGWithFailureSaveScheduler(
 
         environmentDetails.get("Classpath Entries").map(pairs => pairs.map(_._1))
       })
-      .foreach(_.foreach(runtimeFile => {
-        val srcUri = Utils.resolveURI(runtimeFile)
-        val srcPath = new Path(srcUri)
-        val srcFs = Utils.getHadoopFileSystem(srcUri, sc.hadoopConfiguration)
-        val dstPath = new Path(runtimeFolder, srcPath.getName)
-        FileUtil.copy(srcFs, srcPath, fs, dstPath, false, sc.hadoopConfiguration)
-        logInfo(s"Runtime $srcPath has been saved into $dstPath")
+      .foreach(_.par.foreach(runtimeFile => {
+        try {
+          val srcUri = Utils.resolveURI(runtimeFile)
+          val srcPath = new Path(srcUri)
+          val srcFs = Utils.getHadoopFileSystem(srcUri, sc.hadoopConfiguration)
+
+          if (StringUtils.isNotBlank(srcPath.getName)) {
+            val dstPath = new Path(runtimeFolder, srcPath.getName)
+            FileUtil.copy(srcFs, srcPath, fs, dstPath, false, sc.hadoopConfiguration)
+            logInfo(s"Runtime $srcPath has been saved into $dstPath")
+          } else {
+            logWarning(s"Runtime $runtimeFile has been ignored")
+          }
+        } catch {
+          case NonFatal(err) => logWarning(s"Got an error when saving runtime $runtimeFile", err)
+        }
       }))
   }
 
