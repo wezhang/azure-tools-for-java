@@ -20,30 +20,45 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run;
+package com.microsoft.azure.hdinsight.sdk.common.errorresponse;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
 
-import java.net.URI;
+public class HttpErrorStatus extends HttpException {
+    private int statusCode;
 
-public class SparkBatchJobExecutorCreatedEvent implements SparkBatchJobSubmissionEvent {
-    @NotNull
-    private final URI hostUri;
-    @NotNull
-    private final String containerId;
+    @Nullable
+    private Header[] headers;
 
-    public SparkBatchJobExecutorCreatedEvent(@NotNull URI hostUri, @NotNull String containerId) {
-        this.hostUri = hostUri;
-        this.containerId = containerId;
+    @Nullable
+    private HttpEntity entity;
+
+    public HttpErrorStatus(
+            int statusCode,
+            @NotNull String message,
+            @Nullable Header[] headers,
+            @Nullable HttpEntity entity) {
+        super(message);
+        this.headers = headers;
+        this.entity = entity;
     }
 
-    @NotNull
-    public URI getHostUri() {
-        return hostUri;
+    public int getStatusCode() {
+        return statusCode;
     }
 
-    @NotNull
-    public String getContainerId() {
-        return containerId;
+    @Nullable
+    public Header[] getHeaders() {
+        return headers;
     }
+
+    @Nullable
+    public HttpEntity getEntity() {
+        return entity;
+    }
+
 }

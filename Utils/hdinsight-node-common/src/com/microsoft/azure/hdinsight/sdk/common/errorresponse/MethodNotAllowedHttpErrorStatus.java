@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) Microsoft Corporation
  *
@@ -20,30 +21,18 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.run;
+package com.microsoft.azure.hdinsight.sdk.common.errorresponse;
 
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
 
-import java.net.URI;
-
-public class SparkBatchJobExecutorCreatedEvent implements SparkBatchJobSubmissionEvent {
-    @NotNull
-    private final URI hostUri;
-    @NotNull
-    private final String containerId;
-
-    public SparkBatchJobExecutorCreatedEvent(@NotNull URI hostUri, @NotNull String containerId) {
-        this.hostUri = hostUri;
-        this.containerId = containerId;
-    }
-
-    @NotNull
-    public URI getHostUri() {
-        return hostUri;
-    }
-
-    @NotNull
-    public String getContainerId() {
-        return containerId;
+public class MethodNotAllowedHttpErrorStatus extends HttpErrorStatus {
+    public MethodNotAllowedHttpErrorStatus(
+            @NotNull String message,
+            @Nullable Header[] headers,
+            @Nullable HttpEntity entity) {
+        super(405, message, headers, entity);
     }
 }
