@@ -44,7 +44,6 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.PathUtil.getJarPathForClass
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalConsoleMockFsAgent
-import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
 import com.microsoft.azuretools.ijidea.ui.ErrorWindow
@@ -76,8 +75,8 @@ class SparkScalaLocalConsoleRunConfiguration(
             isMockFs = true
         }
 
-        val localRunParams = SparkBatchLocalRunState(project, batchRunConfiguration.model.localRunConfigurableModel)
-                .createParams(hasJmockit = isMockFs, hasMainClass = false, hasClassPath = false)
+        val localRunParams = SparkBatchLocalRunState(project, batchRunConfiguration.model.localRunConfigurableModel, null)
+                .createParams(executor = null, hasJmockit = isMockFs, hasMainClass = false, hasClassPath = false)
         val params = super.createParams()
         params.classPath.clear()
         val replLibraryCoord = findReplCoord() ?: throw ExecutionException("""
