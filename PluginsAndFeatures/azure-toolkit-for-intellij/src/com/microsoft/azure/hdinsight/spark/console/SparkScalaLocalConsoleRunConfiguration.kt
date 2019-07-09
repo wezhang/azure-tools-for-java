@@ -37,6 +37,7 @@ import com.intellij.openapi.roots.OrderRootType
 import com.intellij.openapi.roots.impl.libraries.LibraryEx
 import com.intellij.openapi.roots.impl.libraries.ProjectLibraryTable
 import com.intellij.openapi.roots.libraries.Library
+import com.intellij.openapi.roots.libraries.LibraryTablesRegistrar
 import com.intellij.openapi.roots.libraries.NewLibraryConfiguration
 import com.intellij.openapi.roots.ui.configuration.libraryEditor.NewLibraryEditor
 import com.intellij.openapi.ui.Messages
@@ -44,7 +45,6 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.PathUtil.getJarPathForClass
 import com.microsoft.azure.hdinsight.spark.mock.SparkLocalConsoleMockFsAgent
-import com.microsoft.azure.hdinsight.spark.mock.SparkLocalRunner
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchLocalRunState
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
 import com.microsoft.azuretools.ijidea.ui.ErrorWindow
@@ -76,8 +76,8 @@ class SparkScalaLocalConsoleRunConfiguration(
             isMockFs = true
         }
 
-        val localRunParams = SparkBatchLocalRunState(project, batchRunConfiguration.model.localRunConfigurableModel)
-                .createParams(hasJmockit = isMockFs, hasMainClass = false, hasClassPath = false)
+        val localRunParams = SparkBatchLocalRunState(project, batchRunConfiguration.model.localRunConfigurableModel, null)
+                .createParams(executor = null, hasJmockit = isMockFs, hasMainClass = false, hasClassPath = false)
         val params = super.createParams()
         params.classPath.clear()
         val replLibraryCoord = findReplCoord() ?: throw ExecutionException("""
@@ -137,7 +137,7 @@ class SparkScalaLocalConsoleRunConfiguration(
     }
 
     private fun findReplCoord(): String? {
-        val iterator = ProjectLibraryTable.getInstance(project).libraryIterator
+        val iterator = LibraryTablesRegistrar.getInstance().getLibraryTable(project).libraryIterator
 
         while (iterator.hasNext()) {
             val libEntryName = iterator.next().name ?: continue
@@ -202,7 +202,7 @@ class SparkScalaLocalConsoleRunConfiguration(
             val newLibConf: NewLibraryConfiguration = JarRepositoryManager.resolveAndDownload(
                     project, libraryCoord, false, false, true, null, projectRepositories) ?: return@runInWriteAction
             val libraryType = newLibConf.libraryType
-            val library = ProjectLibraryTable.getInstance(project).createLibrary("Spark Console(auto-fix): $libraryCoord")
+            val library = LibraryTablesRegistrar.getInstance().getLibraryTable(project).createLibrary("Spark Console(auto-fix): $libraryCoord")
 
             val editor = NewLibraryEditor(libraryType, newLibConf.properties)
             newLibConf.addRoots(editor)
@@ -212,7 +212,7 @@ class SparkScalaLocalConsoleRunConfiguration(
         }
     }
 
-    private fun getLibraryByCoord(libraryCoord: String): Library? = ProjectLibraryTable.getInstance(project)
+    private fun getLibraryByCoord(libraryCoord: String): Library? = LibraryTablesRegistrar.getInstance().getLibraryTable(project)
             .libraries.firstOrNull { it.name?.endsWith(libraryCoord) == true }
 
     override fun getState(executor: Executor, env: ExecutionEnvironment): RunProfileState? {

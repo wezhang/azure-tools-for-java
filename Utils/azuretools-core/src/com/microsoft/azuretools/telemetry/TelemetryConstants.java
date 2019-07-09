@@ -40,7 +40,10 @@ public class TelemetryConstants {
     public static final String ACTION = "action";
     public static final String DIALOG = "dialog";
     public static final String HDINSIGHT = "hdinsight";
-    public static final String VFS = "vfs";    // virtual file system
+    public static final String SPARK_ON_COSMOS = "sparkOnCosmos";
+    public static final String SPARK_ON_COSMOS_SERVERLESS = "sparkOnCosmosServerless";
+    public static final String SPARK_ON_SQL_SERVER = "sparkOnSqlServer";
+    public static final String VFS = "virtualFileSystem";
 
     // operation value
     public static final String FEEDBACK = "feedback";
@@ -132,6 +135,15 @@ public class TelemetryConstants {
     public static final String UPDATE_DEPLOYMENT_SHORTCUT = "update-deployment-shortcut";
     public static final String BROWSE_TEMPLATE_SAMPLES = "browse-template-samples";
     public static final String ACTIVATE_TEMPLATE_DEITING = "activate-template-editing";
+    public static final String RUN_LOCAL_SPARK_JOB = "run-local-spark-job";
+    public static final String RUN_REMOTE_SPARK_JOB = "run-remote-spark-job";
+    public static final String DEBUG_LOCAL_SPARK_JOB = "debug-local-spark-job";
+    public static final String DEBUG_REMOTE_SPARK_JOB = "debug-remote-spark-job";
+    public static final String SELECT_DEFAULT_SPARK_APPLICATION_TYPE = "select-default-spark-application-type";
+    public static final String UNLINK_SPARK_CLUSTER = "unlink-spark-cluster";
+    public static final String REFRESH_JOB_VIEW_TABLE = "refresh-job-view-table";
+    public static final String CLOSE_JOB_VIEW_WINDOW = "close-job-view-window";
+    public static final String SELECT_JOB_IN_JOB_VIEW_WINDOW = "select-job-in-job-view-window";
 
     // property name
     public static final String WEBAPP_DEPLOY_TO_SLOT = "webappDeployToSlot";
