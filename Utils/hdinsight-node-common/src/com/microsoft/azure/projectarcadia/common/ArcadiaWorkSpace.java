@@ -169,6 +169,10 @@ public class ArcadiaWorkSpace implements ClusterContainer, Comparable<ArcadiaWor
         return subscription;
     }
 
+    public Workspace getWorkspaceResponse() {
+        return workspaceResponse;
+    }
+
     @Override
     public int compareTo(@NotNull ArcadiaWorkSpace other) {
         if (this == other) {

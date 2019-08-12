@@ -46,6 +46,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 
+import static rx.Observable.concat;
+import static rx.Observable.from;
+
 public class ArcadiaSparkComputeManager implements ClusterContainer, ILogger {
     private static class LazyHolder {
         static final ArcadiaSparkComputeManager INSTANCE = new ArcadiaSparkComputeManager();
@@ -198,4 +201,16 @@ public class ArcadiaSparkComputeManager implements ClusterContainer, ILogger {
     private AzureHttpObservable buildHttp(@NotNull SubscriptionDetail subscriptionDetail) {
         return new AzureHttpObservable(subscriptionDetail, ApiVersion.VERSION);
     }
+
+    @NotNull
+    public Observable<? extends ArcadiaSparkCompute> findCompute(final @NotNull String tenantId,
+                                                                 final @NotNull String workspaceName,
+                                                                 final @NotNull String computeName) {
+        return concat(from(getClusters()), fetchClusters().flatMap(computeManager -> from(computeManager.getClusters())))
+                .map(ArcadiaSparkCompute.class::cast)
+                .filter(compute -> compute.getWorkSpace().getName().equals(workspaceName)
+                        && compute.getSubscription().getTenantId().equals(tenantId)
+                        && compute.getName().equals(computeName));
+    }
+
 }

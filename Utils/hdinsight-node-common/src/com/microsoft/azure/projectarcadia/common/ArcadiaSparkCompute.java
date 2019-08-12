@@ -104,7 +104,14 @@ public class ArcadiaSparkCompute extends SparkCluster implements Comparable<Arca
         }
 
         try {
-            return new URIBuilder(this.workSpace.getSparkUrl()).setPort(ARCADIA_SPARK_SERVICE_PORT).build().toString();
+//            return new URIBuilder(this.workSpace.getSparkUrl()).setPort(ARCADIA_SPARK_SERVICE_PORT).build().toString();
+            return new URIBuilder()
+                    .setScheme("https")
+                    .setHost("arcadia-spark-service-prod."
+                            + this.workSpace.getWorkspaceResponse().location() + ".cloudapp.azure.com")
+                    .setPort(ARCADIA_SPARK_SERVICE_PORT)
+                    .setPath("/versions/2019-01-01/sparkcomputes/" + getName() + "/")
+                    .build().toString();
         } catch (Exception ignore) {
             log().warn(String.format("Getting connection URL for spark compute %s failed. %s", getName(), ExceptionUtils.getStackTrace(ignore)));
             return null;
@@ -140,5 +147,10 @@ public class ArcadiaSparkCompute extends SparkCluster implements Comparable<Arca
     @Override
     public SparkSubmitStorageType getDefaultStorageType() {
         return SparkSubmitStorageType.BLOB;
+    }
+
+    @NotNull
+    public ArcadiaWorkSpace getWorkSpace() {
+        return workSpace;
     }
 }
