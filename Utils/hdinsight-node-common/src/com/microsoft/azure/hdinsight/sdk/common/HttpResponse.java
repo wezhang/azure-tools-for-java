@@ -21,21 +21,23 @@
  */
 package com.microsoft.azure.hdinsight.sdk.common;
 
-import java.util.HashMap;
+import org.apache.http.Header;
+
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 public class HttpResponse {
     private int code;
     private String message;
-    private Map<String, List<String>> headers;
+    private List<Header> headers;
     private String content;
 
-    public HttpResponse(int code, String message,Map<String, List<String>> headers,
+    public HttpResponse(int code, String message, Header[] headers,
                         String content) {
         this.code = code;
         this.message = message;
-        this.headers = new HashMap<>(headers);
+        this.headers = Arrays.asList(headers);
         this.content = content;
     }
 
@@ -47,11 +49,22 @@ public class HttpResponse {
         return message;
     }
 
-    public Map<String, List<String>> getHeaders() {
+    public List<Header> getHeaders() {
         return headers;
     }
 
     public String getContent() {
         return content;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Response status [%d], content [%s], headers [%s], body [%s]",
+                getCode(),
+                getContent(),
+                getHeaders().stream()
+                        .map(header -> header.getName() + ": " + String.valueOf(header.getValue()))
+                        .collect(Collectors.joining("; ")),
+                getMessage());
     }
 }
