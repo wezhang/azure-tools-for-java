@@ -34,6 +34,7 @@ import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.http.client.utils.URIBuilder;
 
+import java.net.URISyntaxException;
 import java.util.Optional;
 
 public class ArcadiaSparkCompute extends SparkCluster implements Comparable<ArcadiaSparkCompute>, ILogger {
@@ -104,7 +105,9 @@ public class ArcadiaSparkCompute extends SparkCluster implements Comparable<Arca
         }
 
         try {
-//            return new URIBuilder(this.workSpace.getSparkUrl()).setPort(ARCADIA_SPARK_SERVICE_PORT).build().toString();
+            // TODO: Enable it when the workspace's Spark URL is usable.
+            // return new URIBuilder(this.workSpace.getSparkUrl()).setPort(ARCADIA_SPARK_SERVICE_PORT).build().toString();
+
             return new URIBuilder()
                     .setScheme("https")
                     .setHost("arcadia-spark-service-prod."
@@ -112,8 +115,8 @@ public class ArcadiaSparkCompute extends SparkCluster implements Comparable<Arca
                     .setPort(ARCADIA_SPARK_SERVICE_PORT)
                     .setPath("/versions/2019-01-01/sparkcomputes/" + getName() + "/")
                     .build().toString();
-        } catch (Exception ignore) {
-            log().warn(String.format("Getting connection URL for spark compute %s failed. %s", getName(), ExceptionUtils.getStackTrace(ignore)));
+        } catch (URISyntaxException e) {
+            log().warn(String.format("Getting connection URL for spark compute %s failed. %s", getName(), ExceptionUtils.getStackTrace(e)));
             return null;
         }
     }

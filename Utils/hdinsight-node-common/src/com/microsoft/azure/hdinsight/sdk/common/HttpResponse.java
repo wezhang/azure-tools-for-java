@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) Microsoft Corporation
  * <p/>
  * All rights reserved.
@@ -24,21 +24,24 @@ package com.microsoft.azure.hdinsight.sdk.common;
 import org.apache.http.Header;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class HttpResponse {
-    private int code;
-    private String message;
-    private List<Header> headers;
-    private String content;
+    private final int code;
+    private final String message;
+    private final List<Header> headers;
+    private final String content;
 
-    public HttpResponse(int code, String message, Header[] headers,
-                        String content) {
+    public HttpResponse(final int code,
+                        final String message,
+                        final Header[] headers,
+                        final String content) {
         this.code = code;
-        this.message = message;
-        this.headers = Arrays.asList(headers);
-        this.content = content;
+        this.message = message == null ? "" : message;
+        this.headers = headers == null ? Collections.emptyList() : Arrays.asList(headers);
+        this.content = content == null ? "" : content;
     }
 
     public int getCode() {
@@ -59,7 +62,7 @@ public class HttpResponse {
 
     @Override
     public String toString() {
-        return String.format("Response status [%d], content [%s], headers [%s], body [%s]",
+        return String.format("Response: status [%d], content [%s], headers [%s], body [%s]",
                 getCode(),
                 getContent(),
                 getHeaders().stream()
