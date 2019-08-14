@@ -59,7 +59,9 @@ class ConsoleViewWithMessageBars(project: Project)
         val formBuilder = panel {
             row {
                 c(super.getComponent()) {
+                    hSizePolicy = SIZEPOLICY_WANT_GROW or SIZEPOLICY_CAN_SHRINK
                     fill = FILL_BOTH
+                    minimumSize = Dimension(480, -1)
 
                 }
             }
