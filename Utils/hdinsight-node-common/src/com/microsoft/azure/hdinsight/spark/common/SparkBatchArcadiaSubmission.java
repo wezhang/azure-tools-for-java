@@ -35,11 +35,19 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.util.Arrays;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SparkBatchArcadiaSubmission extends SparkBatchSubmission {
     public static final String ARCADIA_RESOURCE_ID = "5d13f7d7-0567-429c-9880-320e9555e5fc";
+    public static final Pattern LIVY_URL_NO_WORKSPACE_IN_HOSTNAME_PATTERN = Pattern.compile(
+            "https?://arcadia-spark-service-prod\\.(?<region>[^/.]+)(?<suffix>[^/:]+)(:(?<port>[0-9]+))?"
+                    + "/versions/(?<apiVersion>[^/]+)/sparkcomputes/(?<compute>[^/]+)/?",
+            Pattern.CASE_INSENSITIVE);
 
     private final @NotNull String workspaceName;
     private final @NotNull String tenantId;
@@ -99,5 +107,25 @@ public class SparkBatchArcadiaSubmission extends SparkBatchSubmission {
     @NotNull
     public URI getLivyUri() {
         return livyUri;
+    }
+
+    @NotNull
+    public URL getHistoryServerUrl(int livyId) {
+        Matcher matcher = LIVY_URL_NO_WORKSPACE_IN_HOSTNAME_PATTERN.matcher(getLivyUri().toString());
+
+        if (matcher.matches()) {
+            try {
+                return new URL(String.format("https://arcadia-spark-history-server-prod-%s.azurewebsites.net/" +
+                        "workspaces/%s/sparkcomputes/%s/livyid/%d/summary",
+                        matcher.group("region"),
+                        workspaceName,
+                        matcher.group("compute"),
+                        livyId));
+            } catch (MalformedURLException e) {
+                throw new IllegalArgumentException("Bad Arcadia history server URL", e);
+            }
+        }
+
+        throw new IllegalArgumentException("Bad Arcadia Livy URL: " + getLivyUri());
     }
 }

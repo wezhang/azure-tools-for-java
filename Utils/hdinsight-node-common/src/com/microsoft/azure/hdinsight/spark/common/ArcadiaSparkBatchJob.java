@@ -31,6 +31,7 @@ import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URL;
 import java.util.AbstractMap.SimpleImmutableEntry;
 
 public class ArcadiaSparkBatchJob extends SparkBatchJob {
@@ -78,6 +79,10 @@ public class ArcadiaSparkBatchJob extends SparkBatchJob {
     @Override
     public Observable<SimpleImmutableEntry<MessageInfoType, String>> getSubmissionLog() {
         // No batches/{id}/log API support yet
+        getCtrlSubject().onNext(new SimpleImmutableEntry<>(
+                MessageInfoType.HtmlPersistentMessage,
+                "Track the batch job by opening <a href=\"" + getJobHistoryWebUrl() + "\">Spark Job History Server</a> in Browser"));
+
         return Observable.empty();
     }
 
@@ -97,6 +102,10 @@ public class ArcadiaSparkBatchJob extends SparkBatchJob {
     @NotNull
     private SparkBatchArcadiaSubmission getArcadiaSubmission() {
         return (SparkBatchArcadiaSubmission) super.getSubmission();
+    }
+
+    private URL getJobHistoryWebUrl() {
+        return getArcadiaSubmission().getHistoryServerUrl(getBatchId());
     }
 
     private void ctrlInfo(@NotNull String message) {
