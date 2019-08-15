@@ -380,13 +380,8 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
             when (data.storageAccountType) {
                 SparkSubmitStorageType.BLOB -> {
                     storagePanel.azureBlobCard.storageAccountField.text = data.storageAccount
-                    val credentialAccount = data.getCredentialAccount(data.storageAccount, SparkSubmitStorageType.BLOB)
-                    storagePanel.azureBlobCard.storageKeyField.text =
-                            if (StringUtils.isEmpty(data.errorMsg) && StringUtils.isEmpty(data.storageKey)) {
-                                credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.storageAccount) }
-                            } else {
-                                data.storageKey
-                            }
+                    storagePanel.azureBlobCard.storageKeyField.text = data.storageKey
+
                     if (data.containersModel.size == 0 && StringUtils.isEmpty(storagePanel.errorMessage) && StringUtils.isNotEmpty(data.selectedContainer)) {
                         storagePanel.azureBlobCard.storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedContainer))
                     } else {
@@ -429,15 +424,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                         storagePanel.adlsGen2Card.gen2RootPathField.text = data.gen2RootPath
                     }
 
-                    val credentialAccount = data.getCredentialAccount(
-                            getAccount(SparkBatchJob.AdlsGen2RestfulPathPattern, data.gen2RootPath),
-                            SparkSubmitStorageType.ADLS_GEN2)
-                    storagePanel.adlsGen2Card.storageKeyField.text =
-                            if (StringUtils.isEmpty(data.accessKey)) {
-                                credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.gen2Account) ?: "" }
-                            } else {
-                                data.accessKey
-                            }
+                    storagePanel.adlsGen2Card.storageKeyField.text = data.accessKey
                 }
             }
         }
