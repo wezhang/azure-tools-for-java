@@ -38,7 +38,7 @@ import java.net.URISyntaxException;
 import java.util.Optional;
 
 public class ArcadiaSparkCompute extends SparkCluster implements Comparable<ArcadiaSparkCompute>, ILogger {
-    public static final int ARCADIA_SPARK_SERVICE_PORT = 8660;
+    public static final int ARCADIA_SPARK_SERVICE_PORT = 443;
     @NotNull
     private final ArcadiaWorkSpace workSpace;
 
