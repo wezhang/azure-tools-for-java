@@ -58,6 +58,12 @@ open class SparkScalaLivyConsoleRunConfiguration(project: Project,
 
     protected var cluster: IClusterDetail? = null
 
+    protected val consoleBuilder: SparkScalaConsoleBuilder
+        get() = SparkScalaConsoleBuilder(project, batchRunConfiguration?.modules?.firstOrNull()
+            ?: throw ExecutionException(RuntimeConfigurationError(
+                    "The default module needs to be set in the local run tab of Run Configuration")))
+
+
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> =
             SparkScalaLivyConsoleRunConfigurationEditor()
 
@@ -80,7 +86,7 @@ open class SparkScalaLivyConsoleRunConfiguration(project: Project,
                 cluster.httpUserName,
                 cluster.httpPassword)
 
-        return SparkScalaLivyConsoleRunProfileState(SparkScalaConsoleBuilder(project), session)
+        return SparkScalaLivyConsoleRunProfileState(consoleBuilder, session)
     }
 
     override fun checkRunnerSettings(runner: ProgramRunner<*>, runnerSettings: RunnerSettings?, configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {
