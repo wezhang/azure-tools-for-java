@@ -152,6 +152,16 @@
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>
+            <artifactId>azure-keyvault-core</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.microsoft.azure</groupId>
+                    <artifactId>azure-client-runtime</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.azure</groupId>
             <artifactId>applicationinsights-core</artifactId>
         </dependency>
         <dependency>
@@ -162,6 +172,10 @@
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>applicationinsights-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.rest</groupId>
+            <artifactId>client-runtime</artifactId>
         </dependency>
         <dependency>
             <groupId>eu.infomas</groupId>
