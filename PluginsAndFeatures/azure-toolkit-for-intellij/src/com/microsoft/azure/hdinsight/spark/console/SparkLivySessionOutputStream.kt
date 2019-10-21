@@ -49,7 +49,9 @@ class SparkLivySessionOutputStream(val session: Session) : ByteArrayOutputStream
                         { err -> when (err.cause) {
                             is StatementExecutionError -> log().debug(err.message)
                             else -> throw SparkConsoleExceptions.LivySessionExecuteError(
-                                    "Got the code `$codes` execution error:", err.cause ?: err)
+                                    "Got the code `${codes.split(
+                                            "\n").first()}` execution error:",
+                                    err.cause ?: err)
                         }}
                 )
     }
