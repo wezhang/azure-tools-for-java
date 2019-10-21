@@ -98,9 +98,9 @@ class SparkConsoleExecuteAction() : AzureAnAction(), DumbAware, ILogger {
         } catch (e : HDIException) {
             consoleDetail.console.print(
                     """
-                        ${ExceptionUtils.getMessage(e)}
-                        Caused by ${ExceptionUtils.getRootCauseMessage(e)}
-                    """.trimIndent(),
+                    |${ExceptionUtils.getMessage(e)}
+                    |Caused by ${ExceptionUtils.getRootCauseMessage(e)}
+                    """.trimMargin(),
                     ConsoleViewContentType.ERROR_OUTPUT)
         }
 
