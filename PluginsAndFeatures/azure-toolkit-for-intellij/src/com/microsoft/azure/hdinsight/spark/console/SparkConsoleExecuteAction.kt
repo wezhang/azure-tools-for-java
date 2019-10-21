@@ -23,16 +23,19 @@
 package com.microsoft.azure.hdinsight.spark.console
 
 import com.intellij.execution.console.LanguageConsoleImpl
+import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys.EDITOR
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.util.TextRange
 import com.microsoft.azure.hdinsight.common.logger.ILogger
+import com.microsoft.azure.hdinsight.sdk.common.HDIException
 import com.microsoft.azure.hdinsight.spark.run.action.SelectSparkApplicationTypeAction
 import com.microsoft.azuretools.ijidea.utility.AzureAnAction
 import com.microsoft.azuretools.telemetrywrapper.Operation
 import com.microsoft.intellij.util.runInWriteAction
+import org.apache.commons.lang3.exception.ExceptionUtils
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
 
@@ -88,11 +91,19 @@ class SparkConsoleExecuteAction() : AzureAnAction(), DumbAware, ILogger {
         try {
             outputStream.write(normalizedCodes.toByteArray(UTF_8))
             outputStream.flush()
+
+            consoleDetail.console.indexCodes(normalizedCodes)
         } catch (e : IOException) {
             log().debug("Write $normalizedCodes to stdin error", e)
+        } catch (e : HDIException) {
+            consoleDetail.console.print(
+                    """
+                        ${ExceptionUtils.getMessage(e)}
+                        Caused by ${ExceptionUtils.getRootCauseMessage(e)}
+                    """.trimIndent(),
+                    ConsoleViewContentType.ERROR_OUTPUT)
         }
 
-        consoleDetail.console.indexCodes(normalizedCodes)
         return true
     }
 }
