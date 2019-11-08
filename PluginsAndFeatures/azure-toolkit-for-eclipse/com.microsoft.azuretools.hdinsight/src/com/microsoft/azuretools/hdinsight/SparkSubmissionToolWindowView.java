@@ -83,6 +83,7 @@ public class SparkSubmissionToolWindowView extends ViewPart {
 		gridData.verticalAlignment = SWT.TOP;
 		composite.setLayoutData(gridData);
 		stopButton = new Button(composite, SWT.PUSH);
+		stopButton.setText("Stop");
         stopButton.setToolTipText("Stop execution of current application");
         stopButton.setImage(Activator.getImageDescriptor(CommonConst.StopIconPath).createImage());
         stopButton.addSelectionListener(new SelectionAdapter() {
@@ -118,6 +119,7 @@ public class SparkSubmissionToolWindowView extends ViewPart {
         });
         
 		openSparkUIButton = new Button(composite, SWT.PUSH);
+		openSparkUIButton.setText("Open Spark UI");
 		openSparkUIButton.setToolTipText("Open the corresponding Spark UI page");
 		openSparkUIButton.setImage(Activator.getImageDescriptor(CommonConst.OpenSparkUIIconPath).createImage());
 		openSparkUIButton.addSelectionListener(new SelectionAdapter() {
