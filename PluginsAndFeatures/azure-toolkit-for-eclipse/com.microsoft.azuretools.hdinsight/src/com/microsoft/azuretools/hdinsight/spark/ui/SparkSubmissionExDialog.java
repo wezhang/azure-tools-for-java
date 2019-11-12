@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
@@ -64,6 +65,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
+import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
@@ -92,7 +94,45 @@ import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.azuretools.telemetrywrapper.EventType;
 import com.microsoft.azuretools.telemetrywrapper.EventUtil;
 
+import static org.eclipse.swt.SWT.CENTER;
+import static org.eclipse.swt.SWT.FILL;
+import static org.eclipse.swt.SWT.TOP;
+
 public class SparkSubmissionExDialog extends Dialog {
+	static class GridDataBuilder {
+		// Default Grid Data settings
+		private GridData gridData = new GridData(FILL, CENTER, true, false, 1, 1);
+
+		public GridDataBuilder widthHint(final int hint) {
+			gridData.widthHint = hint;
+			return this;
+		}
+
+		public GridDataBuilder heightHint(final int hint) {
+			gridData.heightHint = hint;
+			return this;
+		}
+
+		public GridDataBuilder horizontalIndent(final int indent) {
+			gridData.horizontalIndent = indent;
+			return this;
+		}
+
+		public GridDataBuilder verticalAlignment(final int align) {
+			gridData.verticalAlignment = align;
+			return this;
+		}
+
+		public GridDataBuilder span(final int horizontalSpan, final int verticalSpan) {
+			gridData.horizontalSpan = horizontalSpan;
+			gridData.verticalSpan = verticalSpan;
+			return this;
+		}
+
+		public GridData build() {
+			return gridData;
+		}
+	}
 
 	private final int margin = 10;
 	private static final String DIALOG_TITLE = "Spark Submission";
@@ -101,20 +141,21 @@ public class SparkSubmissionExDialog extends Dialog {
 	
 	private int row = 0;
 	private Combo clustersListComboBox;
-	private Button clusterListButton;
 	private Label hdiReaderErrorMsgLabel;
 	private Link hdiReaderLink;
-	private Combo selectedArtifactComboBox;
-	private Text selectedArtifactTextField;
-	private Button artifactBrowseButton;
+
+	private Button projectArtifactRadioButton;
+	private Button localArtifactRadioButton;
+	private Combo projectArtifactSelectComboBox;
+	private Text localArtifactInput;
+	private Button localArtifactBrowseButton;
+
 	private Table jobConfigurationTable;
 	private TableViewer tableViewer;
 	private Combo mainClassCombo;
 	private Text commandLineTextField;
 	private Text referencedJarsTextField;
 	private Text referencedFilesTextField;
-	private Button eclipseArtifactRadioButton;
-	private Button localArtifactRadioButton;
 
 	private SparkSubmitModel submitModel;
 	private IProject myProject;
@@ -131,12 +172,6 @@ public class SparkSubmissionExDialog extends Dialog {
 		submitModel = new SparkSubmitModel(cachedClusterDetails);
 	}
 	
-	private void setRefreshButtonEnabled(boolean isEnabled) {
-		Display.getDefault().asyncExec(() -> {
-			clusterListButton.setEnabled(isEnabled);
-		});
-	}
-
 	@Override
 	protected void configureShell(Shell newShell) {
 		super.configureShell(newShell);
@@ -152,30 +187,15 @@ public class SparkSubmissionExDialog extends Dialog {
 
 	@Override
 	protected Control createContents(Composite parent) {
-		Composite container = new Composite(parent, SWT.NONE);
-		GridLayout gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		container.setLayout(gridLayout);
-		GridData gridData = new GridData();
-		gridData.widthHint = 600;
-		container.setLayoutData(gridData);
+		final Composite root = new Composite(parent, SWT.NONE);
+		root.setLayout(new GridLayout(2, false));
+		root.setLayoutData(new GridDataBuilder().widthHint(600).build());
 
-		Label clusterListLabel = new Label(container, SWT.LEFT);
+		final Label clusterListLabel = new Label(root, SWT.LEFT);
 		clusterListLabel.setText("Cluster Name:");
-		gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		Composite composite = new Composite(container, SWT.NONE);
-		composite.setLayout(gridLayout);
-		composite.setLayoutData(gridData);
 
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		clustersListComboBox = new Combo(composite, SWT.READ_ONLY);
-		clustersListComboBox.setLayoutData(gridData);
+		clustersListComboBox = new Combo(root, SWT.READ_ONLY);
+		clustersListComboBox.setLayoutData(new GridDataBuilder().build());
 		clustersListComboBox.setToolTipText(
 				"The HDInsight Spark cluster you want to submit your application to. Only Linux cluster is supported.");
 		clustersListComboBox.addModifyListener(event -> {
@@ -186,12 +206,7 @@ public class SparkSubmissionExDialog extends Dialog {
 				showHdiReaderErrors(false);
 			}
 		});
-		clustersListComboBox.getAccessible().addAccessibleListener(new AccessibleAdapter() {
-			public void getName(AccessibleEvent e) {
-				super.getName(e);
-				e.result = clusterListLabel.getText();
-			}
-		});
+
 		// Execute "select the first item" operation after the dialog opened
 		Display.getDefault().asyncExec(() -> {
 			for (IClusterDetail clusterDetail : cachedClusterDetails) {
@@ -203,40 +218,23 @@ public class SparkSubmissionExDialog extends Dialog {
 				clustersListComboBox.select(0);
 			}
 		});
-		clusterListButton = new Button(composite, SWT.PUSH);
-		clusterListButton.setToolTipText("Refresh");
-		clusterListButton.setImage(Activator.getImageDescriptor(CommonConst.RefreshIConPath).createImage());
-		clusterListButton.getAccessible().addAccessibleListener(new AccessibleAdapter() {
-			public void getName(AccessibleEvent e) {
-				super.getName(e);
-				e.result = clusterListButton.getToolTipText();
-			}
-		});
 
 		//Add blank label as a placeholder
-		Label placeholderLabel = new Label(container, SWT.LEFT);
+		final Label placeholderLabel = new Label(root, SWT.LEFT);
 		placeholderLabel.setVisible(false);
-		gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		composite = new Composite(container, SWT.NONE);
-		composite.setLayout(gridLayout);
-		composite.setLayoutData(gridData);
+		final Composite warningWithLink = new Composite(root, SWT.NONE);
+		warningWithLink.setLayout(new GridLayout(2, false));
+		warningWithLink.setLayoutData(new GridDataBuilder().build());
 		
 		// Add warning message and link cluster button composite
-		gridData = new GridData(); 
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		hdiReaderErrorMsgLabel = new Label(composite, SWT.LEFT);
+		hdiReaderErrorMsgLabel = new Label(warningWithLink, SWT.LEFT);
 		hdiReaderErrorMsgLabel.setText(
 				"No Ambari permission to submit job to the selected cluster...");
 		hdiReaderErrorMsgLabel.setToolTipText(
 				"No Ambari permission to submit job to the selected cluster. Please ask the cluster owner or user "
 				+ "access administrator to upgrade your role to HDInsight Cluster Operator in the Azure Portal, or "
 				+ "link to the selected cluster.");
-		hdiReaderLink = new Link(composite, SWT.NONE);
+		hdiReaderLink = new Link(warningWithLink, SWT.NONE);
 		hdiReaderLink.setText("<a href=\" \">Link this cluster</a>");
 		hdiReaderLink.addListener(SWT.Selection, e -> {
 			IClusterDetail selectedClusterDetail = getSelectedCluster(clustersListComboBox.getText());
@@ -266,65 +264,76 @@ public class SparkSubmissionExDialog extends Dialog {
 				linkClusterForm.open();
 			}
 		});
+
 		// Hide HDInsight reader cluster error when dialog open at first time
 		showHdiReaderErrors(false);
 		
-		String tipInfo = "The Artifact you want to use.";
-		Label artifactSelectLabel = new Label(container, SWT.LEFT);
-		artifactSelectLabel.setText("Select an Artifact to submit");
-		artifactSelectLabel.setToolTipText(tipInfo);
-		gridData = new GridData();
-		gridData.horizontalSpan = 2;
-		artifactSelectLabel.setLayoutData(gridData);
+		// Radio button group for the artifact selection
+		final Group artifactSelectGroup = new Group(root, SWT.NONE);
+		artifactSelectGroup.setText("Select an Artifact to submit");
+		artifactSelectGroup.setLayout(new GridLayout(2, false));
+		artifactSelectGroup.setLayoutData(new GridData(FILL, CENTER, true, false, 2, 2));
 
-		eclipseArtifactRadioButton = new Button(container, SWT.RADIO);
-		eclipseArtifactRadioButton.setText("Artifact from Eclipse project:");
-		
-		gridData = new GridData();
-		gridData.grabExcessHorizontalSpace = true;
-		gridData.horizontalAlignment = SWT.FILL;
-		selectedArtifactComboBox = new Combo(container, SWT.READ_ONLY);
-		selectedArtifactComboBox.setToolTipText(tipInfo);
-		selectedArtifactComboBox.setLayoutData(gridData);
-		String[] projects = getProjects();
-		selectedArtifactComboBox.setItems(projects);
+		// Project artifacts Radio button
+		projectArtifactRadioButton = new Button(artifactSelectGroup, SWT.RADIO);
+		projectArtifactRadioButton.setText("Artifact from Eclipse project:");
+		projectArtifactRadioButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent ignored) {
+				switchToProjectArtifactSelection(true);
+			}
+		});
+
+		final String selectProjectArtifactTip = "The Artifact you want to use.";
+		projectArtifactSelectComboBox = new Combo(artifactSelectGroup, SWT.READ_ONLY);
+		projectArtifactSelectComboBox.setToolTipText(selectProjectArtifactTip);
+		projectArtifactSelectComboBox.setLayoutData(new GridDataBuilder().widthHint(400).build());
+		projectArtifactSelectComboBox.getAccessible().addAccessibleListener(new AccessibleAdapter() {
+			public void getName(AccessibleEvent event) {
+				event.result = projectArtifactRadioButton.getText();
+			}
+		});
+		final String[] projects = getProjects();
+		projectArtifactSelectComboBox.setItems(projects);
 		if (myProject != null) {
 			final String selectedProjectName = myProject.getName();
 			for (int i = 0; i < projects.length; ++i) {
 				if (projects[i].equalsIgnoreCase(selectedProjectName)) {
-					selectedArtifactComboBox.select(i);
+					projectArtifactSelectComboBox.select(i);
 				}
 			}
 		} else if (projects.length > 0) {
-			selectedArtifactComboBox.select(0);
+			projectArtifactSelectComboBox.select(0);
 		}
 
-		localArtifactRadioButton = new Button(container, SWT.RADIO);
+		// Local artifact
+		localArtifactRadioButton = new Button(artifactSelectGroup, SWT.RADIO);
 		localArtifactRadioButton.setText("Artifact from hard disk:");
-
-		gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		composite = new Composite(container, SWT.NONE);
-		composite.setLayout(gridLayout);
-		composite.setLayoutData(gridData);
-
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		selectedArtifactTextField = new Text(composite, SWT.LEFT | SWT.BORDER);
-		selectedArtifactTextField.setLayoutData(gridData);
-		selectedArtifactTextField.getAccessible().addAccessibleListener(new AccessibleAdapter() {
-			public void getName(AccessibleEvent e) {
-				super.getName(e);
-				e.result = localArtifactRadioButton.getText();
+		localArtifactRadioButton.addSelectionListener(new SelectionAdapter() {
+			@Override
+			public void widgetSelected(SelectionEvent ignored) {
+				switchToProjectArtifactSelection(false);
 			}
 		});
-		artifactBrowseButton = new Button(composite, SWT.PUSH);
-		artifactBrowseButton.setText("Browse");
-		artifactBrowseButton.addSelectionListener(new SelectionAdapter() {
+
+		final Composite localArtifactSelection = new Composite(artifactSelectGroup, SWT.NONE);
+		localArtifactSelection.setLayout(new GridLayout(2, false));
+		localArtifactSelection.setLayoutData(new GridDataBuilder().build());
+
+		final String localArtifactInputTip = "Input the local artifact path.";
+		localArtifactInput = new Text(localArtifactSelection, SWT.LEFT | SWT.BORDER);
+		localArtifactInput.setToolTipText(localArtifactInputTip);
+		localArtifactInput.setLayoutData(new GridDataBuilder().build());
+		localArtifactInput.getAccessible().addAccessibleListener(new AccessibleAdapter() {
+			public void getName(AccessibleEvent event) {
+				event.result = localArtifactRadioButton.getText();
+			}
+		});
+
+		// Browser button to open file selection dialog
+		localArtifactBrowseButton = new Button(localArtifactSelection, SWT.PUSH);
+		localArtifactBrowseButton.setText("Browse");
+		localArtifactBrowseButton.addSelectionListener(new SelectionAdapter() {
 			@Override
 			public void widgetSelected(SelectionEvent arg0) {
 				FileDialog dialog = new FileDialog(SparkSubmissionExDialog.this.getShell());
@@ -332,46 +341,28 @@ public class SparkSubmissionExDialog extends Dialog {
 				dialog.setFilterExtensions(extensions);
 				String file = dialog.open();
 				if (file != null) {
-					selectedArtifactTextField.setText(file);
+					localArtifactInput.setText(file);
 				}
 			}
 		});
 
-		eclipseArtifactRadioButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				doEclipseArtifactRadioButtonSelection(e);
-			}
-		});
-		eclipseArtifactRadioButton.setSelection(true);
-		doEclipseArtifactRadioButtonSelection(null);
-
-		localArtifactRadioButton.addSelectionListener(new SelectionAdapter() {
-			@Override
-			public void widgetSelected(SelectionEvent e) {
-				doLocalArtifactRadioButtonSelection(e);
+		localArtifactBrowseButton.getAccessible().addAccessibleListener(new AccessibleAdapter() {
+			public void getName(AccessibleEvent event) {
+				event.result = localArtifactRadioButton.getText() + " open System File dialog to select artifact";
 			}
 		});
 
-		Label sparkMainClassLabel = new Label(container, SWT.LEFT);
+		// Default selection
+		projectArtifactRadioButton.setSelection(true);
+		switchToProjectArtifactSelection(true);
+
+		// Main class input
+		final Label sparkMainClassLabel = new Label(root, SWT.LEFT);
 		sparkMainClassLabel.setText("Main class name");
-		sparkMainClassLabel.setToolTipText("Application's java/spark main class");
 
-		gridLayout = new GridLayout();
-		gridLayout.numColumns = 2;
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		composite = new Composite(container, SWT.NONE);
-		composite.setLayout(gridLayout);
-		composite.setLayoutData(gridData);
-
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-
-		mainClassCombo = new Combo(composite, SWT.DROP_DOWN);
-		mainClassCombo.setLayoutData(gridData);
+		mainClassCombo = new Combo(root, SWT.DROP_DOWN);
+		mainClassCombo.setToolTipText("Application's java/spark main class");
+		mainClassCombo.setLayoutData(new GridDataBuilder().build());
 		try {
 			java.util.Set<String> classes = getClassesWithMainMethod();
 		    String [] names = new String[classes.size()];
@@ -381,38 +372,24 @@ public class SparkSubmissionExDialog extends Dialog {
 		} catch (CoreException e1) {
 			Activator.getDefault().log("get main class list error", e1);
 		}
-		mainClassCombo.getAccessible().addAccessibleListener(new AccessibleAdapter() {
-			public void getName(AccessibleEvent e) {
-				super.getName(e);
-				e.result = sparkMainClassLabel.getText();
-			}
-		});
 	    
-		Label jobConfigurationLabel = new Label(container, SWT.LEFT);
+		// Job configuration
+		final Label jobConfigurationLabel = new Label(root, SWT.LEFT);
 		jobConfigurationLabel.setText("Job configurations");
-		gridData = new GridData();
-		gridData.verticalAlignment = SWT.TOP;
-		jobConfigurationLabel.setLayoutData(gridData);
+		jobConfigurationLabel.setLayoutData(new GridDataBuilder().verticalAlignment(TOP).build());
 
-		jobConfigurationTable = new Table(container, SWT.BORDER);
+		jobConfigurationTable = new Table(root, SWT.BORDER);
 		jobConfigurationTable.setHeaderVisible(true);
 		jobConfigurationTable.setLinesVisible(true);
 
-		gridData = new GridData();
-		gridData.heightHint = 75;
-		gridData.horizontalAlignment = SWT.FILL;
+		jobConfigurationTable.setLayout(new GridLayout(2, false));
+		jobConfigurationTable.setLayoutData(new GridDataBuilder().heightHint(75).build());
 
-		GridLayout gridLayoutTable = new GridLayout();
-		gridLayoutTable.numColumns = 2;
-		gridLayoutTable.marginRight = 0;
-		jobConfigurationTable.setLayout(gridLayoutTable);
-		jobConfigurationTable.setLayoutData(gridData);
-
-		TableColumn key = new TableColumn(jobConfigurationTable, SWT.FILL);
+		final TableColumn key = new TableColumn(jobConfigurationTable, SWT.FILL);
 		key.setText(COLUMN_NAMES[0]);
 		key.setWidth(150);
 
-		TableColumn value = new TableColumn(jobConfigurationTable, SWT.FILL);
+		final TableColumn value = new TableColumn(jobConfigurationTable, SWT.FILL);
 		value.setText(COLUMN_NAMES[1]);
 		value.setWidth(80);
 
@@ -420,7 +397,7 @@ public class SparkSubmissionExDialog extends Dialog {
 		tableViewer.setUseHashlookup(true);
 		tableViewer.setColumnProperties(COLUMN_NAMES);
 
-		CellEditor[] editors = new CellEditor[2];
+		final CellEditor[] editors = new CellEditor[2];
 
 		editors[1] = new TextCellEditor(jobConfigurationTable);
 
@@ -430,54 +407,36 @@ public class SparkSubmissionExDialog extends Dialog {
 		tableViewer.setCellModifier(new JobConfigurationCellModifier());
 		initializeTable();
 
-		Label label = new Label(container, SWT.LEFT);
+		final Label label = new Label(root, SWT.LEFT);
 		label.setText("Command line arguments");
-		tipInfo = "Command line arguments used in your main class; multiple arguments should be split by space.";
-		label.setToolTipText(tipInfo);
-		commandLineTextField = new Text(container, SWT.LEFT | SWT.BORDER);
-		commandLineTextField.setToolTipText(tipInfo);
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		commandLineTextField.setLayoutData(gridData);
+		final String commandLineTip = "Command line arguments used in your main class; multiple arguments should be split by space.";
+		commandLineTextField = new Text(root, SWT.LEFT | SWT.BORDER);
+		commandLineTextField.setToolTipText(commandLineTip);
+		commandLineTextField.setLayoutData(new GridDataBuilder().build());
 
-		tipInfo = "Files to be placed on the java classpath; The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)";
-		Label referencedJarsLabel = new Label(container, SWT.LEFT);
+		final String refJarsTip = "Files to be placed on the java classpath; The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;)";
+		final Label referencedJarsLabel = new Label(root, SWT.LEFT);
 		referencedJarsLabel.setText("Referenced Jars");
-		referencedJarsLabel.setToolTipText(tipInfo);
-		referencedJarsTextField = new Text(container, SWT.BORDER | SWT.LEFT);
-		referencedJarsTextField.setToolTipText(tipInfo);
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		referencedJarsTextField.setLayoutData(gridData);
+		referencedJarsTextField = new Text(root, SWT.BORDER | SWT.LEFT);
+		referencedJarsTextField.setToolTipText(refJarsTip);
+		referencedJarsTextField.setLayoutData(new GridDataBuilder().build());
 
-		tipInfo = "Files to be placed in executor working directory. The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ";
-		Label referencedFilesLabel = new Label(container, SWT.LEFT);
+		final Label referencedFilesLabel = new Label(root, SWT.LEFT);
 		referencedFilesLabel.setText("Referenced Files");
-		referencedFilesLabel.setToolTipText(tipInfo);
-		referencedFilesTextField = new Text(container, SWT.BORDER | SWT.LEFT);
-		referencedFilesTextField.setToolTipText(tipInfo);
-		gridData = new GridData();
-		gridData.horizontalAlignment = SWT.FILL;
-		gridData.grabExcessHorizontalSpace = true;
-		referencedFilesTextField.setLayoutData(gridData);
+		final String refFilesTip = "Files to be placed in executor working directory. The path needs to be a Azure Blob Storage Path (path started with wasb://); Multiple paths should be split by semicolon (;) ";
+		referencedFilesTextField = new Text(root, SWT.BORDER | SWT.LEFT);
+		referencedFilesTextField.setToolTipText(refFilesTip);
+		referencedFilesTextField.setLayoutData(new GridDataBuilder().build());
 
 		return super.createContents(parent);
 	}
 	
-	private void doEclipseArtifactRadioButtonSelection(SelectionEvent e) {
-		selectedArtifactComboBox.setEnabled(true);
-		selectedArtifactTextField.setEnabled(false);
-		artifactBrowseButton.setEnabled(false);
+	private void switchToProjectArtifactSelection(final boolean isProjectArtifact) {
+		projectArtifactSelectComboBox.setEnabled(isProjectArtifact);
+		localArtifactInput.setEnabled(!isProjectArtifact);
+		localArtifactBrowseButton.setEnabled(!isProjectArtifact);
 	}
-	
-	private void doLocalArtifactRadioButtonSelection(SelectionEvent e) {
-		selectedArtifactComboBox.setEnabled(false);
-		selectedArtifactTextField.setEnabled(true);
-		artifactBrowseButton.setEnabled(true);
-	}
-	
+
 	private void showHdiReaderErrors(boolean isVisible) {
 		hdiReaderErrorMsgLabel.setVisible(isVisible);
 		hdiReaderLink.setVisible(isVisible);
@@ -585,10 +544,10 @@ public class SparkSubmissionExDialog extends Dialog {
 	private SparkSubmissionParameter constructSubmissionParameter() {
 		IClusterDetail selectedClusterDetail = getSelectedCluster(clustersListComboBox.getText());
 
-		String selectedArtifactName = selectedArtifactComboBox.getText();
+		String selectedArtifactName = projectArtifactSelectComboBox.getText();
 		String className = mainClassCombo.getText().trim();
 		String commandLine = commandLineTextField.getText().trim();
-		String localArtifactPath = selectedArtifactTextField.getText();
+		String localArtifactPath = localArtifactInput.getText();
 		String selectedClusterName = selectedClusterDetail.getName();
 
 		List<String> referencedFileList = new ArrayList<>();
