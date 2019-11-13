@@ -272,7 +272,7 @@ public class SparkSubmissionExDialog extends Dialog {
 		final Group artifactSelectGroup = new Group(root, SWT.NONE);
 		artifactSelectGroup.setText("Select an Artifact to submit");
 		artifactSelectGroup.setLayout(new GridLayout(2, false));
-		artifactSelectGroup.setLayoutData(new GridData(FILL, CENTER, true, false, 2, 2));
+		artifactSelectGroup.setLayoutData(new GridDataBuilder().span(2, 2).build());
 
 		// Project artifacts Radio button
 		projectArtifactRadioButton = new Button(artifactSelectGroup, SWT.RADIO);
