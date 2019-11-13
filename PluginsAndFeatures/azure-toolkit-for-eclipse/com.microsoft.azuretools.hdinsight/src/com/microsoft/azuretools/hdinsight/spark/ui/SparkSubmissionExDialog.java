@@ -22,12 +22,17 @@
 package com.microsoft.azuretools.hdinsight.spark.ui;
 
 import static com.microsoft.azuretools.telemetry.TelemetryConstants.HDINSIGHT;
+import static org.eclipse.swt.SWT.CENTER;
+import static org.eclipse.swt.SWT.FILL;
+import static org.eclipse.swt.SWT.TOP;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.resources.IProject;
@@ -43,12 +48,15 @@ import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.dialogs.Dialog;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.CellEditor;
+import org.eclipse.jface.viewers.ColumnLabelProvider;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.IStructuredContentProvider;
 import org.eclipse.jface.viewers.ITableLabelProvider;
 import org.eclipse.jface.viewers.TableViewer;
+import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.swt.SWT;
@@ -66,17 +74,16 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.Item;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Link;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
-import org.eclipse.swt.widgets.TableColumn;
-import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 
+import com.google.common.collect.ImmutableList;
 import com.microsoft.azure.hdinsight.common.CallBack;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.sdk.cluster.ClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
@@ -93,10 +100,7 @@ import com.microsoft.azuretools.hdinsight.spark.common2.SparkSubmitModel;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import com.microsoft.azuretools.telemetrywrapper.EventType;
 import com.microsoft.azuretools.telemetrywrapper.EventUtil;
-
-import static org.eclipse.swt.SWT.CENTER;
-import static org.eclipse.swt.SWT.FILL;
-import static org.eclipse.swt.SWT.TOP;
+import com.microsoft.azuretools.utils.Pair;
 
 public class SparkSubmissionExDialog extends Dialog {
 	static class GridDataBuilder {
@@ -139,7 +143,6 @@ public class SparkSubmissionExDialog extends Dialog {
 	private static final String[] COLUMN_NAMES = { "Key", "Value" };
 	private static final String JAVA_NATURE_ID = "org.eclipse.jdt.core.javanature";
 	
-	private int row = 0;
 	private Combo clustersListComboBox;
 	private Label hdiReaderErrorMsgLabel;
 	private Link hdiReaderLink;
@@ -150,8 +153,7 @@ public class SparkSubmissionExDialog extends Dialog {
 	private Text localArtifactInput;
 	private Button localArtifactBrowseButton;
 
-	private Table jobConfigurationTable;
-	private TableViewer tableViewer;
+	private TableViewer jobConfigTableViewer;
 	private Combo mainClassCombo;
 	private Text commandLineTextField;
 	private Text referencedJarsTextField;
@@ -161,7 +163,7 @@ public class SparkSubmissionExDialog extends Dialog {
 	private IProject myProject;
 	private CallBack callBack;
 	private List<IClusterDetail> cachedClusterDetails;
-	private Map<String, Object> jobConfigMap = new HashMap<String, Object>();
+	private ImmutableList<Pair<String, String>> jobConfigs = ImmutableList.of();
 
 	public SparkSubmissionExDialog(Shell parentShell, @NotNull List<IClusterDetail> cachedClusterDetails,
 			@Nullable IProject project, @Nullable CallBack callBack) {
@@ -378,33 +380,46 @@ public class SparkSubmissionExDialog extends Dialog {
 		jobConfigurationLabel.setText("Job configurations");
 		jobConfigurationLabel.setLayoutData(new GridDataBuilder().verticalAlignment(TOP).build());
 
-		jobConfigurationTable = new Table(root, SWT.BORDER);
+		jobConfigTableViewer = new TableViewer(root, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.FULL_SELECTION | SWT.BORDER);
+		jobConfigTableViewer.setUseHashlookup(true);
+		jobConfigTableViewer.setColumnProperties(COLUMN_NAMES);
+
+		final Table jobConfigurationTable = jobConfigTableViewer.getTable();
 		jobConfigurationTable.setHeaderVisible(true);
 		jobConfigurationTable.setLinesVisible(true);
 
-		jobConfigurationTable.setLayout(new GridLayout(2, false));
+		jobConfigurationTable.setLayout(new GridLayout(1, false));
 		jobConfigurationTable.setLayoutData(new GridDataBuilder().heightHint(75).build());
 
-		final TableColumn key = new TableColumn(jobConfigurationTable, SWT.FILL);
-		key.setText(COLUMN_NAMES[0]);
-		key.setWidth(150);
+		final TableViewerColumn keyCol = new TableViewerColumn(jobConfigTableViewer, SWT.NONE);
+		keyCol.getColumn().setText(COLUMN_NAMES[0]);
+		keyCol.getColumn().setWidth(150);
+		keyCol.setLabelProvider(new ColumnLabelProvider() {
+			@Override
+			public String getText(Object element) {
+				return asConfigRow(element).first();
+			}
+		});
 
-		final TableColumn value = new TableColumn(jobConfigurationTable, SWT.FILL);
-		value.setText(COLUMN_NAMES[1]);
-		value.setWidth(80);
+		final TableViewerColumn valueCol = new TableViewerColumn(jobConfigTableViewer, SWT.NONE);
+		valueCol.getColumn().setText(COLUMN_NAMES[1]);
+		valueCol.getColumn().setWidth(80);
+		valueCol.setLabelProvider(new ColumnLabelProvider() {
+			@Override
+			public String getText(Object element) {
+				return asConfigRow(element).second();
+			}
+		});
 
-		tableViewer = new TableViewer(jobConfigurationTable);
-		tableViewer.setUseHashlookup(true);
-		tableViewer.setColumnProperties(COLUMN_NAMES);
+		final CellEditor[] editors = new CellEditor[] {
+			new TextCellEditor(jobConfigurationTable),
+			new TextCellEditor(jobConfigurationTable)
+		};
 
-		final CellEditor[] editors = new CellEditor[2];
-
-		editors[1] = new TextCellEditor(jobConfigurationTable);
-
-		tableViewer.setCellEditors(editors);
-		tableViewer.setContentProvider(new JobConfigurationContentProvider());
-		tableViewer.setLabelProvider(new JobConfigurationLabelProvider());
-		tableViewer.setCellModifier(new JobConfigurationCellModifier());
+		jobConfigTableViewer.setCellEditors(editors);
+		jobConfigTableViewer.setContentProvider(new JobConfigurationContentProvider());
+		jobConfigTableViewer.setLabelProvider(new JobConfigurationLabelProvider());
+		jobConfigTableViewer.setCellModifier(new JobConfigurationCellModifier());
 		initializeTable();
 
 		final Label label = new Label(root, SWT.LEFT);
@@ -452,8 +467,8 @@ public class SparkSubmissionExDialog extends Dialog {
 		}
 
 		@Override
-		public Object[] getElements(Object arg0) {
-			return jobConfigMap.entrySet().toArray();
+		public Object[] getElements(Object inputElement) {
+			return jobConfigs.toArray();
 		}
 	}
 
@@ -478,12 +493,17 @@ public class SparkSubmissionExDialog extends Dialog {
 
 		@Override
 		public String getColumnText(Object element, int colIndex) {
-			Map.Entry<String, Object> keyValue = (Map.Entry<String, Object>) element;
+			if (element == null) {
+				return null;
+			}
+
+			final Pair<String, String> row = asConfigRow(element);
+
 			switch (colIndex) {
 			case 0:
-				return keyValue.getKey();
+				return row.first();
 			case 1:
-				return "" + keyValue.getValue();
+				return row.second();
 			default:
 				return "";
 			}
@@ -497,25 +517,68 @@ public class SparkSubmissionExDialog extends Dialog {
 
 	private class JobConfigurationCellModifier implements ICellModifier {
 		@Override
-		public void modify(Object waEndpoint, String columnName, Object modifiedVal) {
-			TableItem tblItem = (TableItem) waEndpoint;
-			Map.Entry<String, Object> keyValue = (Map.Entry<String, Object>) tblItem.getData();
-			if (columnName.equals(COLUMN_NAMES[1])) {
-				String value = modifiedVal.toString();
-				keyValue.setValue(value);
+		public void modify(Object element, String property, Object value) {
+			final int columnIndex = getPropertyColumnIndex(property);
+
+			final Pair<String, String> row = asConfigRow((element instanceof Item)
+					? ((Item)element).getData()
+					: element);
+
+			switch (columnIndex) {
+			case 0: // Key
+				if (StringUtils.isNotBlank(String.valueOf(value))) {
+					// Add or update
+					final String keyToChange = String.valueOf(value).trim();
+
+					if (containsConfigKey(keyToChange)) {
+						// Update
+						jobConfigs = ImmutableList.copyOf(jobConfigs.stream()
+								.map(conf -> conf.first().equals(keyToChange)
+										? new Pair<>(keyToChange, conf.second())
+										: conf)
+								.iterator());
+					} else {
+						// Add
+						jobConfigs = ImmutableList.<Pair<String, String>>builder()
+								.addAll(jobConfigs)
+								.add(new Pair<>(keyToChange, ""))
+								.build();
+					}
+				} else {
+					// Delete
+					jobConfigs = ImmutableList.copyOf(jobConfigs.stream()
+							.filter(conf -> !conf.first().equals(row.first()))
+							.iterator());
+				}
+
+				break;
+			case 1: // Value
+				// Update only
+				jobConfigs = ImmutableList.copyOf(jobConfigs.stream()
+						.map(conf -> conf.first().equals(row.first())
+								? new Pair<>(row.first(), String.valueOf(value))
+								: conf)
+						.iterator());
+
+				break;
+			default:
 			}
-			tableViewer.refresh();
+
+			jobConfigTableViewer.refresh();
 		}
 
 		public Object getValue(Object element, String property) {
-			Map.Entry<String, Object> keyValue = (Map.Entry<String, Object>) element;
+			final int columnIndex = getPropertyColumnIndex(property);
+			final Pair<String, String> row = asConfigRow(element);
 
-			if (property.equals(COLUMN_NAMES[0])) {
-				return keyValue.getKey();
-			} else if (property.equals(COLUMN_NAMES[1])) {
-				return keyValue.getValue();
+			switch (columnIndex) {
+			case 0: // Key
+				return row.first();
+			case 1: // Value
+				return row.second();
+			default:
+				return "UNKNOWN_PROPERTY: " + property;
 			}
-			return "";
 		}
 
 		/**
@@ -525,15 +588,38 @@ public class SparkSubmissionExDialog extends Dialog {
 		 */
 		@Override
 		public boolean canModify(Object element, String property) {
-			return property.equals(COLUMN_NAMES[1]);
+			final int columnIndex = getPropertyColumnIndex(property);
+			final Pair<String, String> row = asConfigRow(element);
+
+			switch (columnIndex) {
+			case 0: // Key
+				return !SparkSubmissionParameter.isSubmissionParameter(row.first());
+			default:
+				return true;
+			}
 		}
 	}
 
+	private int getPropertyColumnIndex(final String property) {
+		return Arrays.asList(jobConfigTableViewer.getColumnProperties()).indexOf(property);
+	}
+
+	private Pair<String, String> asConfigRow(final Object element) {
+		@SuppressWarnings("unchecked")
+		final Pair<String, String> row = (Pair<String, String>) element;
+
+		return row;
+	}
+
+	private boolean containsConfigKey(final String keyToFind) {
+		return jobConfigs.stream().anyMatch(conf -> conf.first().equals(keyToFind));
+	}
+
 	private void initializeTable() {
-		for (int i = 0; i < SparkSubmissionParameter.defaultParameters.length; ++i) {
-			jobConfigMap.put(SparkSubmissionParameter.defaultParameters[i].first(), SparkSubmissionParameter.defaultParameters[i].second());
-		}
-		tableViewer.setInput(jobConfigMap.entrySet());
+		jobConfigs = ImmutableList.copyOf(Stream.of(SparkSubmissionParameter.defaultParameters)
+				.map(defaultParam -> new Pair<>(defaultParam.first(), String.valueOf(defaultParam.second())))
+				.iterator());
+		jobConfigTableViewer.setInput(jobConfigs);
 	}
 
 	@Nullable
@@ -572,6 +658,10 @@ public class SparkSubmissionExDialog extends Dialog {
 				argsList.add(singleArs.trim());
 			}
 		}
+
+		// FIXME: need a duplicated keys check when creating a new row is allowed
+		final Map<String, Object> jobConfigMap = jobConfigs.stream()
+				.collect(Collectors.toMap(Pair::first, Pair::second));
 
 		return new SparkSubmissionParameter(selectedClusterName, localArtifactRadioButton.getSelection(),
 				selectedArtifactName, localArtifactPath, null, className, referencedFileList, uploadedFilePathList,
@@ -656,6 +746,12 @@ public class SparkSubmissionExDialog extends Dialog {
 	protected void okPressed() {
 		AppInsightsClient.create(Messages.SparkSubmissionButtonClickEvent, null);
 		EventUtil.logEvent(EventType.info, HDINSIGHT, Messages.SparkSubmissionButtonClickEvent, null);
+		if (StringUtils.isBlank(clustersListComboBox.getText())) {
+			MessageDialog.openError(this.getShell(), "Can't submit the Spark job", "No cluster is selected to submit Spark jobs.");
+
+			return;
+		}
+
 		submitModel.action(constructSubmissionParameter());
 		super.okPressed();
 	}
