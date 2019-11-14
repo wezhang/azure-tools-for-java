@@ -447,5 +447,12 @@ public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration 
     public String getSuggestedNamePrefix() {
         return "[Spark on HDInsight]";
     }
+
+    @Nullable
+    @Override
+    public String getActionName() {
+        // To avoid to be shorten
+        return this.getName() + this.getPresentableType();
+    }
 }
 
