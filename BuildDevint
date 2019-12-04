@@ -17,8 +17,8 @@ BUILD_ECLIPSE=true
 BUILD_INTELLIJ=true
 INJECT_INTELLIJ_VERSION=false
 
-IJ_VERSION_LATEST=2019.2
-IJ_SCALA_VERSION_LATEST=2019.2.7
+IJ_VERSION_LATEST=2019.2.4
+IJ_SCALA_VERSION_LATEST=2019.2.37
 
 while getopts "hqve:" option; do
   echo $option
@@ -67,9 +67,10 @@ if $BUILD_INTELLIJ; then
       ./tools/IntellijVersionHelper $IJ_VERSION_LATEST
   fi
 
-  (cd PluginsAndFeatures/azure-toolkit-for-intellij && ./gradlew clean buildPlugin -s -Pintellij_version=IC-$IJ_VERSION_LATEST -Pdep_plugins=org.intellij.scala:$IJ_SCALA_VERSION_LATEST)
+  (cd PluginsAndFeatures/azure-toolkit-for-intellij && ./gradlew clean buildPlugin bundleBuildIdeaZip -s -Pintellij_version=IC-$IJ_VERSION_LATEST -Pdep_plugins=org.intellij.scala:$IJ_SCALA_VERSION_LATEST)
 
   cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/azure-toolkit-for-intellij.zip ./$ARTIFACTS_DIR/azure-toolkit-for-intellij-$IJ_VERSION_LATEST.zip
+  cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/ideaIC-bundle-win-x64.zip ./$ARTIFACTS_DIR/ideaIC-bundle-win-x64-$IJ_VERSION_LATEST.zip
 
 fi
 
