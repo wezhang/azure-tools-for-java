@@ -176,3 +176,7 @@ task wrapper(type: Wrapper) {
 apply plugin: BundleBuildIDEAPlugin
 
 installIdea.dependsOn buildPlugin
+
+patchPluginXml {
+    sinceBuild = patchPluginXmlSinceBuild
+}

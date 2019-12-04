@@ -17,6 +17,7 @@ BUILD_ECLIPSE=true
 BUILD_INTELLIJ=true
 INJECT_INTELLIJ_VERSION=false
 
+IJ_VERSION_MAJOR_BUILD=192.5728
 IJ_VERSION_MAJOR=2019.2
 IJ_VERSION_MINOR=4
 IJ_VERSION_LATEST=$IJ_VERSION_MAJOR.$IJ_VERSION_MINOR \
@@ -64,13 +65,16 @@ fi
 # Build IntelliJ plugin
 if $BUILD_INTELLIJ; then
   echo "Building IntelliJ plugin ..."
-  chmod +x ./tools/IntellijVersionHelper
-  ## Build intellij plugin for latest version
-  if [ $INJECT_INTELLIJ_VERSION == "true" ] ; then
-      ./tools/IntellijVersionHelper $IJ_VERSION_MAJOR
-  fi
 
-  (cd PluginsAndFeatures/azure-toolkit-for-intellij && ./gradlew clean buildPlugin bundleBuildIdeaZip -s -Pintellij_version=IC-$IJ_VERSION_LATEST -Pdep_plugins=org.intellij.scala:$IJ_SCALA_VERSION_LATEST)
+  ## Build intellij plugin for latest version
+  PATCH_PLUGIN_XML_ARGS="" \
+    && [ "$INJECT_INTELLIJ_VERSION" == "true" ] && \
+      PATCH_PLUGIN_XML_ARGS="-PpatchPluginXmlSinceBuild=$IJ_VERSION_MAJOR_BUILD"
+
+  GRADLE_TASKS="clean buildPlugin bundleBuildIdeaZip"
+  GRADLE_ARGS="-s -Pintellij_version=IC-$IJ_VERSION_LATEST -Pdep_plugins=org.intellij.scala:$IJ_SCALA_VERSION_LATEST $PATCH_PLUGIN_XML_ARGS"
+
+  (cd PluginsAndFeatures/azure-toolkit-for-intellij && ./gradlew $GRADLE_TASKS $GRADLE_ARGS)
 
   cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/azure-toolkit-for-intellij.zip ./$ARTIFACTS_DIR/azure-toolkit-for-intellij-$IJ_VERSION_LATEST.zip
   cp ./PluginsAndFeatures/azure-toolkit-for-intellij/build/distributions/ideaIC-bundle-win-x64.zip ./$ARTIFACTS_DIR/ideaIC-bundle-win-x64-$IJ_VERSION_LATEST.zip
