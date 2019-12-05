@@ -21,50 +21,31 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The auto pause properties for the spark compute.
+ * Spark pool auto-pausing properties.
+ * Auto-pausing properties of a Big Data pool powered by Apache Spark.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AutoPauseProperties {
     /**
-     * Depicts whether autopause is enabled for the spark compute.
-     */
-    @JsonProperty(value = "enabled")
-    private Boolean enabled;
-
-    /**
-     * Idle time in minutes after which spark compute is paused.
+     * Number of minutes of idle time before the Big Data pool is automatically paused.
      */
     @JsonProperty(value = "delayInMinutes")
     private Integer delayInMinutes;
 
     /**
-     * Get depicts whether autopause is enabled for the spark compute.
-     *
-     * @return the enabled value
+     * Whether auto-pausing is enabled for the Big Data pool.
      */
-    public Boolean enabled() {
-        return this.enabled;
-    }
+    @JsonProperty(value = "enabled")
+    private Boolean enabled;
 
     /**
-     * Set depicts whether autopause is enabled for the spark compute.
-     *
-     * @param enabled the enabled value to set
-     * @return the AutoPauseProperties object itself.
-     */
-    public AutoPauseProperties withEnabled(Boolean enabled) {
-        this.enabled = enabled;
-        return this;
-    }
-
-    /**
-     * Get idle time in minutes after which spark compute is paused.
+     * Get number of minutes of idle time before the Big Data pool is automatically paused.
      *
      * @return the delayInMinutes value
      */
@@ -73,13 +54,33 @@ public class AutoPauseProperties {
     }
 
     /**
-     * Set idle time in minutes after which spark compute is paused.
+     * Set number of minutes of idle time before the Big Data pool is automatically paused.
      *
      * @param delayInMinutes the delayInMinutes value to set
      * @return the AutoPauseProperties object itself.
      */
     public AutoPauseProperties withDelayInMinutes(Integer delayInMinutes) {
         this.delayInMinutes = delayInMinutes;
+        return this;
+    }
+
+    /**
+     * Get whether auto-pausing is enabled for the Big Data pool.
+     *
+     * @return the enabled value
+     */
+    public Boolean enabled() {
+        return this.enabled;
+    }
+
+    /**
+     * Set whether auto-pausing is enabled for the Big Data pool.
+     *
+     * @param enabled the enabled value to set
+     * @return the AutoPauseProperties object itself.
+     */
+    public AutoPauseProperties withEnabled(Boolean enabled) {
+        this.enabled = enabled;
         return this;
     }
 

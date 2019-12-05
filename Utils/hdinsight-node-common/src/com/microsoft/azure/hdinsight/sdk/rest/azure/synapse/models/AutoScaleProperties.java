@@ -21,56 +21,37 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The auto scale properties for the spark compute.
+ * Spark pool auto-scaling properties.
+ * Auto-scaling properties of a Big Data pool powered by Apache Spark.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AutoScaleProperties {
     /**
-     * Depicts whether autoscale is enabled for the spark compute.
-     */
-    @JsonProperty(value = "enabled")
-    private Boolean enabled;
-
-    /**
-     * Minimum number of nodes for spark compute.
+     * The minimum number of nodes the Big Data pool can support.
      */
     @JsonProperty(value = "minNodeCount")
     private Integer minNodeCount;
 
     /**
-     * Maximum number of nodes for spark compute.
+     * Whether automatic scaling is enabled for the Big Data pool.
+     */
+    @JsonProperty(value = "enabled")
+    private Boolean enabled;
+
+    /**
+     * The maximum number of nodes the Big Data pool can support.
      */
     @JsonProperty(value = "maxNodeCount")
     private Integer maxNodeCount;
 
     /**
-     * Get depicts whether autoscale is enabled for the spark compute.
-     *
-     * @return the enabled value
-     */
-    public Boolean enabled() {
-        return this.enabled;
-    }
-
-    /**
-     * Set depicts whether autoscale is enabled for the spark compute.
-     *
-     * @param enabled the enabled value to set
-     * @return the AutoScaleProperties object itself.
-     */
-    public AutoScaleProperties withEnabled(Boolean enabled) {
-        this.enabled = enabled;
-        return this;
-    }
-
-    /**
-     * Get minimum number of nodes for spark compute.
+     * Get the minimum number of nodes the Big Data pool can support.
      *
      * @return the minNodeCount value
      */
@@ -79,7 +60,7 @@ public class AutoScaleProperties {
     }
 
     /**
-     * Set minimum number of nodes for spark compute.
+     * Set the minimum number of nodes the Big Data pool can support.
      *
      * @param minNodeCount the minNodeCount value to set
      * @return the AutoScaleProperties object itself.
@@ -90,7 +71,27 @@ public class AutoScaleProperties {
     }
 
     /**
-     * Get maximum number of nodes for spark compute.
+     * Get whether automatic scaling is enabled for the Big Data pool.
+     *
+     * @return the enabled value
+     */
+    public Boolean enabled() {
+        return this.enabled;
+    }
+
+    /**
+     * Set whether automatic scaling is enabled for the Big Data pool.
+     *
+     * @param enabled the enabled value to set
+     * @return the AutoScaleProperties object itself.
+     */
+    public AutoScaleProperties withEnabled(Boolean enabled) {
+        this.enabled = enabled;
+        return this;
+    }
+
+    /**
+     * Get the maximum number of nodes the Big Data pool can support.
      *
      * @return the maxNodeCount value
      */
@@ -99,7 +100,7 @@ public class AutoScaleProperties {
     }
 
     /**
-     * Set maximum number of nodes for spark compute.
+     * Set the maximum number of nodes the Big Data pool can support.
      *
      * @param maxNodeCount the maxNodeCount value to set
      * @return the AutoScaleProperties object itself.

@@ -21,91 +21,69 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Error Field contract.
+ * The workspace managed identity.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ErrorFieldContract {
+public class ManagedIdentity {
     /**
-     * The error code.
+     * The principal ID of the workspace managed identity.
      */
-    @JsonProperty(value = "code")
-    private String code;
+    @JsonProperty(value = "principalId", access = JsonProperty.Access.WRITE_ONLY)
+    private String principalId;
 
     /**
-     * The error message.
+     * The tenant ID of the workspace managed identity.
      */
-    @JsonProperty(value = "message")
-    private String message;
+    @JsonProperty(value = "tenantId", access = JsonProperty.Access.WRITE_ONLY)
+    private String tenantId;
 
     /**
-     * Property name.
+     * The type of managed identity for the workspace. Possible values include: 'None', 'SystemAssigned'.
      */
-    @JsonProperty(value = "target")
-    private String target;
+    @JsonProperty(value = "type")
+    private ResourceIdentityType type;
 
     /**
-     * Get the error code.
+     * Get the principal ID of the workspace managed identity.
      *
-     * @return the code value
+     * @return the principalId value
      */
-    public String code() {
-        return this.code;
+    public String principalId() {
+        return this.principalId;
     }
 
     /**
-     * Set the error code.
+     * Get the tenant ID of the workspace managed identity.
      *
-     * @param code the code value to set
-     * @return the ErrorFieldContract object itself.
+     * @return the tenantId value
      */
-    public ErrorFieldContract withCode(String code) {
-        this.code = code;
-        return this;
+    public String tenantId() {
+        return this.tenantId;
     }
 
     /**
-     * Get the error message.
+     * Get the type of managed identity for the workspace. Possible values include: 'None', 'SystemAssigned'.
      *
-     * @return the message value
+     * @return the type value
      */
-    public String message() {
-        return this.message;
+    public ResourceIdentityType type() {
+        return this.type;
     }
 
     /**
-     * Set the error message.
+     * Set the type of managed identity for the workspace. Possible values include: 'None', 'SystemAssigned'.
      *
-     * @param message the message value to set
-     * @return the ErrorFieldContract object itself.
+     * @param type the type value to set
+     * @return the ManagedIdentity object itself.
      */
-    public ErrorFieldContract withMessage(String message) {
-        this.message = message;
-        return this;
-    }
-
-    /**
-     * Get property name.
-     *
-     * @return the target value
-     */
-    public String target() {
-        return this.target;
-    }
-
-    /**
-     * Set property name.
-     *
-     * @param target the target value to set
-     * @return the ErrorFieldContract object itself.
-     */
-    public ErrorFieldContract withTarget(String target) {
-        this.target = target;
+    public ManagedIdentity withType(ResourceIdentityType type) {
+        this.type = type;
         return this;
     }
 

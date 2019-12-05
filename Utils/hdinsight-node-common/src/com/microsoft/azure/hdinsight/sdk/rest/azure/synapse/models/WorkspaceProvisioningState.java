@@ -21,13 +21,15 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
+ * FIXME: This file is copied from legacy Arcadia API
+ *
  * Defines values for WorkspaceProvisioningState.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -21,53 +21,40 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Defines values for SparkComputeNodeSizeFamily.
+ * Virtual Network Profile.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public enum SparkComputeNodeSizeFamily {
-    /** Enum value Small. */
-    SMALL("Small"),
+public class VirtualNetworkProfile {
+    /**
+     * Subnet ID used for computes in workspace.
+     */
+    @JsonProperty(value = "computeSubnetId")
+    private String computeSubnetId;
 
-    /** Enum value Medium. */
-    MEDIUM("Medium"),
-
-    /** Enum value Large. */
-    LARGE("Large");
-
-    /** The actual serialized value for a SparkComputeNodeSizeFamily instance. */
-    private String value;
-
-    SparkComputeNodeSizeFamily(String value) {
-        this.value = value;
+    /**
+     * Get subnet ID used for computes in workspace.
+     *
+     * @return the computeSubnetId value
+     */
+    public String computeSubnetId() {
+        return this.computeSubnetId;
     }
 
     /**
-     * Parses a serialized value to a SparkComputeNodeSizeFamily instance.
+     * Set subnet ID used for computes in workspace.
      *
-     * @param value the serialized value to parse.
-     * @return the parsed SparkComputeNodeSizeFamily object, or null if unable to parse.
+     * @param computeSubnetId the computeSubnetId value to set
+     * @return the VirtualNetworkProfile object itself.
      */
-    @JsonCreator
-    public static SparkComputeNodeSizeFamily fromString(String value) {
-        SparkComputeNodeSizeFamily[] items = SparkComputeNodeSizeFamily.values();
-        for (SparkComputeNodeSizeFamily item : items) {
-            if (item.toString().equalsIgnoreCase(value)) {
-                return item;
-            }
-        }
-        return null;
+    public VirtualNetworkProfile withComputeSubnetId(String computeSubnetId) {
+        this.computeSubnetId = computeSubnetId;
+        return this;
     }
 
-    @JsonValue
-    @Override
-    public String toString() {
-        return this.value;
-    }
 }

@@ -21,7 +21,7 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import java.util.List;
 
@@ -29,33 +29,39 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The error response.
+ * The resource management error response.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ErrorResponse {
     /**
      * The error code.
      */
-    @JsonProperty(value = "code")
+    @JsonProperty(value = "code", access = JsonProperty.Access.WRITE_ONLY)
     private String code;
 
     /**
      * The error message.
      */
-    @JsonProperty(value = "message")
+    @JsonProperty(value = "message", access = JsonProperty.Access.WRITE_ONLY)
     private String message;
 
     /**
-     * Property name.
+     * The error target.
      */
-    @JsonProperty(value = "target")
+    @JsonProperty(value = "target", access = JsonProperty.Access.WRITE_ONLY)
     private String target;
 
     /**
-     * The list of invalid fields sent in request, in case of validation error.
+     * The error details.
      */
-    @JsonProperty(value = "details")
-    private List<ErrorFieldContract> details;
+    @JsonProperty(value = "details", access = JsonProperty.Access.WRITE_ONLY)
+    private List<ErrorResponse> details;
+
+    /**
+     * The error additional info.
+     */
+    @JsonProperty(value = "additionalInfo", access = JsonProperty.Access.WRITE_ONLY)
+    private List<ErrorAdditionalInfo> additionalInfo;
 
     /**
      * Get the error code.
@@ -64,17 +70,6 @@ public class ErrorResponse {
      */
     public String code() {
         return this.code;
-    }
-
-    /**
-     * Set the error code.
-     *
-     * @param code the code value to set
-     * @return the ErrorResponse object itself.
-     */
-    public ErrorResponse withCode(String code) {
-        this.code = code;
-        return this;
     }
 
     /**
@@ -87,18 +82,7 @@ public class ErrorResponse {
     }
 
     /**
-     * Set the error message.
-     *
-     * @param message the message value to set
-     * @return the ErrorResponse object itself.
-     */
-    public ErrorResponse withMessage(String message) {
-        this.message = message;
-        return this;
-    }
-
-    /**
-     * Get property name.
+     * Get the error target.
      *
      * @return the target value
      */
@@ -107,34 +91,21 @@ public class ErrorResponse {
     }
 
     /**
-     * Set property name.
-     *
-     * @param target the target value to set
-     * @return the ErrorResponse object itself.
-     */
-    public ErrorResponse withTarget(String target) {
-        this.target = target;
-        return this;
-    }
-
-    /**
-     * Get the list of invalid fields sent in request, in case of validation error.
+     * Get the error details.
      *
      * @return the details value
      */
-    public List<ErrorFieldContract> details() {
+    public List<ErrorResponse> details() {
         return this.details;
     }
 
     /**
-     * Set the list of invalid fields sent in request, in case of validation error.
+     * Get the error additional info.
      *
-     * @param details the details value to set
-     * @return the ErrorResponse object itself.
+     * @return the additionalInfo value
      */
-    public ErrorResponse withDetails(List<ErrorFieldContract> details) {
-        this.details = details;
-        return this;
+    public List<ErrorAdditionalInfo> additionalInfo() {
+        return this.additionalInfo;
     }
 
 }

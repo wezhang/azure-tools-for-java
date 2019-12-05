@@ -21,42 +21,50 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.microsoft.rest.serializer.JsonFlatten;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Parameters used to patch spark compute.
+ * Defines values for ResourceIdentityType.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonFlatten
-public class SparkComputePatchParameters {
-    /**
-     * Spark version.
-     */
-    @JsonProperty(value = "properties.sparkVersion")
-    private String sparkVersion;
+public enum ResourceIdentityType {
+    /** Enum value None. */
+    NONE("None"),
 
-    /**
-     * Get spark version.
-     *
-     * @return the sparkVersion value
-     */
-    public String sparkVersion() {
-        return this.sparkVersion;
+    /** Enum value SystemAssigned. */
+    SYSTEM_ASSIGNED("SystemAssigned");
+
+    /** The actual serialized value for a ResourceIdentityType instance. */
+    private String value;
+
+    ResourceIdentityType(String value) {
+        this.value = value;
     }
 
     /**
-     * Set spark version.
+     * Parses a serialized value to a ResourceIdentityType instance.
      *
-     * @param sparkVersion the sparkVersion value to set
-     * @return the SparkComputePatchParameters object itself.
+     * @param value the serialized value to parse.
+     * @return the parsed ResourceIdentityType object, or null if unable to parse.
      */
-    public SparkComputePatchParameters withSparkVersion(String sparkVersion) {
-        this.sparkVersion = sparkVersion;
-        return this;
+    @JsonCreator
+    public static ResourceIdentityType fromString(String value) {
+        ResourceIdentityType[] items = ResourceIdentityType.values();
+        for (ResourceIdentityType item : items) {
+            if (item.toString().equalsIgnoreCase(value)) {
+                return item;
+            }
+        }
+        return null;
     }
 
+    @JsonValue
+    @Override
+    public String toString() {
+        return this.value;
+    }
 }

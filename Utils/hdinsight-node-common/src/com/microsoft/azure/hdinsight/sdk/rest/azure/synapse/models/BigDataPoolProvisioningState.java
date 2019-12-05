@@ -21,17 +21,19 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
+ * FIXME: This file is copied from legacy Arcadia API
+ *
  * Defines values for SparkComputeProvisioningState.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public enum SparkComputeProvisioningState {
+public enum BigDataPoolProvisioningState {
     /** Enum value Provisioning. */
     PROVISIONING("Provisioning"),
 
@@ -47,7 +49,7 @@ public enum SparkComputeProvisioningState {
     /** The actual serialized value for a SparkComputeProvisioningState instance. */
     private String value;
 
-    SparkComputeProvisioningState(String value) {
+    BigDataPoolProvisioningState(String value) {
         this.value = value;
     }
 
@@ -58,9 +60,9 @@ public enum SparkComputeProvisioningState {
      * @return the parsed SparkComputeProvisioningState object, or null if unable to parse.
      */
     @JsonCreator
-    public static SparkComputeProvisioningState fromString(String value) {
-        SparkComputeProvisioningState[] items = SparkComputeProvisioningState.values();
-        for (SparkComputeProvisioningState item : items) {
+    public static BigDataPoolProvisioningState fromString(String value) {
+        BigDataPoolProvisioningState[] items = BigDataPoolProvisioningState.values();
+        for (BigDataPoolProvisioningState item : items) {
             if (item.toString().equalsIgnoreCase(value)) {
                 return item;
             }

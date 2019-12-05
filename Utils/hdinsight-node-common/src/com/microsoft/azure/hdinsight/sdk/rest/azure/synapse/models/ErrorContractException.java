@@ -21,7 +21,7 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.microsoft.rest.RestException;
@@ -29,33 +29,33 @@ import okhttp3.ResponseBody;
 import retrofit2.Response;
 
 /**
- * Exception thrown for an invalid response with ErrorResponse information.
+ * Exception thrown for an invalid response with ErrorContract information.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ErrorResponseException extends RestException {
+public class ErrorContractException extends RestException {
     /**
-     * Initializes a new instance of the ErrorResponseException class.
+     * Initializes a new instance of the ErrorContractException class.
      *
      * @param message the exception message or the response content if a message is not available
      * @param response the HTTP response
      */
-    public ErrorResponseException(final String message, final Response<ResponseBody> response) {
+    public ErrorContractException(final String message, final Response<ResponseBody> response) {
         super(message, response);
     }
 
     /**
-     * Initializes a new instance of the ErrorResponseException class.
+     * Initializes a new instance of the ErrorContractException class.
      *
      * @param message the exception message or the response content if a message is not available
      * @param response the HTTP response
      * @param body the deserialized response body
      */
-    public ErrorResponseException(final String message, final Response<ResponseBody> response, final ErrorResponse body) {
+    public ErrorContractException(final String message, final Response<ResponseBody> response, final ErrorContract body) {
         super(message, response, body);
     }
 
     @Override
-    public ErrorResponse body() {
-        return (ErrorResponse) super.body();
+    public ErrorContract body() {
+        return (ErrorContract) super.body();
     }
 }

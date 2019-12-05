@@ -21,68 +21,65 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
-
-import java.util.Map;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.microsoft.azure.ProxyResource;
 
 /**
- * The resource model definition for a ARM tracked top level resource.
+ * Details of the data lake storage account associated with the workspace.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TrackedResource extends ProxyResource {
+public class DataLakeStorageAccountDetails {
     /**
-     * The Azure Region where the resource lives.
+     * Account URL.
      */
-    @JsonProperty(value = "location")
-    private String location;
+    @JsonProperty(value = "accountUrl")
+    private String accountUrl;
 
     /**
-     * Resource tags.
+     * Filesystem name.
      */
-    @JsonProperty(value = "tags")
-    private Map<String, String> tags;
+    @JsonProperty(value = "filesystem")
+    private String filesystem;
 
     /**
-     * Get the Azure Region where the resource lives.
+     * Get account URL.
      *
-     * @return the location value
+     * @return the accountUrl value
      */
-    public String location() {
-        return this.location;
+    public String accountUrl() {
+        return this.accountUrl;
     }
 
     /**
-     * Set the Azure Region where the resource lives.
+     * Set account URL.
      *
-     * @param location the location value to set
-     * @return the TrackedResource object itself.
+     * @param accountUrl the accountUrl value to set
+     * @return the DataLakeStorageAccountDetails object itself.
      */
-    public TrackedResource withLocation(String location) {
-        this.location = location;
+    public DataLakeStorageAccountDetails withAccountUrl(String accountUrl) {
+        this.accountUrl = accountUrl;
         return this;
     }
 
     /**
-     * Get resource tags.
+     * Get filesystem name.
      *
-     * @return the tags value
+     * @return the filesystem value
      */
-    public Map<String, String> tags() {
-        return this.tags;
+    public String filesystem() {
+        return this.filesystem;
     }
 
     /**
-     * Set resource tags.
+     * Set filesystem name.
      *
-     * @param tags the tags value to set
-     * @return the TrackedResource object itself.
+     * @param filesystem the filesystem value to set
+     * @return the DataLakeStorageAccountDetails object itself.
      */
-    public TrackedResource withTags(Map<String, String> tags) {
-        this.tags = tags;
+    public DataLakeStorageAccountDetails withFilesystem(String filesystem) {
+        this.filesystem = filesystem;
         return this;
     }
 

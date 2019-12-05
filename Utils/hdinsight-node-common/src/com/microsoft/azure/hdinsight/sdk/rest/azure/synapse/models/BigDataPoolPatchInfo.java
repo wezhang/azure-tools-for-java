@@ -21,72 +21,43 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
+
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.microsoft.azure.Page;
-import java.util.List;
 
 /**
- * An instance of this class defines a page of Azure resources and a link to
- * get the next page of resources, if any.
- *
- * @param <T> type of Azure resource
+ * Patch for a Big Data pool.
+ * Properties patch for a Big Data pool.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PageImpl<T> implements Page<T> {
+public class BigDataPoolPatchInfo {
     /**
-     * The link to the next page.
+     * Updated tags for the Big Data pool.
      */
-    @JsonProperty("nextLink")
-    private String nextPageLink;
+    @JsonProperty(value = "tags")
+    private Map<String, String> tags;
 
     /**
-     * The list of items.
-     */
-    @JsonProperty("value")
-    private List<T> items;
-
-    /**
-     * Gets the link to the next page.
+     * Get updated tags for the Big Data pool.
      *
-     * @return the link to the next page.
+     * @return the tags value
      */
-    @Override
-    public String nextPageLink() {
-        return this.nextPageLink;
+    public Map<String, String> tags() {
+        return this.tags;
     }
 
     /**
-     * Gets the list of items.
+     * Set updated tags for the Big Data pool.
      *
-     * @return the list of items in {@link List}.
+     * @param tags the tags value to set
+     * @return the BigDataPoolPatchInfo object itself.
      */
-    @Override
-    public List<T> items() {
-        return items;
-    }
-
-    /**
-     * Sets the link to the next page.
-     *
-     * @param nextPageLink the link to the next page.
-     * @return this Page object itself.
-     */
-    public PageImpl<T> setNextPageLink(String nextPageLink) {
-        this.nextPageLink = nextPageLink;
+    public BigDataPoolPatchInfo withTags(Map<String, String> tags) {
+        this.tags = tags;
         return this;
     }
 
-    /**
-     * Sets the list of items.
-     *
-     * @param items the list of items in {@link List}.
-     * @return this Page object itself.
-     */
-    public PageImpl<T> setItems(List<T> items) {
-        this.items = items;
-        return this;
-    }
 }

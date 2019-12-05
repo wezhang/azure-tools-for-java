@@ -21,47 +21,38 @@
  *
  */
 
-package com.microsoft.azure.hdinsight.sdk.rest.azure.projectarcadia.models;
+package com.microsoft.azure.hdinsight.sdk.rest.azure.synapse.models;
 
+import java.util.Collection;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonValue;
+import com.microsoft.rest.ExpandableStringEnum;
 
 /**
- * Defines values for SparkComputeNodeSize.
+ * Defines values for NodeSizeFamily.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public enum SparkComputeNodeSize {
-    /** Enum value MemoryOptimized. */
-    MEMORY_OPTIMIZED("MemoryOptimized");
+public final class NodeSizeFamily extends ExpandableStringEnum<NodeSizeFamily> {
+    /** Static value None for NodeSizeFamily. */
+    public static final NodeSizeFamily NONE = fromString("None");
 
-    /** The actual serialized value for a SparkComputeNodeSize instance. */
-    private String value;
+    /** Static value MemoryOptimized for NodeSizeFamily. */
+    public static final NodeSizeFamily MEMORY_OPTIMIZED = fromString("MemoryOptimized");
 
-    SparkComputeNodeSize(String value) {
-        this.value = value;
+    /**
+     * Creates or finds a NodeSizeFamily from its string representation.
+     * @param name a name to look for
+     * @return the corresponding NodeSizeFamily
+     */
+    @JsonCreator
+    public static NodeSizeFamily fromString(String name) {
+        return fromString(name, NodeSizeFamily.class);
     }
 
     /**
-     * Parses a serialized value to a SparkComputeNodeSize instance.
-     *
-     * @param value the serialized value to parse.
-     * @return the parsed SparkComputeNodeSize object, or null if unable to parse.
+     * @return known NodeSizeFamily values
      */
-    @JsonCreator
-    public static SparkComputeNodeSize fromString(String value) {
-        SparkComputeNodeSize[] items = SparkComputeNodeSize.values();
-        for (SparkComputeNodeSize item : items) {
-            if (item.toString().equalsIgnoreCase(value)) {
-                return item;
-            }
-        }
-        return null;
-    }
-
-    @JsonValue
-    @Override
-    public String toString() {
-        return this.value;
+    public static Collection<NodeSizeFamily> values() {
+        return values(NodeSizeFamily.class);
     }
 }
