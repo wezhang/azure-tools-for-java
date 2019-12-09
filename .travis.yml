@@ -19,6 +19,7 @@ branches:
   - master
   - release
   - develop
+install: skip
 script:
 - 'travis_wait 40 ./gradlew buildAll --quiet'
 dist: trusty
