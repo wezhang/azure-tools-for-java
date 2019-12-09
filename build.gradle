@@ -1,7 +1,7 @@
 import org.gradle.internal.os.OperatingSystem
 
-def gradleExec = OperatingSystem.current().isWindows() ? "gradlew.bat" : "gradlew"
-def mavenExec = OperatingSystem.current().isWindows() ? "mvnw.cmd" : "mvnw"
+def gradleExec = file(OperatingSystem.current().isWindows() ? "gradlew.bat" : "gradlew")
+def mavenExec = file(OperatingSystem.current().isWindows() ? "mvnw.cmd" : "mvnw")
 def IJ_VERSION_LATEST = IJ_VERSION_MINOR?.trim()?.isEmpty() ? IJ_VERSION_MAJOR : "${IJ_VERSION_MAJOR}.${IJ_VERSION_MINOR}"
 
 def mavenArgs = { conf ->
