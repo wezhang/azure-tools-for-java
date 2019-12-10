@@ -5,7 +5,7 @@ def mavenExec = file(OperatingSystem.current().isWindows() ? "mvnw.cmd" : "mvnw"
 def IJ_VERSION_LATEST = IJ_VERSION_MINOR?.trim()?.isEmpty() ? IJ_VERSION_MAJOR : "${IJ_VERSION_MAJOR}.${IJ_VERSION_MINOR}"
 
 def mavenArgs = { conf ->
-    List<String> mvnArgs = (forceClean.toBoolean() ? [ 'clean' ] : []) + conf.goals
+    List<String> mvnArgs = (forceClean.toBoolean() ? [ 'clean' ] : []) + conf.goals + [ '-B' ]
 
     if (conf.pom != null) {
         mvnArgs << "-f" << conf.pom.toString()
