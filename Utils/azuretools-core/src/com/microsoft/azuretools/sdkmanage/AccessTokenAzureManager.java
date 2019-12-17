@@ -27,9 +27,9 @@ import com.microsoft.azure.keyvault.authentication.KeyVaultCredentials;
 import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.management.resources.Tenant;
-import com.microsoft.azuretools.Constants;
 import com.microsoft.azuretools.adauth.PromptBehavior;
-import com.microsoft.azuretools.authmanage.AdAuthManager;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.authmanage.BaseADAuthManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.RefreshableTokenCredentials;
@@ -52,8 +52,10 @@ import static com.microsoft.azuretools.Constants.FILE_NAME_SUBSCRIPTIONS_DETAILS
 public class AccessTokenAzureManager extends AzureManagerBase {
     private final static Logger LOGGER = Logger.getLogger(AccessTokenAzureManager.class.getName());
     private final SubscriptionManager subscriptionManager;
+    private final BaseADAuthManager delegateADAuthManager;
 
-    public AccessTokenAzureManager() {
+    public AccessTokenAzureManager(final BaseADAuthManager delegateADAuthManager) {
+        this.delegateADAuthManager = delegateADAuthManager;
         this.subscriptionManager = new SubscriptionManagerPersist(this);
     }
 
@@ -65,7 +67,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     @Override
     public void drop() throws IOException {
         subscriptionManager.cleanSubscriptions();
-        AdAuthManager.getInstance().signOut();
+        delegateADAuthManager.signOut();
     }
 
     private static Settings settings;
@@ -92,7 +94,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     public List<Subscription> getSubscriptions() throws IOException {
         List<Subscription> sl = new LinkedList<Subscription>();
         // could be multi tenant - return all subscriptions for the current account
-        List<Tenant> tl = getTenants(AdAuthManager.getInstance().getCommonTenantId());
+        List<Tenant> tl = getTenants(delegateADAuthManager.getCommonTenantId());
         for (Tenant t : tl) {
             sl.addAll(getSubscriptions(t.tenantId()));
         }
@@ -102,7 +104,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     @Override
     public List<Pair<Subscription, Tenant>> getSubscriptionsWithTenant() throws IOException {
         List<Pair<Subscription, Tenant>> stl = new LinkedList<>();
-        for (Tenant t : getTenants(AdAuthManager.getInstance().getCommonTenantId())) {
+        for (Tenant t : getTenants(delegateADAuthManager.getCommonTenantId())) {
             String tid = t.tenantId();
             for (Subscription s : getSubscriptions(tid)) {
                 stl.add(new Pair<Subscription, Tenant>(s, t));
@@ -155,9 +157,15 @@ public class AccessTokenAzureManager extends AzureManagerBase {
     private static Azure.Authenticated authTid(String tid) throws IOException {
 //        String token = AdAuthManager.getInstance().getAccessToken(tid);
 //        return auth(token);
+        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
+        if (azureManager == null) {
+            throw new IOException("Azure Sign In is required.");
+        }
+
         return Azure.configure()
                 .withInterceptor(new TelemetryInterceptor())
-                .withUserAgent(CommonSettings.USER_AGENT).authenticate(new RefreshableTokenCredentials(AdAuthManager.getInstance(), tid));
+                .withUserAgent(CommonSettings.USER_AGENT)
+                .authenticate(new RefreshableTokenCredentials(azureManager, tid));
     }
 
     @Override
@@ -167,7 +175,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
             public String doAuthenticate(String authorization, String resource, String scope) {
             try {
             	// TODO: check usage
-                return AdAuthManager.getInstance().getAccessToken(tid, resource, PromptBehavior.Auto);
+                return delegateADAuthManager.getAccessToken(tid, resource, PromptBehavior.Auto);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
@@ -179,12 +187,12 @@ public class AccessTokenAzureManager extends AzureManagerBase {
 
     @Override
     public String getCurrentUserId() throws IOException {
-        return AdAuthManager.getInstance().getAccountEmail();
+        return delegateADAuthManager.getAccountEmail();
     }
 
     @Override
-    public String getAccessToken(String tid) throws IOException {
-        return AdAuthManager.getInstance().getAccessToken(tid, CommonSettings.getAdEnvironment().resourceManagerEndpoint(), PromptBehavior.Auto);
+    public String getAccessToken(String tid, String resource, PromptBehavior promptBehavior) throws IOException {
+        return delegateADAuthManager.getAccessToken(tid, resource, promptBehavior);
     }
 
     @Override

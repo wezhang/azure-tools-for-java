@@ -364,13 +364,9 @@ public class PublishWebAppOnLinuxDialog extends AzureTitleAreaDialogWrapper impl
     }
 
     private void validate() throws InvalidFormDataException {
-        try {
-            if (!AuthMethodManager.getInstance().isSignedIn()) {
-                throw new InvalidFormDataException(NEED_SIGN_IN);
-            }
-        } catch (IOException e) {
-            throw new InvalidFormDataException(NEED_SIGN_IN);
-        }
+        if (!AuthMethodManager.getInstance().isSignedIn()) {
+		    throw new InvalidFormDataException(NEED_SIGN_IN);
+		}
         // docker file
         if (Utils.isEmptyString(model.getDockerFilePath())) {
             throw new InvalidFormDataException(INVALID_DOCKER_FILE);

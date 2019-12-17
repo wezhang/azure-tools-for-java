@@ -30,6 +30,7 @@ import com.microsoft.azuretools.adauth.StringUtils;
 import com.microsoft.azuretools.authmanage.interact.AuthMethod;
 import com.microsoft.azuretools.authmanage.interact.INotification;
 import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.sdkmanage.AccessTokenAzureManager;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.azuretools.sdkmanage.ServicePrincipalAzureManager;
@@ -38,7 +39,7 @@ import com.microsoft.azuretools.utils.AzureUIRefreshEvent;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -47,6 +48,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import static com.microsoft.azuretools.Constants.FILE_NAME_AUTH_METHOD_DETAILS;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class AuthMethodManager {
     private final static Logger LOGGER = Logger.getLogger(AuthMethodManager.class.getName());
@@ -54,13 +56,15 @@ public class AuthMethodManager {
             + "Please check if you have already signed in.";
     private static final String CANNOT_GET_AZURE_BY_SID = "Cannot get Azure with Subscription ID: %s. "
             + "Please check if you have already signed in with this Subscription.";
-    private AuthMethodDetails authMethodDetails = null;
+
+    private AuthMethodDetails authMethodDetails;
     private volatile AzureManager azureManager;
     private Set<Runnable> signInEventListeners = new HashSet<>();
     private Set<Runnable> signOutEventListeners = new HashSet<>();
 
     private AuthMethodManager() {
-        loadSettings();
+        authMethodDetails = loadSettings();
+        restoreADSignIn();
     }
 
     private static class LazyHolder {
@@ -124,6 +128,7 @@ public class AuthMethodManager {
         }
     }
 
+    @Nullable
     public AzureManager getAzureManager() throws IOException {
         return getAzureManager(getAuthMethod());
     }
@@ -132,23 +137,26 @@ public class AuthMethodManager {
         AzureManager localAzureManagerRef = azureManager;
 
         if (localAzureManagerRef == null) {
-            final String accountEmail = authMethodDetails.getAccountEmail();
             switch (authMethod) {
                 case AD:
-                    if (StringUtils.isNullOrEmpty(accountEmail) ||
-                            (!AdAuthManager.getInstance().isSignedIn() &&
-                                    !AdAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
+                    if (isBlank(authMethodDetails.getAccountEmail())) {
                         return null;
                     }
-                    localAzureManagerRef = new AccessTokenAzureManager();
+
+                    BaseADAuthManager adAuth = getAdAuthManagerBy(AuthMethod.AD);
+                    adAuth.applyAuthMethodDetails(getAuthMethodDetails());
+                    localAzureManagerRef = new AccessTokenAzureManager(adAuth);
+
                     break;
                 case DC:
-                    if (StringUtils.isNullOrEmpty(accountEmail) ||
-                            (!DCAuthManager.getInstance().isSignedIn() &&
-                                    !DCAuthManager.getInstance().tryRestoreSignIn(authMethodDetails))) {
+                    if (isBlank(authMethodDetails.getAccountEmail())) {
                         return null;
                     }
-                    localAzureManagerRef = new AccessTokenAzureManager();
+
+                    BaseADAuthManager dcAuth = getAdAuthManagerBy(AuthMethod.DC);
+                    dcAuth.applyAuthMethodDetails(getAuthMethodDetails());
+                    localAzureManagerRef = new AccessTokenAzureManager(dcAuth);
+
                     break;
                 case SP:
                     final String credFilePath = authMethodDetails.getCredFilePath();
@@ -171,6 +179,17 @@ public class AuthMethodManager {
         return localAzureManagerRef;
     }
 
+    public BaseADAuthManager getAdAuthManagerBy(final AuthMethod authMethod) {
+        switch (authMethod) {
+            case AD:
+                return AdAuthManager.getInstance();
+            case DC:
+                return DCAuthManager.getInstance();
+            default:
+                throw new IllegalArgumentException("No AD Auth manager instance for authentication method " + authMethod);
+        }
+    }
+
     public void signOut() throws IOException {
         cleanAll();
         notifySignOutEventListener();
@@ -178,6 +197,7 @@ public class AuthMethodManager {
 
     private synchronized void cleanAll() throws IOException {
         if (azureManager != null) {
+            azureManager.drop();
             azureManager.getSubscriptionManager().cleanSubscriptions();
             azureManager = null;
         }
@@ -188,8 +208,12 @@ public class AuthMethodManager {
         saveSettings();
     }
 
-    public boolean isSignedIn() throws IOException {
-        return getAzureManager() != null;
+    public boolean isSignedIn() {
+        try {
+            return getAzureManager() != null;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     public AuthMethod getAuthMethod() {
@@ -200,14 +224,14 @@ public class AuthMethodManager {
         return this.authMethodDetails;
     }
 
-    public void setAuthMethodDetails(AuthMethodDetails authMethodDetails) throws IOException {
+    public synchronized void setAuthMethodDetails(AuthMethodDetails authMethodDetails) throws IOException {
         cleanAll();
         this.authMethodDetails = authMethodDetails;
         saveSettings();
         //if (isSignedIn()) notifySignInEventListener();
     }
 
-    private void loadSettings() {
+    private AuthMethodDetails loadSettings() {
         System.out.println("loading authMethodDetails...");
         try {
             FileStorage fs = new FileStorage(FILE_NAME_AUTH_METHOD_DETAILS, CommonSettings.getSettingsBaseDir());
@@ -215,13 +239,34 @@ public class AuthMethodManager {
             String json = new String(data);
             if (json.isEmpty()) {
                 System.out.println(FILE_NAME_AUTH_METHOD_DETAILS + " is empty");
-                authMethodDetails = new AuthMethodDetails();
-                return;
+                return new AuthMethodDetails();
             }
-            authMethodDetails = JsonHelper.deserialize(AuthMethodDetails.class, json);
+
+            return JsonHelper.deserialize(AuthMethodDetails.class, json);
         } catch (IOException ignored) {
             System.out.println("Failed to loading authMethodDetails settings. Use defaults.");
-            authMethodDetails = new AuthMethodDetails();
+            return new AuthMethodDetails();
+        }
+    }
+
+    private void restoreADSignIn() {
+        switch (getAuthMethod()) {
+            case AD:
+                if (!StringUtils.isNullOrEmpty(getAuthMethodDetails().getAccountEmail())
+                        && !AdAuthManager.getInstance().tryRestoreSignIn(getAuthMethodDetails())) {
+                    authMethodDetails = new AuthMethodDetails();
+                }
+
+                break;
+            case DC:
+                if (!StringUtils.isNullOrEmpty(getAuthMethodDetails().getAccountEmail())
+                        && !DCAuthManager.getInstance().tryRestoreSignIn(getAuthMethodDetails())) {
+                    authMethodDetails = new AuthMethodDetails();
+                }
+
+                break;
+            default:
+                break;
         }
     }
 
@@ -229,6 +274,6 @@ public class AuthMethodManager {
         System.out.println("saving authMethodDetails...");
         String sd = JsonHelper.serialize(authMethodDetails);
         FileStorage fs = new FileStorage(FILE_NAME_AUTH_METHOD_DETAILS, CommonSettings.getSettingsBaseDir());
-        fs.write(sd.getBytes(Charset.forName("utf-8")));
+        fs.write(sd.getBytes(StandardCharsets.UTF_8));
     }
 }

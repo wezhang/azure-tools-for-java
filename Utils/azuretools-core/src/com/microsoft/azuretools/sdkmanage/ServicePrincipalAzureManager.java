@@ -29,6 +29,7 @@ import com.microsoft.azure.keyvault.authentication.KeyVaultCredentials;
 import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.management.resources.Tenant;
+import com.microsoft.azuretools.adauth.PromptBehavior;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
@@ -163,7 +164,7 @@ public class ServicePrincipalAzureManager extends AzureManagerBase {
     }
 
     @Override
-    public String getAccessToken(String tid) throws IOException {
+    public String getAccessToken(String tid, String ignored1, PromptBehavior ignored2) throws IOException {
         String uri = getManagementURI();
         return atc.getToken(uri);
     }
