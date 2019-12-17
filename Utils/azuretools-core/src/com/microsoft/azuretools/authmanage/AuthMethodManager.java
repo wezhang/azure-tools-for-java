@@ -143,7 +143,7 @@ public class AuthMethodManager {
                         return null;
                     }
 
-                    BaseADAuthManager adAuth = getAdAuthManagerBy(AuthMethod.AD);
+                    BaseADAuthManager adAuth = getAdAuthManagerByAuthMethod(AuthMethod.AD);
                     adAuth.applyAuthMethodDetails(getAuthMethodDetails());
                     localAzureManagerRef = new AccessTokenAzureManager(adAuth);
 
@@ -153,7 +153,7 @@ public class AuthMethodManager {
                         return null;
                     }
 
-                    BaseADAuthManager dcAuth = getAdAuthManagerBy(AuthMethod.DC);
+                    BaseADAuthManager dcAuth = getAdAuthManagerByAuthMethod(AuthMethod.DC);
                     dcAuth.applyAuthMethodDetails(getAuthMethodDetails());
                     localAzureManagerRef = new AccessTokenAzureManager(dcAuth);
 
@@ -179,7 +179,7 @@ public class AuthMethodManager {
         return localAzureManagerRef;
     }
 
-    public BaseADAuthManager getAdAuthManagerBy(final AuthMethod authMethod) {
+    public BaseADAuthManager getAdAuthManagerByAuthMethod(final AuthMethod authMethod) {
         switch (authMethod) {
             case AD:
                 return AdAuthManager.getInstance();

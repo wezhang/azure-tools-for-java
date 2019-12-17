@@ -291,7 +291,7 @@ public class SignInDialog extends AzureTitleAreaDialogWrapper {
     @Nullable
     private synchronized BaseADAuthManager doSignIn() {
         try {
-            final BaseADAuthManager dcAuthManager = getAuthMethodManager().getAdAuthManagerBy(AuthMethod.DC);
+            final BaseADAuthManager dcAuthManager = getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC);
 
             if (dcAuthManager.isSignedIn()) {
                 doSignOut();
@@ -334,7 +334,7 @@ public class SignInDialog extends AzureTitleAreaDialogWrapper {
     private void doSignOut() {
         accountEmail = null;
         // AuthMethod.AD is deprecated.
-        getAuthMethodManager().getAdAuthManagerBy(AuthMethod.DC).signOut();
+        getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC).signOut();
     }
     
     private void doCreateServicePrincipal() {
