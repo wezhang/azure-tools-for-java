@@ -31,7 +31,6 @@ import com.microsoft.azuretools.telemetrywrapper.Operation;
 import com.microsoft.azuretools.telemetrywrapper.TelemetryManager;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -365,8 +364,8 @@ public class PublishWebAppOnLinuxDialog extends AzureTitleAreaDialogWrapper impl
 
     private void validate() throws InvalidFormDataException {
         if (!AuthMethodManager.getInstance().isSignedIn()) {
-		    throw new InvalidFormDataException(NEED_SIGN_IN);
-		}
+            throw new InvalidFormDataException(NEED_SIGN_IN);
+        }
         // docker file
         if (Utils.isEmptyString(model.getDockerFilePath())) {
             throw new InvalidFormDataException(INVALID_DOCKER_FILE);
