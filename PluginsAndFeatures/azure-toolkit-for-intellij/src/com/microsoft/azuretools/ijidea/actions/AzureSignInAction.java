@@ -27,7 +27,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.WindowManager;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
-import com.microsoft.azuretools.authmanage.interact.AuthMethod;
+import com.microsoft.azuretools.authmanage.AuthMethod;
 import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
 import com.microsoft.azuretools.ijidea.ui.ErrorWindow;
 import com.microsoft.azuretools.ijidea.ui.SignInWindow;

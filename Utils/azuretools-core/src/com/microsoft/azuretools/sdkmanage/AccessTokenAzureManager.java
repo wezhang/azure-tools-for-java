@@ -28,13 +28,17 @@ import com.microsoft.azure.management.Azure;
 import com.microsoft.azure.management.resources.Subscription;
 import com.microsoft.azure.management.resources.Tenant;
 import com.microsoft.azuretools.adauth.PromptBehavior;
+import com.microsoft.azuretools.adauth.StringUtils;
+import com.microsoft.azuretools.authmanage.AdAuthManagerBuilder;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
+import com.microsoft.azuretools.authmanage.AzureManagerFactory;
 import com.microsoft.azuretools.authmanage.BaseADAuthManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.Environment;
 import com.microsoft.azuretools.authmanage.RefreshableTokenCredentials;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
 import com.microsoft.azuretools.authmanage.SubscriptionManagerPersist;
+import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
 import com.microsoft.azuretools.telemetry.TelemetryInterceptor;
 import com.microsoft.azuretools.utils.AzureRegisterProviderNamespaces;
 import com.microsoft.azuretools.utils.Pair;
@@ -48,8 +52,43 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import static com.microsoft.azuretools.Constants.FILE_NAME_SUBSCRIPTIONS_DETAILS_AT;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class AccessTokenAzureManager extends AzureManagerBase {
+    public static class AccessTokenAzureManagerFactory implements AzureManagerFactory, AdAuthManagerBuilder {
+        private final BaseADAuthManager adAuthManager;
+
+        public AccessTokenAzureManagerFactory(final BaseADAuthManager adAuthManager) {
+            this.adAuthManager = adAuthManager;
+        }
+
+        @Override
+        public AzureManager factory(final AuthMethodDetails authMethodDetails) {
+            if (isBlank(authMethodDetails.getAccountEmail())) {
+                throw new IllegalArgumentException(
+                        "No account email provided to create Azure manager for access token based authentication");
+            }
+
+            adAuthManager.applyAuthMethodDetails(authMethodDetails);
+            return new AccessTokenAzureManager(adAuthManager);
+        }
+
+        @Override
+        public AuthMethodDetails restore(AuthMethodDetails authMethodDetails) {
+            if (!StringUtils.isNullOrEmpty(authMethodDetails.getAccountEmail())
+                    && !adAuthManager.tryRestoreSignIn(authMethodDetails)) {
+                return new AuthMethodDetails();
+            }
+
+            return authMethodDetails;
+        }
+
+        @Override
+        public BaseADAuthManager getInstance() {
+            return adAuthManager;
+        }
+    }
+
     private final static Logger LOGGER = Logger.getLogger(AccessTokenAzureManager.class.getName());
     private final SubscriptionManager subscriptionManager;
     private final BaseADAuthManager delegateADAuthManager;

@@ -65,7 +65,7 @@ import org.eclipse.swt.widgets.Text;
 import com.microsoft.azuretools.adauth.AuthCanceledException;
 import com.microsoft.azuretools.adauth.StringUtils;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
-import com.microsoft.azuretools.authmanage.interact.AuthMethod;
+import com.microsoft.azuretools.authmanage.AuthMethod;
 import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
@@ -291,7 +291,7 @@ public class SignInDialog extends AzureTitleAreaDialogWrapper {
     @Nullable
     private synchronized BaseADAuthManager doSignIn() {
         try {
-            final BaseADAuthManager dcAuthManager = getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC);
+            final BaseADAuthManager dcAuthManager = AuthMethod.DC.getAdAuthManager();
 
             if (dcAuthManager.isSignedIn()) {
                 doSignOut();
@@ -334,7 +334,7 @@ public class SignInDialog extends AzureTitleAreaDialogWrapper {
     private void doSignOut() {
         accountEmail = null;
         // AuthMethod.AD is deprecated.
-        getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC).signOut();
+        AuthMethod.DC.getAdAuthManager().signOut();
     }
     
     private void doCreateServicePrincipal() {

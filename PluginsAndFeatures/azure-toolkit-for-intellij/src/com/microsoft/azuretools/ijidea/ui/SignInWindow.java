@@ -45,7 +45,7 @@ import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.BaseADAuthManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
 import com.microsoft.azuretools.authmanage.SubscriptionManager;
-import com.microsoft.azuretools.authmanage.interact.AuthMethod;
+import com.microsoft.azuretools.authmanage.AuthMethod;
 import com.microsoft.azuretools.authmanage.models.AuthMethodDetails;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.sdkmanage.AccessTokenAzureManager;
@@ -186,7 +186,7 @@ public class SignInWindow extends AzureDialogWrapper {
     @Nullable
     private synchronized BaseADAuthManager doDeviceLogin() {
         try {
-            BaseADAuthManager dcAuthManager = getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC);
+            BaseADAuthManager dcAuthManager = AuthMethod.DC.getAdAuthManager();
             if (dcAuthManager.isSignedIn()) {
                 doSignOut();
             }
@@ -230,7 +230,7 @@ public class SignInWindow extends AzureDialogWrapper {
         try {
             accountEmail = null;
             // AuthMethod.AD is deprecated.
-            getAuthMethodManager().getAdAuthManagerByAuthMethod(AuthMethod.DC).signOut();
+            AuthMethod.DC.getAdAuthManager().signOut();
         } catch (Exception ex) {
             ex.printStackTrace();
             ErrorWindow.show(project, ex.getMessage(), "Sign Out Error");

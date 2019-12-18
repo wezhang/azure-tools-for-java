@@ -32,7 +32,7 @@ import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.handlers.HandlerUtil;
 
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
-import com.microsoft.azuretools.authmanage.interact.AuthMethod;
+import com.microsoft.azuretools.authmanage.AuthMethod;
 import com.microsoft.azuretools.core.utils.AzureAbstractHandler;
 
 public class SignOutCommandHandler extends AzureAbstractHandler {
