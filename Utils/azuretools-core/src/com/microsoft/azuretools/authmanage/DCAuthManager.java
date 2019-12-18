@@ -95,7 +95,7 @@ class DCAuthManager extends BaseADAuthManager {
             return result.getAccessToken();
         } catch (AuthException err) {
             if (equalsAnyIgnoreCase(err.getError(), AuthError.InvalidGrant, AuthError.InteractionRequired)) {
-                throw new IOException(AUTHORIZATIONREQUIRED, err);
+                throw new IOException(AUTHORIZATION_REQUIRED_MESSAGE, err);
             }
 
             throw err;

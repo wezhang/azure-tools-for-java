@@ -71,7 +71,7 @@ class AdAuthManager extends BaseADAuthManager {
         } catch (AuthException e) {
             if (AuthError.InvalidGrant.equalsIgnoreCase(e.getError())
                     || AuthError.InteractionRequired.equalsIgnoreCase(e.getError())) {
-                throw new IOException(AUTHORIZATIONREQUIRED, e);
+                throw new IOException(AUTHORIZATION_REQUIRED_MESSAGE, e);
             } else {
                 throw e;
             }

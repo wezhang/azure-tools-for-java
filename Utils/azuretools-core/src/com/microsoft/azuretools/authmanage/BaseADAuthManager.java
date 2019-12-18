@@ -46,7 +46,8 @@ import java.util.logging.Logger;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 public abstract class BaseADAuthManager {
-    protected static final String AUTHORIZATIONREQUIRED = "Authorization is required, please sign out and sign in again";
+    protected static final String AUTHORIZATION_REQUIRED_MESSAGE =
+            "Authorization is required, please sign out and sign in again";
 
     protected AzureEnvironment env;
     protected AdAuthDetails adAuthDetails;
