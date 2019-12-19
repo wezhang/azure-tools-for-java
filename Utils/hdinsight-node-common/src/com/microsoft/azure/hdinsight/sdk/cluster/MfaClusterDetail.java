@@ -22,14 +22,11 @@
 package com.microsoft.azure.hdinsight.sdk.cluster;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
-import com.microsoft.azure.hdinsight.sdk.storage.ADLSGen2StorageAccount;
 import com.microsoft.azure.hdinsight.sdk.storage.StoragePathInfo;
-import com.microsoft.azure.hdinsight.sdk.storage.adlsgen2.ADLSGen2FSOperation;
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageTypeOptionsForCluster;
-import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
-import java.net.URI;
 import java.util.regex.Pattern;
 
 public class MfaClusterDetail extends ClusterDetail implements MfaEspCluster, ILogger {
@@ -38,9 +35,14 @@ public class MfaClusterDetail extends ClusterDetail implements MfaEspCluster, IL
         super(paramSubscription, paramClusterRawInfo, clusterOperation);
     }
 
+    @Nullable
     @Override
     public String getDefaultStorageRootPath() {
         String storageRootPath = super.getDefaultStorageRootPath();
+
+        if (storageRootPath == null) {
+            return null;
+        }
 
         // check login status and get the login user name
         try {
@@ -49,11 +51,11 @@ public class MfaClusterDetail extends ClusterDetail implements MfaEspCluster, IL
             }
 
             return storageRootPath;
-        } catch (Exception ignore) {
-            log().warn(String.format("Get default storage root path for mfa cluster encounter %s", ignore));
+        } catch (Exception ex) {
+            log().warn(String.format("Get default storage root path for mfa cluster encounter %s", ex));
         }
 
-        return "";
+        return null;
     }
 
     @Override
@@ -61,6 +63,7 @@ public class MfaClusterDetail extends ClusterDetail implements MfaEspCluster, IL
         return SparkSubmitStorageTypeOptionsForCluster.MfaHdiCluster;
     }
 
+    @Nullable
     @Override
     public String getTenantId() {
         return getSubscription().getTenantId();

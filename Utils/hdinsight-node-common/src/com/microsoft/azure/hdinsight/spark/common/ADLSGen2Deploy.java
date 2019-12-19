@@ -79,7 +79,8 @@ public class ADLSGen2Deploy implements Deployable, ILogger {
                 .onErrorReturn(err -> {
                     if (err.getMessage()!= null && (err.getMessage().contains(String.valueOf(HttpStatus.SC_FORBIDDEN))
                             || err.getMessage().contains(String.valueOf(HttpStatus.SC_NOT_FOUND)))) {
-                        throw new IllegalArgumentException("Failed to upload Spark application artifacts. ADLS Gen2 root path does not match with access key.");
+                        throw new IllegalArgumentException("Failed to create folder " + dirPath +
+                                " when uploading Spark application artifacts with error: " + err.getMessage());
                     } else {
                         throw Exceptions.propagate(err);
                     }
