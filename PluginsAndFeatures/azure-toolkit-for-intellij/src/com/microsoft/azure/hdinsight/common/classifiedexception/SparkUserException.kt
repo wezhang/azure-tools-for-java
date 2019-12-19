@@ -47,9 +47,13 @@ object SparkUserExceptionFactory : ClassifiedExceptionFactory() {
         } else if (exp is ADLException && exp.httpResponseCode == 403) {
             val hintMsg = "\nPlease make sure user has RWX permissions for the storage account"
             SparkUserException(ADLException("${exp.remoteExceptionMessage}$hintMsg"))
-        } else if (exp is AuthException && exp.error.equals("invalid_grant")) {
-            val hintMsg = String.format("\nPlease check whether have enough permission to access the cluster")
-            SparkUserException(AuthException("${exp.errorMessage}$hintMsg"))
+        } else if (exp is AuthException) {
+            val cause = if (exp.error == "invalid_grant") {
+                val hintMsg = String.format("\nPlease check whether have enough permission to access the cluster")
+                AuthException("${exp.errorMessage}$hintMsg")
+            } else exp
+
+            SparkUserException(cause)
         } else null
     }
 }
