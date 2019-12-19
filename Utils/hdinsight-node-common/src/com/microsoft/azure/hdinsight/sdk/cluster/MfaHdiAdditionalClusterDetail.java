@@ -41,7 +41,7 @@ public class MfaHdiAdditionalClusterDetail extends HDInsightAdditionalClusterDet
     @Nullable
     @Override
     public synchronized String getTenantId(){
-        if(tenantId != null){
+        if(this.tenantId != null){
             return this.tenantId;
         }
 
@@ -53,8 +53,8 @@ public class MfaHdiAdditionalClusterDetail extends HDInsightAdditionalClusterDet
                     this.tenantId = m.group("tenantId");
                 }
             }
-        } catch (IOException ignore) {
-            log().warn(String.format("Encounter expection when negotiating request for linked mfa cluster %s", ignore));
+        } catch (IOException ex) {
+            log().warn(String.format("Encounter exception when negotiating request for linked mfa cluster %s", ex));
         }
 
         return this.tenantId;

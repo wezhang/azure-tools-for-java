@@ -134,7 +134,7 @@ public class AzureSparkCosmosClusterManager implements ClusterContainer,
         try {
             return AuthMethodManager.getInstance().getAzureManager();
         } catch (IOException e) {
-            log().info("Can't get Azure manager now. error: " + e);
+            log().info("Can't get Azure manager now, please sign in. error: " + e);
 
             return null;
         }
