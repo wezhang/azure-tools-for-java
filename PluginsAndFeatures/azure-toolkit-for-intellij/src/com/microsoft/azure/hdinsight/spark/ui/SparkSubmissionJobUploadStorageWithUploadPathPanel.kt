@@ -234,13 +234,8 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                                         val path = (cluster as? ClusterDetail)?.defaultStorageRootPath ?.trimEnd('/') ?: "" +
                                                 "/${SparkSubmissionContentPanel.Constants.submissionFolder}/"
 
-                                        if (path == null) {
-                                            errorMsg = "Error getting upload path from storage account"
-                                            uploadPath = invalidUploadPath
-                                        } else {
-                                            errorMsg = null
-                                            uploadPath = path
-                                        }
+                                        errorMsg = null
+                                        uploadPath = path
                                     }
                                 } catch (ex: Exception) {
                                     errorMsg = "Error getting cluster storage configuration"
@@ -476,6 +471,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                         storagePanel.adlsGen2OAuthCard.gen2RootPathField.text = data.gen2RootPath
                     }
                 }
+                else -> { }
             }
         }
 
