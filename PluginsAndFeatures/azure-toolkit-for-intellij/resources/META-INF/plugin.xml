@@ -122,7 +122,7 @@
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.ArisSparkConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.ArcadiaSparkConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.SparkFailureTaskDebugConfigurationType"/>
-    <actionPromoter implementation="com.microsoft.azure.hdinsight.spark.console.SparkExecuteInConsoleActionPromoterDelegate"/>
+    <actionPromoter implementation="com.microsoft.azure.hdinsight.spark.console.SparkExecuteInConsoleActionPromoter"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.LivySparkRunConfigurationProducer"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.CosmosSparkRunConfigurationProducer"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.CosmosServerlessRunConfigurationProducer"/>
