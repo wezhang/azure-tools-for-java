@@ -26,10 +26,12 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azure.hdinsight.common.UriUtil;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.storage.adlsgen2.ADLSGen2FSOperation;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
+import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import org.apache.http.HttpStatus;
@@ -79,7 +81,16 @@ public class ADLSGen2Deploy implements Deployable, ILogger {
                 .onErrorReturn(err -> {
                     if (err.getMessage()!= null && (err.getMessage().contains(String.valueOf(HttpStatus.SC_FORBIDDEN))
                             || err.getMessage().contains(String.valueOf(HttpStatus.SC_NOT_FOUND)))) {
-                        throw new IllegalArgumentException("Failed to upload Spark application artifacts. ADLS Gen2 root path does not match with access key.");
+                        // Sample destinationRootPath: https://accountName.dfs.core.windows.net/fsName/SparkSubmission/
+                        String fileSystemRootPath = UriUtil.normalizeWithSlashEnding(URI.create(destinationRootPath)).resolve("../").toString();
+                        String signInUserEmail = AuthMethodManager.getInstance().getAuthMethodDetails().getAccountEmail();
+                        String errorMessage = new StringBuilder("Failed to create folder " + dirPath + " when uploading Spark application artifacts with error: " + err.getMessage() + ". Please verify if\n")
+                                .append("1. The ADLS Gen2 root path matches with the access key if you enter the credential in the configuration.\n")
+                                .append("2. The signed in user " + signInUserEmail + " has Storage Blob Data Contributor or Storage Blob Data Owner role over the storage path " + fileSystemRootPath + ".\n")
+                                .append("   If the role is recently granted, please wait a while and submit the job again later.\n")
+                                .append("   Find more details at https://docs.microsoft.com/en-us/azure/storage/common/storage-access-blobs-queues-portal#azure-ad-account")
+                                .toString();
+                        throw new IllegalArgumentException(errorMessage);
                     } else {
                         throw Exceptions.propagate(err);
                     }

@@ -32,6 +32,7 @@ import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public interface IClusterDetail extends ComparableCluster {
@@ -96,12 +97,17 @@ public interface IClusterDetail extends ComparableCluster {
     }
 
     @Nullable
+    default String getDefaultStorageRootPath() {
+        return null;
+    }
+
+    @Nullable
     default IHDIStorageAccount getStorageAccount() {
         return null;
     }
 
     default List<HDStorageAccount> getAdditionalStorageAccounts() {
-        return null;
+        return Collections.emptyList();
     }
 
     default void getConfigurationInfo() throws IOException, HDIException, AzureCmdException {

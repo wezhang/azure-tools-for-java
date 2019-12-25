@@ -4,7 +4,7 @@
         <relativePath>../pom.xml</relativePath>
         <groupId>com.microsoft.azuretools</groupId>
         <artifactId>utils</artifactId>
-        <version>3.31.0</version>
+        <version>3.32.0</version>
     </parent>
     <groupId>com.microsoft.azuretools</groupId>
     <artifactId>spark-localrun-mock</artifactId>
@@ -21,7 +21,7 @@
         <testSourceDirectory>test</testSourceDirectory>
         <testResources>
             <testResource>
-                <directory>Test/resources</directory>
+                <directory>test/resources</directory>
             </testResource>
         </testResources>
         <defaultGoal>install</defaultGoal>
@@ -89,7 +89,7 @@
                             <outputDirectory>${project.build.directory}</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>Test/resources/data</directory>
+                                    <directory>test/resources/data</directory>
                                     <targetPath>data</targetPath>
                                 </resource>
                             </resources>
