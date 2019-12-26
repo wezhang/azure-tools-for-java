@@ -31,6 +31,7 @@ import com.intellij.util.xmlb.annotations.Attribute
 import com.intellij.util.xmlb.annotations.Tag
 import com.intellij.util.xmlb.annotations.Transient
 import com.microsoft.azure.hdinsight.common.logger.ILogger
+import javax.swing.ComboBoxModel
 import javax.swing.DefaultComboBoxModel
 
 @Tag("job_upload_storage")
@@ -49,9 +50,9 @@ class SparkSubmitJobUploadStorageModel: ILogger {
 
     @get:Transient @set:Transient var accessKey: String? = null
 
-    @get:Transient @set:Transient var containersModel: DefaultComboBoxModel<String> = DefaultComboBoxModel()
+    @get:Transient @set:Transient var containersModel: ComboBoxModel<Any> = DefaultComboBoxModel()
 
-    @get:Transient @set:Transient var subscriptionsModel: DefaultComboBoxModel<String> = DefaultComboBoxModel()
+    @get:Transient @set:Transient var subscriptionsModel: ComboBoxModel<Any> = DefaultComboBoxModel()
 
     @Attribute("upload_path")
     var uploadPath: String? = null
