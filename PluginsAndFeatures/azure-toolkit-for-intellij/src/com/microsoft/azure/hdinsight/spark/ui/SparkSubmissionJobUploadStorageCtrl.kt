@@ -164,7 +164,7 @@ class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobUploadStor
                                 if (subscriptionNameList.size > 0) {
                                     subscriptionsModel = DefaultComboBoxModel(subscriptionNameList.toTypedArray())
                                     subscriptionsModel.selectedItem = subscriptionsModel.getElementAt(0)
-                                    selectedSubscription = subscriptionsModel.getElementAt(0)
+                                    selectedSubscription = subscriptionsModel.getElementAt(0)?.toString()
                                     errorMsg = null
                                 } else {
                                     errorMsg = "No subscriptions found in this storage account"
@@ -211,7 +211,7 @@ class SparkSubmissionJobUploadStorageCtrl(val view: SparkSubmissionJobUploadStor
                                 if (containers.isNotEmpty()) {
                                     containersModel = DefaultComboBoxModel(containers)
                                     containersModel.selectedItem = containersModel.getElementAt(0)
-                                    selectedContainer = containersModel.getElementAt(0)
+                                    selectedContainer = containersModel.getElementAt(0)?.toString()
                                     uploadPath = getAzureBlobStoragePath(ClusterManagerEx.getInstance().getBlobFullName(storageAccount), selectedContainer, HDStorageAccount.DefaultScheme)
 
                                 errorMsg = null

@@ -26,6 +26,7 @@ import static com.microsoft.azuretools.telemetry.TelemetryConstants.SYSTEM;
 
 import com.microsoft.azuretools.telemetrywrapper.EventType;
 import com.microsoft.azuretools.telemetrywrapper.EventUtil;
+
 import java.io.File;
 import java.util.Collection;
 
@@ -42,6 +43,7 @@ import com.microsoft.azuretools.azurecommons.util.ParserXMLUtility;
 import com.microsoft.azuretools.azurecommons.util.Utils;
 import com.microsoft.azuretools.azurecommons.xmlhandling.DataOperations;
 import com.microsoft.azuretools.core.Activator;
+import com.microsoft.azuretools.core.survey.CustomerSurveyHelper;
 import com.microsoft.azuretools.core.telemetry.AppInsightsConfigurationImpl;
 import com.microsoft.azuretools.core.utils.FileUtil;
 import com.microsoft.azuretools.core.utils.Messages;
@@ -87,7 +89,6 @@ public class WACPStartUp implements IStartup {
 			String pluginInstLoc = String.format("%s%s%s", PluginUtil.pluginFolder, File.separator,
 					Messages.commonPluginID);
 			final String dataFile = String.format("%s%s%s", pluginInstLoc, File.separator, Messages.dataFileName);
-
 			boolean install = false;
 			boolean upgrade = false;
 			if (new File(pluginInstLoc).exists()) {
@@ -147,6 +148,8 @@ public class WACPStartUp implements IStartup {
 	        }
 			EventUtil.logEvent(EventType.info, SYSTEM, PLUGIN_LOAD, null, null);
 	        AppInsightsClient.createByType(AppInsightsClient.EventType.Plugin, "", AppInsightsConstants.Load, null, true);
+
+	        new CustomerSurveyHelper().showFeedbackNotification();
 		} catch (Exception ex) {
 			Activator.getDefault().log(ex.getMessage(), ex);
 		}

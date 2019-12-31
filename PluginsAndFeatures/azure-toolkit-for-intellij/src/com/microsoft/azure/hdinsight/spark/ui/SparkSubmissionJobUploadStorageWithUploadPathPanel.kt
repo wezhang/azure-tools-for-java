@@ -27,7 +27,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.Disposer
-import com.intellij.ui.HideableTitledPanel
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx
 import com.microsoft.azure.hdinsight.common.logger.ILogger
@@ -44,7 +43,6 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageMod
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azure.hdinsight.spark.common.getSecureStoreServiceOf
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.StorageCheckEvent
-import com.microsoft.azure.management.locks.implementation.AuthorizationManager
 import com.microsoft.azure.sqlbigdata.sdk.cluster.SqlBigDataLivyLinkClusterDetail
 import com.microsoft.azuretools.authmanage.AuthMethodManager
 import com.microsoft.azuretools.ijidea.ui.AccessibleHideableTitledPanel
@@ -61,10 +59,7 @@ import rx.schedulers.Schedulers
 import rx.subjects.ReplaySubject
 import java.awt.CardLayout
 import java.util.concurrent.TimeUnit
-import javax.swing.DefaultComboBoxModel
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.JTextField
+import javax.swing.*
 
 class SparkSubmissionJobUploadStorageWithUploadPathPanel
     : JPanel(), Disposable, SettableControl<SparkSubmitJobUploadStorageModel>, ILogger {
@@ -75,7 +70,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
         fun getAzureBlobStoragePath(fullStorageBlobName: String?, container: String?, schema: String): String?
     }
 
-    val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
+    private val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
     private val jobUploadStorageTitle = "Job Upload Storage"
     private val invalidUploadPath = "<Invalid Upload Path>"
     private val unsupportAccountType = "<Storage Account Type Is Not Supported>"
@@ -361,13 +356,13 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
             SparkSubmitStorageType.BLOB -> {
                 data.storageAccount = storagePanel.azureBlobCard.storageAccountField.text.trim()
                 data.storageKey = storagePanel.azureBlobCard.storageKeyField.text.trim()
-                data.containersModel = storagePanel.azureBlobCard.storageContainerUI.comboBox.model as DefaultComboBoxModel<String>
-                data.selectedContainer = storagePanel.azureBlobCard.storageContainerUI.comboBox.selectedItem as? String
+                data.containersModel = storagePanel.azureBlobCard.storageContainerUI.comboBox.model
+                data.selectedContainer = storagePanel.azureBlobCard.storageContainerUI.comboBox.selectedItem?.toString()
             }
             SparkSubmitStorageType.ADLS_GEN1 -> {
                 data.adlsRootPath = storagePanel.adlsCard.adlsRootPathField.text.trim()
-                data.subscriptionsModel = storagePanel.adlsCard.subscriptionsComboBox.comboBox.model as DefaultComboBoxModel<String>
-                data.selectedSubscription = storagePanel.adlsCard.subscriptionsComboBox.comboBox.selectedItem as? String
+                data.subscriptionsModel = storagePanel.adlsCard.subscriptionsComboBox.comboBox.model
+                data.selectedSubscription = storagePanel.adlsCard.subscriptionsComboBox.comboBox.selectedItem?.toString()
             }
             SparkSubmitStorageType.WEBHDFS -> {
                 data.webHdfsRootPath= storagePanel.webHdfsCard.webHdfsRootPathField.text.trim()
@@ -421,7 +416,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                                 && StringUtils.isNotEmpty(data.selectedContainer)) {
                             storagePanel.azureBlobCard.storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedContainer))
                         } else {
-                            storagePanel.azureBlobCard.storageContainerUI.comboBox.model = data.containersModel as DefaultComboBoxModel<Any>
+                            storagePanel.azureBlobCard.storageContainerUI.comboBox.model = data.containersModel
                         }
                     }
                 }
@@ -443,7 +438,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                     if (data.subscriptionsModel.size == 0 && StringUtils.isEmpty(storagePanel.errorMessage) && StringUtils.isNotEmpty(data.selectedSubscription)) {
                         storagePanel.adlsCard.subscriptionsComboBox.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedSubscription))
                     } else {
-                        storagePanel.adlsCard.subscriptionsComboBox.comboBox.model = data.subscriptionsModel as DefaultComboBoxModel<Any>
+                        storagePanel.adlsCard.subscriptionsComboBox.comboBox.model = data.subscriptionsModel
                     }
                 }
                 SparkSubmitStorageType.WEBHDFS -> {
