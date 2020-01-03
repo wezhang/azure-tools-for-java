@@ -158,7 +158,8 @@ class AdAuthManager extends BaseADAuthManager {
 
         Map<String, List<String>> tidToSidsMap = new HashMap<>();
 
-        List<Tenant> tenants = AccessTokenAzureManager.getTenants(getCommonTenantId());
+        final AccessTokenAzureManager accessTokenAzureManager= new AccessTokenAzureManager(this);
+        List<Tenant> tenants =  accessTokenAzureManager.getTenants(getCommonTenantId());
         for (Tenant t : tenants) {
             String tid = t.tenantId();
             AuthContext ac1 = createContext(tid, null);
@@ -208,7 +209,7 @@ class AdAuthManager extends BaseADAuthManager {
             // TODO: remove later
             // ac1.acquireToken(Constants.resourceVault, false, userId, isDisplayable);
             List<String> sids = new LinkedList<>();
-            for (Subscription s : AccessTokenAzureManager.getSubscriptions(tid)) {
+            for (Subscription s : accessTokenAzureManager.getSubscriptions(tid)) {
                 sids.add(s.subscriptionId());
             }
             tidToSidsMap.put(t.tenantId(), sids);

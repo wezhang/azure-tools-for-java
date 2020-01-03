@@ -302,7 +302,8 @@ public class SignInWindow extends AzureDialogWrapper {
                 }
             }
 
-            SrvPriCreationStatusDialog d1 = SrvPriCreationStatusDialog.go(tidSidsMap, destinationFolder, project);
+            SrvPriCreationStatusDialog d1 = SrvPriCreationStatusDialog
+                    .go(accessTokenAzureManager, tidSidsMap, destinationFolder, project);
             if (d1 == null) {
                 System.out.println(">> Canceled by the user");
                 return;

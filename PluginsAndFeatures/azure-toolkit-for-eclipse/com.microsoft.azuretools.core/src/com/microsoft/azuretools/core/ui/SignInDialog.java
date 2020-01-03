@@ -396,7 +396,8 @@ public class SignInDialog extends AzureTitleAreaDialogWrapper {
                 }
             }
 
-            SrvPriCreationStatusDialog  d1 = SrvPriCreationStatusDialog.go(this.getShell(), tidSidsMap, destinationFolder);
+            SrvPriCreationStatusDialog  d1 = SrvPriCreationStatusDialog
+                    .go(accessTokenAzureManager, this.getShell(), tidSidsMap, destinationFolder);
             if (d1 == null) {
                 System.out.println(">> Canceled by the user");
                 return;

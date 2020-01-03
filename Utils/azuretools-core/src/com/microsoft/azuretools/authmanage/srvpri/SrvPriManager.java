@@ -51,6 +51,7 @@ import com.microsoft.azuretools.authmanage.srvpri.step.RoleAssignmentStep;
 import com.microsoft.azuretools.authmanage.srvpri.step.ServicePrincipalStep;
 import com.microsoft.azuretools.authmanage.srvpri.step.Status;
 import com.microsoft.azuretools.authmanage.srvpri.step.StepManager;
+import com.microsoft.azuretools.sdkmanage.AccessTokenAzureManager;
 
 /**
  * Created by vlashch on 8/16/16.
@@ -63,7 +64,8 @@ public class SrvPriManager {
     // sp - role (1-many)
 
     private final static Logger LOGGER = Logger.getLogger(SrvPriManager.class.getName());
-    public static String createSp(String tenantId,
+    public static String createSp(AccessTokenAzureManager preAccessTokenAzureManager,
+                                  String tenantId,
                                   List<String> subscriptionIds,
                                   String suffix,
                                   IListener<Status> statusListener,
@@ -115,9 +117,9 @@ public class SrvPriManager {
         sm.getParamMap().put("password", password);
         sm.getParamMap().put("status", "standby");
 
-        sm.add(new ApplicationStep());
-        sm.add(new ServicePrincipalStep());
-        sm.add(new RoleAssignmentStep());
+        sm.add(new ApplicationStep(preAccessTokenAzureManager));
+        sm.add(new ServicePrincipalStep(preAccessTokenAzureManager));
+        sm.add(new RoleAssignmentStep(preAccessTokenAzureManager));
 
         fileReporter.report(String.format("== Starting for tenantId: '%s'", tenantId));
 

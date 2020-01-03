@@ -30,7 +30,6 @@ import com.microsoft.azure.management.resources.Tenant;
 import com.microsoft.azuretools.adauth.PromptBehavior;
 import com.microsoft.azuretools.adauth.StringUtils;
 import com.microsoft.azuretools.authmanage.AdAuthManagerBuilder;
-import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.AzureManagerFactory;
 import com.microsoft.azuretools.authmanage.BaseADAuthManager;
 import com.microsoft.azuretools.authmanage.CommonSettings;
@@ -157,7 +156,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
         return settings;
     }
 
-    public static List<Subscription> getSubscriptions(String tid) throws IOException {
+    public List<Subscription> getSubscriptions(String tid) throws IOException {
         List<Subscription> sl = authTid(tid).subscriptions().listAsync()
                 .onErrorResumeNext(err -> {
                     LOGGER.warning(err.getMessage());
@@ -171,7 +170,7 @@ public class AccessTokenAzureManager extends AzureManagerBase {
         return sl;
     }
 
-    public static List<Tenant> getTenants(String tid) throws IOException {
+    public List<Tenant> getTenants(String tid) throws IOException {
         List<Tenant> tl = authTid(tid).tenants().listAsync()
                 .onErrorResumeNext(err -> {
                     LOGGER.warning(err.getMessage());
@@ -193,18 +192,11 @@ public class AccessTokenAzureManager extends AzureManagerBase {
 //        return null;
 //    }
 
-    private static Azure.Authenticated authTid(String tid) throws IOException {
-//        String token = AdAuthManager.getInstance().getAccessToken(tid);
-//        return auth(token);
-        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-        if (azureManager == null) {
-            throw new IOException("Azure Sign In is required.");
-        }
-
+    private Azure.Authenticated authTid(String tid) throws IOException {
         return Azure.configure()
                 .withInterceptor(new TelemetryInterceptor())
                 .withUserAgent(CommonSettings.USER_AGENT)
-                .authenticate(new RefreshableTokenCredentials(azureManager, tid));
+                .authenticate(new RefreshableTokenCredentials(this, tid));
     }
 
     @Override
