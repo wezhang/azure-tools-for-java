@@ -27,13 +27,16 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.uiDesigner.core.GridConstraints.*
+import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxModelDelegated
 import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxSelectionDelegated
+import com.microsoft.azure.hdinsight.sdk.cluster.AzureAdAccountDetail
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
+import com.microsoft.azure.hdinsight.sdk.common.ADLSGen2OAuthHttpObservable
 import com.microsoft.azure.hdinsight.sdk.common.SharedKeyHttpObservable
 import com.microsoft.azure.hdinsight.sdk.storage.ADLSGen2StorageAccount
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.*
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.ADLSGen2FileSystem
@@ -49,7 +52,6 @@ import java.awt.CardLayout
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import java.awt.event.ItemEvent
-import java.net.URI
 import javax.swing.ComboBoxModel
 import javax.swing.JLabel
 import javax.swing.JList
@@ -160,7 +162,7 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
 
         val storageCheckSubject: PublishSubject<StorageCheckEvent> = disposableSubjectOf { PublishSubject.create() }
 
-        fun prepareVFSRoot(uploadRootPath: String?, storageAccount: IHDIStorageAccount?): AzureStorageVirtualFile? {
+        fun prepareVFSRoot(uploadRootPathUri: AbfsUri, storageAccount: IHDIStorageAccount?, cluster: IClusterDetail?): AzureStorageVirtualFile? {
             var fileSystem: AzureStorageVirtualFileSystem?
             var account: String? = null
             var accessKey: String? = null
@@ -179,9 +181,13 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
 
                     SparkSubmitStorageType.ADLS_GEN2 -> {
                         fsType = AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2
-                        val host = URI.create(uploadRootPath).host
-                        account = host.substring(0, host.indexOf("."))
+                        account = uploadRootPathUri.accountName
                         accessKey = adlsGen2Card.storageKeyField.text.trim()
+                    }
+
+                    SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> {
+                        fsType = AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2
+                        account = uploadRootPathUri.accountName
                     }
 
                     else -> {
@@ -195,15 +201,31 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
                 AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2 -> {
                     // for issue #3159, upload path maybe not ready if switching cluster fast so path is the last cluster's path
                     // if switching between gen2 clusters, need to check account is matched
-                    val isPathValid = uploadRootPath?.matches(SparkBatchJob.AdlsGen2RestfulPathPattern.toRegex())
-                            ?: false
-                    val isAccountMatch = uploadRootPath?.contains(account ?: "") ?: false
-                    if (!isPathValid || !isAccountMatch || StringUtils.isBlank(account) || StringUtils.isBlank(accessKey)) {
+                    if (uploadRootPathUri.accountName != account) {
                         return null
                     }
 
-                    fileSystem = ADLSGen2FileSystem(SharedKeyHttpObservable(account, accessKey), uploadRootPath)
-                    return AdlsGen2VirtualFile(fileSystem.root, true, fileSystem)
+                    // Prepare HttpObservable for different cluster type
+                    val http =
+                        if (cluster is AzureAdAccountDetail) {
+                            // Use Azure AD account to access storage data corresponding to Synapse Spark pool.
+                            // In this way at least "Storage Blob Data Reader" role is required, or else we will get
+                            // HTTP 403 Error when list files on the storage.
+                            // https://docs.microsoft.com/en-us/azure/storage/common/storage-access-blobs-queues-portal
+                            ADLSGen2OAuthHttpObservable(cluster.tenantId)
+                        } else {
+                            if (StringUtils.isBlank(accessKey)) {
+                                return null
+                            }
+                            // Use account access key to access Gen2 storage data corresponding to
+                            // HDInsight/Mfa/Linked HDInsight cluster. In this way at least "Storage Account Contributor"
+                            // role is required, or else we will get HTTP 403 Error when list files on the storage
+                            // https://docs.microsoft.com/en-us/azure/storage/common/storage-access-blobs-queues-portal
+                            SharedKeyHttpObservable(account, accessKey)
+                        }
+
+                    fileSystem = ADLSGen2FileSystem(http, uploadRootPathUri)
+                    return AdlsGen2VirtualFile(uploadRootPathUri, true, fileSystem)
                 }
                 else -> {
                     return null

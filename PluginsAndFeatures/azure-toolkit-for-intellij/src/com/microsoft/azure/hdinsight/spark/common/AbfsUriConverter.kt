@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (c) Microsoft Corporation
  *
  * All rights reserved.
@@ -20,44 +20,21 @@
  * SOFTWARE.
  */
 
-package com.microsoft.azure.hdinsight.spark.ui.filesystem
+package com.microsoft.azure.hdinsight.spark.common
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileSystem
+import com.intellij.util.xmlb.Converter
 import com.microsoft.azure.hdinsight.common.AbfsUri
-import com.microsoft.azuretools.azurecommons.helpers.Nullable
 
-open class AdlsGen2VirtualFile(val abfsUri: AbfsUri, private val myIsDirectory: Boolean, private val myFileSystem: VirtualFileSystem) : AzureStorageVirtualFile() {
-    private var parent: VirtualFile? = null
-    override fun getPath(): String = abfsUri.url.path
-    override fun getName(): String {
-        return path.substring(path.lastIndexOf("/") + 1)
+class AbfsUriConverter: Converter<AbfsUri>() {
+    override fun fromString(value: String): AbfsUri? {
+        return if (AbfsUri.isType(value)) {
+            AbfsUri.parse(value)
+        } else {
+            null
+        }
     }
 
-    override fun getFileSystem() = myFileSystem
-
-    override fun isDirectory() = myIsDirectory
-
-    @Nullable
-    override fun getParent(): VirtualFile? {
-        return this.parent
-    }
-
-    override fun setParent(parent: VirtualFile) {
-        this.parent = parent
-    }
-
-    override fun getChildren(): Array<VirtualFile>? = myLazyChildren
-
-    override fun getUrl(): String {
-        return abfsUri.url.toString()
-    }
-
-    private val myLazyChildren: Array<VirtualFile>? by lazy {
-        (myFileSystem as? ADLSGen2FileSystem)?.listFiles(this)
-    }
-
-    override fun toString(): String {
-        return abfsUri.uri.toString()
+    override fun toString(value: AbfsUri): String? {
+        return value.toString()
     }
 }

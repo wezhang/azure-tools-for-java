@@ -40,6 +40,7 @@ import com.intellij.ui.table.JBTable
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.intellij.util.execution.ParametersListUtil
 import com.microsoft.azure.cosmosspark.common.JXHyperLinkWithUri
+import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx
 import com.microsoft.azure.hdinsight.common.DarkThemeManager
 import com.microsoft.azure.hdinsight.common.logger.ILogger
@@ -308,14 +309,20 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
         textField.document.addDocumentListener(documentValidationListener)
         button.addActionListener {
             val root = viewModel.prepareVFSRoot()
+            val listChildrenErrorMessage = root?.listChildrenErrorMessage
             if (root == null) {
                StorageChooser.handleInvalidUploadInfo()
+            } else if (listChildrenErrorMessage != null) {
+                StorageChooser.handleListChildrenFailureInfo(listChildrenErrorMessage)
             } else {
                 val chooser = StorageChooser(root) { file -> file.isDirectory || file.name.endsWith(".jar") }
                 val chooseFiles = chooser.chooseFile()
                 // Only override reference jar text field when jar file is selected and ok button is clicked
                 if (chooseFiles.isNotEmpty()) {
-                    text = chooseFiles.joinToString(";") { vf -> vf.url }
+                    // Warning: We have overridden toString method in class AdlsGen2VirtualFile
+                    // If we implement virtual file for Gen1, blob or other storage later, remember to implement toString method
+                    // for those virtual file class later.
+                    text = chooseFiles.joinToString(";") { vf -> vf.toString() }
                 }
             }
         }
@@ -333,13 +340,19 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
         textField.document.addDocumentListener(documentValidationListener)
         button.addActionListener {
             val root = viewModel.prepareVFSRoot()
+            val listChildrenErrorMessage = root?.listChildrenErrorMessage
             if (root == null) {
                 StorageChooser.handleInvalidUploadInfo()
-            } else {
+            } else if (listChildrenErrorMessage != null) {
+                StorageChooser.handleListChildrenFailureInfo(listChildrenErrorMessage)
+            }  else {
                 val chooser = StorageChooser(root, StorageChooser.ALL_DIRS_AND_FILES)
                 val chooseFiles = chooser.chooseFile()
                 if (chooseFiles.isNotEmpty()) {
-                    text = chooseFiles.joinToString(";") { vf -> vf.url }
+                    // Warning: We have overridden toString method in class AdlsGen2VirtualFile
+                    // If we implement virtual file for Gen1, blob or other storage later, remember to implement toString method
+                    // for those virtual file class later.
+                    text = chooseFiles.joinToString(";") { vf -> vf.toString() }
                 }
             }
         }
@@ -572,12 +585,17 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
             val uploadRootPath = storageWithUploadPathPanel.viewModel.getCurrentUploadFieldText()
                     ?.replace("/${Constants.submissionFolder}/?$".toRegex(), "")
 
+            // Currently we only support VFS for Gen2 storage account
+            if (!AbfsUri.isType(uploadRootPath)) {
+                return null
+            }
+
             val cluster = clustersSelection.viewModel.clusterIsSelected
                     .toBlocking()
                     .firstOrDefault(null)
 
             var storageAccount: IHDIStorageAccount? = cluster?.storageAccount
-            return storageWithUploadPathPanel.viewModel.uploadStorage.prepareVFSRoot(uploadRootPath, storageAccount)
+            return storageWithUploadPathPanel.viewModel.uploadStorage.prepareVFSRoot(AbfsUri.parse(uploadRootPath), storageAccount, cluster)
         }
     }
 

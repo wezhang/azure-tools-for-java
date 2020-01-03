@@ -19,16 +19,15 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 package com.microsoft.azure.hdinsight.sdk.storage;
 
+import com.microsoft.azure.hdinsight.common.AbfsUri;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 
 import java.net.URI;
 
 public class StoragePathInfo {
-    public static final String AdlsGen2PathPattern = "^(abfs[s]?)://(.*)@(.*)$";
-    // TODO: modify the pattern to match the whole URL with relative path
-    public static final String AdlsGen2EndpointPattern = "^https?://([^.]+).dfs.core.windows.net/?$";
     public static final String BlobPathPattern = "^(wasb[s]?)://(.*)@(.*)$";
     public static final String AdlsPathPattern = "^adl://([^/.\\s]+\\.)+[^/.\\s]+(/[^/.\\s]+)*/?$";
 
@@ -44,7 +43,7 @@ public class StoragePathInfo {
     }
 
     private StorageAccountType setStorageType(@NotNull String path) {
-        if (path.matches(AdlsGen2PathPattern) || path.matches(AdlsGen2EndpointPattern)) {
+        if (path.matches(AbfsUri.AdlsGen2PathPattern) || path.matches(AbfsUri.AdlsGen2RestfulPathPattern)) {
             return StorageAccountType.ADLSGen2;
         }
 
@@ -56,6 +55,6 @@ public class StoragePathInfo {
             return StorageAccountType.ADLS;
         }
 
-        throw new IllegalArgumentException("Cannot get valid storage type by default storage root path");
+        throw new IllegalArgumentException("Cannot get valid storage type given storage root path " + path);
     }
 }
