@@ -31,6 +31,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
 import java.awt.CardLayout
+import java.awt.Dimension
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -39,7 +40,10 @@ class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBa
     override val title: String = SparkSubmitStorageType.ADLS_GEN1.description
     private val adlsRootPathTip = "e.g. adl://myaccount.azuredatalakestore.net/<root path>"
     private val adlsRootPathLabel = JLabel("ADLS Root Path").apply { toolTipText = adlsRootPathTip }
-    val adlsRootPathField = HintTextField(adlsRootPathTip).apply { name = "adlsCardRootPathField" }
+    val adlsRootPathField = HintTextField(adlsRootPathTip).apply {
+        name = "adlsCardRootPathField"
+        preferredSize = Dimension(500, 0)
+    }
     private val authMethodLabel = JLabel("Authentication Method")
     private val authMethodComboBox = ComboBox<String>(arrayOf("Azure Account")).apply { name = "adlsCardAuthMethodComboBox" }
     private val subscriptionsLabel = JLabel("Subscription List")

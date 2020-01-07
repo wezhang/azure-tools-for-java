@@ -29,6 +29,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
 import java.awt.CardLayout
+import java.awt.Dimension
 import javax.swing.JLabel
 import javax.swing.JPanel
 
@@ -36,7 +37,10 @@ class SparkSubmissionJobUploadStorageWebHdfsCard: SparkSubmissionJobUploadStorag
     override val title: String =  SparkSubmitStorageType.WEBHDFS.description
     private val webHdfsRootPathTip = "e.g. http(s)://hdfsnamenode:port/webhdfs/v1/<cluster root directory>"
     private val webHdfsRootPathLabel = JLabel("WEBHDFS Root Path").apply { toolTipText = webHdfsRootPathTip }
-    val webHdfsRootPathField = HintTextField(webHdfsRootPathTip).apply { name = "webHdfsCardRootPathTextField" }
+    val webHdfsRootPathField = HintTextField(webHdfsRootPathTip).apply {
+        name = "webHdfsCardRootPathTextField"
+        preferredSize = Dimension(500, 0)
+    }
 
     private val authMethodLabel = JLabel("Authentication Method")
     private val authMethodComboBox = ComboBox<String>(arrayOf("Basic Authorization")).apply { name = "webHdfsCardAuthMethodComboBox" }

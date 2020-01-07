@@ -28,12 +28,16 @@ import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
+import java.awt.Dimension
 import javax.swing.JLabel
 
 class SparkSubmissionJobUploadStorageGen2OAuthCard : SparkSubmissionJobUploadStorageBasicCard() {
     private val gen2RootPathTip = "e.g. abfs://<file_system>@<account_name>.dfs.core.windows.net/<path>"
     private val gen2RootPathLabel = JLabel("ADLS GEN2 Root Path")
-    val gen2RootPathField = HintTextField (gen2RootPathTip).apply { name = "gen2OAuthCardRootPathField" }
+    val gen2RootPathField = HintTextField (gen2RootPathTip).apply {
+        name = "gen2OAuthCardRootPathField"
+        preferredSize = Dimension(500, 0)
+    }
 
     init {
         val formBuilder = panel {
