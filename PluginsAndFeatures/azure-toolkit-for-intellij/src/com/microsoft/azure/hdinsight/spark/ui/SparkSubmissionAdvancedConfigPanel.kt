@@ -56,6 +56,7 @@ import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
 import org.apache.commons.lang3.StringUtils
 import rx.subjects.PublishSubject
+import java.awt.Dimension
 import java.awt.event.ItemEvent.DESELECTED
 import java.awt.event.ItemEvent.SELECTED
 import java.io.File
@@ -127,6 +128,7 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
     private val sshUserNameTextField = JTextField("sshuser").apply {
         name = "sshUserNameTextField"
         toolTipText = sshUserNameTip
+        preferredSize = Dimension(500, 0)
     }
 
     private val sshAuthTypeLabel = JLabel("Secure Shell (SSH) Auth Type").apply {
@@ -142,6 +144,8 @@ class SparkSubmissionAdvancedConfigPanel: JPanel(), SettableControl<SparkSubmitA
     private val sshPasswordField = JPasswordField().apply {
         name = "sshPasswordField"
         toolTipText = usePasswordTip
+        // FIXME!!! The change won't take effects until IntelliJ fixes DarculaPasswordFieldUI::getMinimumSize() issue
+        preferredSize = Dimension(500, 0)
     }
 
     // Key file inputs
