@@ -65,7 +65,7 @@ public class ADLSGen2FileSystem extends AzureStorageVirtualFileSystem {
         List<AdlsGen2VirtualFile> childrenList = new ArrayList<>();
         if (vf.isDirectory()) {
             // sample rootUrl: https://accountName.dfs.core.windows.net/fileSystem
-            URL rootUrl = this.rootPathUri.getRoot().getUrl();
+            URL rootUrl = this.rootPathUri.getUrl();
             // sample directoryParam: sub/path/to
             URI directoryParam = vf.getAbfsUri().getDirectoryParam();
             childrenList = this.op.list(rootUrl.toString(), directoryParam.toString())

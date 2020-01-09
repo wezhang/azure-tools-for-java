@@ -75,30 +75,13 @@ class AbfsUriScenario {
         }
     }
 
-    @Then("^the Gen two base restful path should be$")
-    fun gen2BaseRestfulPathShouldBe(expectedBaseRestfulPath: DataTable) {
-        val actualBaseRestfulPath = this.restfulGen2Paths.stream()
-            .map { path ->
-                try {
-                    AbfsUri.parse(path).root.url.toString()
-                } catch (ex: UnknownFormatConversionException) {
-                    "invalid Gen2 URI"
-                }
-            }
-            .collect(Collectors.toList())
-
-        (0 until actualBaseRestfulPath.size).forEach {
-            assert(actualBaseRestfulPath[it] == expectedBaseRestfulPath.asList(String::class.java)[it])
-        }
-    }
-
     @Then("^the Gen two directory param should be$")
     fun gen2SubPathShouldBe(expectedSubPath: DataTable) {
         val actualSubPath = this.abfsUris.stream()
             .map { path ->
                 try {
                     AbfsUri.parse(path).directoryParam.toString()
-                } catch (ex: UnknownFormatConversionException) {
+                } catch (ex: Throwable) {
                     "invalid Gen2 URI"
                 }
             }

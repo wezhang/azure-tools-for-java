@@ -116,7 +116,7 @@ public class ADLSGen2Deploy implements Deployable, ILogger {
     private String getArtifactUploadedPath(String rootPath) throws URISyntaxException {
         //convert https://fullAccountName/fileSystem/subfolder/guid/artifact.jar to /subfolder/xxxx
         if (AbfsUri.isType(rootPath)) {
-            return AbfsUri.parse(rootPath).getRelativePath();
+            return AbfsUri.parse(rootPath).getPath();
         }
 
         throw new URISyntaxException(rootPath, "Cannot get valid artifact path");

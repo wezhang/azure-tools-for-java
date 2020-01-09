@@ -29,11 +29,12 @@ import org.apache.commons.lang3.StringUtils;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.Objects;
 import java.util.UnknownFormatConversionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class WasbUri {
+public final class WasbUri extends AzureStorageUri {
     public static final Pattern WASB_URI_PATTERN = Pattern.compile(
             "^wasb[s]?://(?<container>[^/.]+)@(?<storageAccount>[^/.]+)\\.blob\\.(?<endpointSuffix>[^/]+)"
                     + "(:(?<port>[0-9]+))?(/(?<path>.*))?$",
@@ -43,29 +44,26 @@ public final class WasbUri {
                     + "(:(?<port>[0-9]+))?(/(?<path>.*))?$",
             Pattern.CASE_INSENSITIVE);
 
-    private final URI rawUri;
     private final LaterInit<String> container = new LaterInit<>();
     private final LaterInit<String> storageAccount = new LaterInit<>();
     private final LaterInit<String> endpointSuffix = new LaterInit<>();
-    private final LaterInit<String> relativePath = new LaterInit<>();
+    private final LaterInit<String> path = new LaterInit<>();
 
     private WasbUri(final URI rawUri) {
-        this.rawUri = rawUri;
+        super(rawUri);
     }
 
-    public URI getRawUri() {
-        return rawUri;
-    }
-
+    @Override
     public URI getUri() {
         return URI.create(String.format("wasbs://%s@%s.blob.%s%s",
-                getContainer(), getStorageAccount(), getEndpointSuffix(), getRelativePath()));
+                getContainer(), getStorageAccount(), getEndpointSuffix(), getPath()));
     }
 
+    @Override
     public URL getUrl() {
         try {
             return URI.create(String.format("https://%s.blob.%s/%s%s",
-                    getStorageAccount(), getContainer(), getEndpointSuffix(), getRelativePath())).toURL();
+                    getStorageAccount(), getContainer(), getEndpointSuffix(), getPath())).toURL();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
@@ -83,17 +81,28 @@ public final class WasbUri {
         return this.endpointSuffix.get();
     }
 
-    public String getRelativePath() {
-        return this.relativePath.get();
+    @Override
+    public String getPath() {
+        return this.path.get();
+    }
+
+    @Override
+    AzureStorageUri resolve(String path) {
+        return WasbUri.parse(getUri().resolve(path).toString());
+    }
+
+    @Override
+    AzureStorageUri normalizeWithSlashEnding() {
+        return WasbUri.parse(UriUtil.normalizeWithSlashEnding(getUri()).toString());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getStorageAccount(), getContainer(), getEndpointSuffix(), getPath());
     }
 
     public String getHadoopBlobFsPropertyKey() {
         return String.format("fs.azure.account.key.%s.blob.%s", getStorageAccount(), getEndpointSuffix());
-    }
-
-    @Override
-    public String toString() {
-        return rawUri.toString();
     }
 
     public static WasbUri parse(final String blobUri) {
@@ -115,7 +124,7 @@ public final class WasbUri {
 
             final String pathMatched = matcher.group("path");
             final String relativePathMatched = URI.create("/" + (pathMatched == null ? "" : pathMatched)).getPath();
-            wasbUri.relativePath.set(relativePathMatched);
+            wasbUri.path.set(relativePathMatched);
 
             return wasbUri;
         }

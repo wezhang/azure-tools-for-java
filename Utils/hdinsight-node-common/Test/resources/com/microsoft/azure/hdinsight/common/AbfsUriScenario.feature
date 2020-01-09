@@ -34,22 +34,6 @@ Feature: ADLS Gen2 URI operation
       | https://accountName.dfs.core.windows.net/fs0/subPath0/         |
       | https://accountName.dfs.core.windows.net/fs0/subPath0/subPath1 |
 
-  Scenario: Get base path from Gen2 restful path
-    Given Gen two restful path is
-      | https://accountName.dfs.core.windows.net                       |
-      | https://accountName.dfs.core.windows.net/fs0                   |
-      | https://accountName.dfs.core.windows.net/fs0/                  |
-      | https://accountName.dfs.core.windows.net/fs0/subPath0          |
-      | https://accountName.dfs.core.windows.net/fs0/subPath0/         |
-      | https://accountName.dfs.core.windows.net/fs0/subPath0/subPath1 |
-    Then the Gen two base restful path should be
-      | invalid Gen2 URI                             |
-      | https://accountName.dfs.core.windows.net/fs0 |
-      | https://accountName.dfs.core.windows.net/fs0 |
-      | https://accountName.dfs.core.windows.net/fs0 |
-      | https://accountName.dfs.core.windows.net/fs0 |
-      | https://accountName.dfs.core.windows.net/fs0 |
-
   Scenario: Get Gen2 directory param from ABFS URI
     Given ABFS URI is
       | abfs://accountName.dfs.core.windows.net                        |
