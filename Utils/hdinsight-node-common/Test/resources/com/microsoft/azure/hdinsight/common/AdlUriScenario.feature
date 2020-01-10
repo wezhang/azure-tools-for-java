@@ -65,3 +65,17 @@ Feature: ADLS Gen1 URI operation
       | adl://account.azuredatalakestore.net/sp0/     | /sp1     | adl://account.azuredatalakestore.net/sp0/sp1      |
       | adl://account.azuredatalakestore.net/sp0/     | /sp1/    | adl://account.azuredatalakestore.net/sp0/sp1/     |
       | adl://account.azuredatalakestore.net/root/sp0 | sp1      | adl://account.azuredatalakestore.net/root/sp0/sp1 |
+
+  Scenario: Check Gen1 URI relativize
+    Then check ADL URI relativize as below
+      | src                                           | dest                                                           | result |
+      | adl://accountName.azuredatalakestore.net      | adl://accountName.azuredatalakestore.net/                      |        |
+      | adl://accountName.azuredatalakestore.net/     | adl://accountName.azuredatalakestore.net/sp0                   | sp0    |
+      | adl://accountName.azuredatalakestore.net/sp0  | adl://accountName.azuredatalakestore.net/sp0                   |        |
+      | adl://accountName.azuredatalakestore.net/sp0  | adl://accountName.azuredatalakestore.net/sp0/sp1               | sp1    |
+      | adl://accountName.azuredatalakestore.net/sp0  | https://accountName.azuredatalakestore.net/webhdfs/v1/sp0/sp1  | sp1    |
+      | adl://accountName.azuredatalakestore.net/sp0  | adl://accountName.azuredatalakestore.net/sp1                   | <null> |
+      | adl://accountName.azuredatalakestore.net/sp0/ | adl://accountName.azuredatalakestore.net/sp1                   | <null> |
+      | adl://accountName.azuredatalakestore.net/sp0/ | adl://otherName.azuredatalakestore.net/sp1                     | <null> |
+      | adl://accountName.azuredatalakestore.net/sp0/ | adl://otherName.azuredatalakestore.net/sp0/sp1                 | <null> |
+

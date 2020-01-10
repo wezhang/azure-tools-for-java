@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.common;
 
+import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+
 import java.net.URI;
 import java.net.URL;
 
@@ -100,10 +102,17 @@ abstract public class AzureStorageUri {
      * Compute relativized path as URI.relativize(target)
      *
      * @param target the target Azure storage URI to relativize
-     * @return a new instance with both common part path
+     * @return a new instance with removing both common part path, null for not related
      */
+    @Nullable
     public String relativize(AzureStorageUri target) {
-        return getUri().relativize(target.getUri()).getPath();
+        String relativePath = getUri().relativize(target.getUri()).getPath();
+
+        if (relativePath.startsWith("/")) {
+            return null;
+        }
+
+        return relativePath;
     }
 
     @Override

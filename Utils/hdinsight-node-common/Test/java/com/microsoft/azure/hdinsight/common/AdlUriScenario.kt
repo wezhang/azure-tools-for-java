@@ -32,6 +32,7 @@ class AdlUriScenario {
     data class AdlUriParameterEntry(val uri: String, val path: String, val storageName: String)
     data class UrlUriEqualEntry(val src: String, val dest: String, val isEqualed: Boolean)
     data class UriPathResolveAsRootEntry(val uri: String, val path: String, val result: String)
+    data class UriRelativizeCheckEntry(val src: String, val dest: String, val result: String)
 
     @Then("convert Gen ONE URL restful path to URI should be")
     fun checkGenOne2HttpConversion(checkTable: List<UrlUriEntry>) {
@@ -95,6 +96,20 @@ class AdlUriScenario {
             val dest = AdlUri.parse(it.result)
 
             assertEquals(dest, src.resolveAsRoot(it.path), "Check ADL URI ${it.uri} resolve ${it.path} as root path")
+        }
+    }
+
+    @Then("check ADL URI relativize as below")
+    fun checkAdlUriRelativize(checkTable: List<UriRelativizeCheckEntry>) {
+        checkTable.forEach {
+            val src = AdlUri.parse(it.src)
+            val dest = AdlUri.parse(it.dest)
+
+            assertEquals(
+                    it.result.takeIf { result -> result != "<null>"},
+                    src.relativize(dest),
+                    "Check ADL URI ${it.src} relativite ${it.dest} as root path"
+            )
         }
     }
 }
