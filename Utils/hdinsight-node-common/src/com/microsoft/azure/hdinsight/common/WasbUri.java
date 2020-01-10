@@ -63,7 +63,7 @@ public final class WasbUri extends AzureStorageUri {
     public URL getUrl() {
         try {
             return URI.create(String.format("https://%s.blob.%s/%s%s",
-                    getStorageAccount(), getContainer(), getEndpointSuffix(), getPath())).toURL();
+                    getStorageAccount(), getEndpointSuffix(), getContainer(), getPath())).toURL();
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
