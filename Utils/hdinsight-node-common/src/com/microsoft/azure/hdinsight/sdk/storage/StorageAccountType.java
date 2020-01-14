@@ -21,9 +21,41 @@
  */
 package com.microsoft.azure.hdinsight.sdk.storage;
 
+import com.microsoft.azure.hdinsight.common.AbfsUri;
+import com.microsoft.azure.hdinsight.common.AdlUri;
+import com.microsoft.azure.hdinsight.common.WasbUri;
+
+import java.net.URI;
+
+import static org.apache.commons.lang3.StringUtils.startsWithAny;
+
 public enum StorageAccountType {
     BLOB,
     ADLS,
     ADLSGen2,
-    UNKNOWN
+    UNKNOWN;
+
+    public static StorageAccountType parseUri(String uri) {
+        try {
+            return parseUri(URI.create(uri));
+        } catch (IllegalArgumentException ignored) {
+            return UNKNOWN;
+        }
+    }
+
+    public static StorageAccountType parseUri(URI uri) {
+        if (startsWithAny(uri.getScheme().toLowerCase(), "http", "https")) {
+            return UNKNOWN;
+        }
+
+        if (WasbUri.isType(uri.toString())) {
+            return BLOB;
+        } else if (AdlUri.isType(uri.toString())) {
+            return ADLS;
+        } else if (AbfsUri.isType(uri.toString())) {
+            return ADLSGen2;
+        } else {
+            return UNKNOWN;
+        }
+    }
 }

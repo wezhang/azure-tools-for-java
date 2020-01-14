@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.sdk.cluster;
 
 import com.microsoft.azure.hdinsight.common.AbfsUri;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
+import com.microsoft.azure.hdinsight.common.WasbUri;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightNewAPI.ClusterOperationNewAPIImpl;
 import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightNewAPI.HDInsightUserRoleType;
@@ -44,7 +45,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, ILogger  {
 
@@ -344,18 +344,18 @@ public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, 
             return null;
         }
 
-        String containerAddress = null;
+        String defaultFs = null;
         if (requestedCoresiteMap.containsKey(DefaultFS)) {
-            containerAddress = requestedCoresiteMap.get(DefaultFS);
+            defaultFs = requestedCoresiteMap.get(DefaultFS);
         } else if (requestedCoresiteMap.containsKey(FSDefaultName)) {
-            containerAddress = requestedCoresiteMap.get(FSDefaultName);
+            defaultFs = requestedCoresiteMap.get(FSDefaultName);
         } else {
             log().warn("Error getting cluster default storage account. containerAddress is null.");
             return null;
         }
 
-        String scheme = URI.create(containerAddress).getScheme();
-        if (ADL_HOME_PREFIX.equalsIgnoreCase(containerAddress)) {
+        String scheme = URI.create(defaultFs).getScheme();
+        if (ADL_HOME_PREFIX.equalsIgnoreCase(defaultFs)) {
             String accountName = "";
             String defaultRootPath = "";
 
@@ -369,14 +369,13 @@ public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, 
             return URI.create(String.format("%s://%s.azuredatalakestore.net", scheme, accountName))
                     .resolve(defaultRootPath)
                     .toString();
-        } else if (Pattern.compile(StoragePathInfo.BlobPathPattern).matcher(containerAddress).matches()
-                || Pattern.compile(AbfsUri.AdlsGen2PathPattern).matcher(containerAddress).matches()) {
-            return containerAddress;
+        } else if (WasbUri.isType(defaultFs) || AbfsUri.isType(defaultFs)) {
+            return defaultFs;
         } else {
             final Map<String, String> properties = new HashMap<>();
             properties.put("ErrorType", "Unknown HDInsight default storage type");
             properties.put("coreSiteMap", StringUtils.join(requestedCoresiteMap));
-            properties.put("containerAddress", containerAddress);
+            properties.put("containerAddress", defaultFs);
             properties.put("ClusterID", this.clusterRawInfo.getId());
             AppInsightsClient.createByType(AppInsightsClient.EventType.Error, this.getClass().getSimpleName(), null, properties);
 
@@ -391,20 +390,17 @@ public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, 
             throw new HDIException("Failed to get default storage root path");
         }
 
-        StoragePathInfo pathInfo = new StoragePathInfo(defaultStorageRootPath);
-        switch (pathInfo.storageType) {
+        StorageAccountType storageType = StorageAccountType.parseUri(URI.create(defaultStorageRootPath));
+        switch (storageType) {
             case ADLS:
                 return new ADLSStorageAccount(this, true, clusterIdentity, URI.create(defaultStorageRootPath));
 
             case BLOB:
-                String storageAccountName = pathInfo.path.getHost();
-                if (StringUtils.isBlank(storageAccountName)) {
-                    throw new HDIException(String.format("Failed to get default storage account name from root path %s with %s storage type",
-                            defaultStorageRootPath, pathInfo.storageType));
-                }
-
-                String defaultContainerName = pathInfo.path.getUserInfo();
-                String defaultStorageAccountKey = StorageAccountKeyPrefix + storageAccountName;
+                WasbUri wasbUri = WasbUri.parse(defaultStorageRootPath);
+                String storageAccountName = wasbUri.getStorageAccount();
+                String defaultContainerName = wasbUri.getContainer();
+                String defaultStorageAccountKey =
+                        StorageAccountKeyPrefix + storageAccountName + ".blob." + wasbUri.getEndpointSuffix();
                 String storageAccountKey = null;
                 if (coresiteMap.containsKey(defaultStorageAccountKey)) {
                     storageAccountKey = coresiteMap.get(defaultStorageAccountKey);
@@ -417,14 +413,10 @@ public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, 
                 return new HDStorageAccount(this, storageAccountName, storageAccountKey, true, defaultContainerName);
 
             case ADLSGen2:
-                String accountName = pathInfo.path.getHost();
-                if (StringUtils.isBlank(accountName)) {
-                    throw new HDIException(String.format("Failed to get default storage account name from root path %s with %s storage type",
-                            defaultStorageRootPath, pathInfo.storageType));
-                }
-
-                String fileSystem = pathInfo.path.getUserInfo();
-                return new ADLSGen2StorageAccount(this, accountName, null, true, fileSystem, pathInfo.path.getScheme());
+                AbfsUri abfsUri = AbfsUri.parse(defaultStorageRootPath);
+                String accountName = abfsUri.getAccountName();
+                String fileSystem = abfsUri.getFileSystem();
+                return new ADLSGen2StorageAccount(this, accountName, null, true, fileSystem, abfsUri.getUri().getScheme());
 
             default:
                 return null;
