@@ -23,6 +23,7 @@ package com.microsoft.azure.hdinsight.spark.run;
 
 import com.intellij.execution.ExecutionException;
 import com.microsoft.azure.hdinsight.common.AbfsUri;
+import com.microsoft.azure.hdinsight.common.AdlUri;
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.UriUtil;
@@ -140,7 +141,7 @@ public class SparkBatchJobDeployFactory implements ILogger {
                 break;
             case ADLS_GEN1:
                 String rawRootPath = submitModel.getJobUploadStorageModel().getAdlsRootPath();
-                if (StringUtils.isBlank(rawRootPath) || !rawRootPath.matches(StoragePathInfo.AdlsPathPattern)) {
+                if (StringUtils.isBlank(rawRootPath) || !AdlUri.isType(rawRootPath)) {
                     throw new ExecutionException("Invalid adls root path input");
                 }
 
