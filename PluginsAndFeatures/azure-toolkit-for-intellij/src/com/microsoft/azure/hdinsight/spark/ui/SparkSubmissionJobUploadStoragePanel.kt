@@ -103,10 +103,12 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
         addItemListener { itemEvent ->
             // change panel
             val curLayout = storageCardsPanel.layout as? CardLayout ?: return@addItemListener
-            curLayout.show(storageCardsPanel, (itemEvent.item as? SparkSubmitStorageType)?.description)
 
             if (itemEvent?.stateChange == ItemEvent.SELECTED) {
-                viewModel.storageCheckSubject.onNext(StorageCheckSelectedStorageTypeEvent((itemEvent.item as SparkSubmitStorageType).description))
+                val selectedType = itemEvent.item as? SparkSubmitStorageType ?: return@addItemListener
+
+                curLayout.show(storageCardsPanel, selectedType.description)
+                viewModel.storageCheckSubject.onNext(StorageCheckSelectedStorageTypeEvent(selectedType.description))
             }
         }
 
