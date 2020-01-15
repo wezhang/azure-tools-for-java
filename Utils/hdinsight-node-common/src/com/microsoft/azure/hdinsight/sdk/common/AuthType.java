@@ -24,7 +24,8 @@ package com.microsoft.azure.hdinsight.sdk.common;
 public enum AuthType {
     BasicAuth("Basic Authentication"),
     AADAuth("Azure Account"),
-    NoAuth("No Authentication");
+    NoAuth("No Authentication"),
+    NotSupported("Not supported");
 
     private String type;
 

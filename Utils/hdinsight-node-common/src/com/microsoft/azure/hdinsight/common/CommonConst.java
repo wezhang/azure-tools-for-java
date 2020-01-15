@@ -72,4 +72,8 @@ public class CommonConst {
     public static final String DISABLE_SSL_CERTIFICATE_VALIDATION = "false";
 
     public static final String CosmosServerlessToolWindowIconName= "SparkSubmissionToolWindow";
+
+    public static final String[] AZURE_LOGIN_HOSTS = new String[] {
+            "login.windows.net"
+    };
 }

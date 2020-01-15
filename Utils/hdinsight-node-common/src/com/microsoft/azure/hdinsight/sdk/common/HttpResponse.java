@@ -56,6 +56,15 @@ public class HttpResponse {
         return headers;
     }
 
+    public String findHeader(String headerName) {
+        return getHeaders().stream()
+                .filter(header -> header.getName().equalsIgnoreCase(headerName))
+                // refer to https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+                // combine all values by comma
+                .map(Header::getValue)
+                .collect(Collectors.joining(","));
+    }
+
     public String getContent() {
         return content;
     }

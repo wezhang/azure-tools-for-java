@@ -21,6 +21,8 @@
  */
 package com.microsoft.azure.hdinsight.sdk.cluster;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount;
 import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
@@ -28,8 +30,8 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageTypeOptionsF
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 
 import java.io.IOException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.net.URI;
+import java.util.Arrays;
 
 public class MfaHdiAdditionalClusterDetail extends HDInsightAdditionalClusterDetail implements MfaEspCluster, ILogger {
     private String tenantId;
@@ -41,17 +43,17 @@ public class MfaHdiAdditionalClusterDetail extends HDInsightAdditionalClusterDet
     @Nullable
     @Override
     public synchronized String getTenantId(){
-        if(this.tenantId != null){
+        if(StringUtils.isNoneBlank(this.tenantId)){
             return this.tenantId;
         }
 
         try {
-            String location = SparkBatchSubmission.getInstance().negotiateAuthMethod(getConnectionUrl());
-            if (location != null && location.matches(SparkBatchSubmission.probeLocationPattern)) {
-                Matcher m = Pattern.compile(SparkBatchSubmission.probeLocationPattern).matcher(location);
-                if (m.find()) {
-                    this.tenantId = m.group("tenantId");
-                }
+            String location = SparkBatchSubmission.getInstance().probeAuthRedirectUrl(getConnectionUrl());
+            if (location != null) {
+                this.tenantId = Arrays.stream(URI.create(location).getPath().split("/"))
+                        .skip(1)    // The URI path is starting by `/`
+                        .findFirst()
+                        .orElse(null);
             }
         } catch (IOException ex) {
             log().warn(String.format("Encounter exception when negotiating request for linked mfa cluster %s", ex));

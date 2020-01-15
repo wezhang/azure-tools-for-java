@@ -216,10 +216,7 @@ public class ClusterManagerEx implements ILogger {
         }
 
         return Observable.fromCallable(() -> manager.getSubscriptionManager().getSelectedSubscriptionDetails())
-                .doOnError(err ->
-                        DefaultLoader.getUIHelper().showError("Failed to get HDInsight Clusters. " +
-                                        "Please check your subscription and login at Azure Explorer (View -> Tool Windows -> Azure Explorer).",
-                                "List HDInsight Cluster Error"))
+                .doOnError(err -> log().warn("Failed to list HDInsight Clusters: {}", err.getMessage()))
                 .flatMap(this::getSubscriptionHDInsightClustersOfType)
                 .onErrorResumeNext(Observable.just(new ArrayList<>()))
                 .toBlocking()

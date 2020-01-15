@@ -21,17 +21,19 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import com.microsoft.azure.hdinsight.common.CommonConst;
 import com.microsoft.azure.hdinsight.common.HDInsightLoader;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.common.appinsight.AppInsightsHttpRequestInstallIdMapRecord;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azure.hdinsight.sdk.common.AuthType;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.service.ServiceManager;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
-import okio.Timeout;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.net.util.Base64;
 import org.apache.http.Header;
@@ -60,14 +62,12 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SparkBatchSubmission implements ILogger {
-    public static final String probeLocationPattern = "^https://login.windows.net/(?<tenantId>[^/.\\s]+)+(/oauth2/authorize\\?client_id=)+(?<clientId>[^&/.\\s]+)+(&.*)$";
-
     SparkBatchSubmission() {
     }
 
@@ -162,20 +162,59 @@ public class SparkBatchSubmission implements ILogger {
         return credentialsProvider;
     }
 
-    public String negotiateAuthMethod(String connectUrl) throws IOException {
+
+    @Nullable
+    public String probeAuthRedirectUrl(String connectUrl) throws IOException {
         HttpResponse resp = negotiateAuthMethodWithResp(connectUrl);
         if (resp.getCode() == 302) {
-            String location = resp.getHeaders().stream()
-                    .filter(header -> header.getName().equalsIgnoreCase("Location"))
-                    .findFirst()
-                    .map(header -> header.getValue())
-                    .filter(loc -> loc.matches(probeLocationPattern))
-                    .orElse(null);
+            String location = resp.findHeader("Location");
 
-            return location;
+            return isAzureADLoginUrl(location) ? location : null;
         }
 
         return null;
+    }
+
+    private boolean isAzureADLoginUrl(String url) {
+        try {
+            String loginHost = URI.create(url).getHost();
+
+            return Arrays.stream(CommonConst.AZURE_LOGIN_HOSTS)
+                    .anyMatch(it -> it.equalsIgnoreCase(loginHost));
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+
+    public AuthType probeAuthType(String connectUrl) throws IOException {
+        HttpResponse resp = negotiateAuthMethodWithResp(connectUrl);
+
+        if (resp.getCode() >= 200 && resp.getCode() < 300) {
+            return AuthType.NoAuth;
+        }
+
+        if (resp.getCode() == 302) {
+            if (Optional.ofNullable(resp.findHeader("Location"))
+                    .filter(this::isAzureADLoginUrl)
+                    .isPresent()) {
+                return AuthType.AADAuth;
+            }
+
+            return AuthType.NotSupported;
+        }
+
+        if (resp.getCode() == 401) {
+            if (Optional.ofNullable(resp.findHeader("www-authenticate"))
+                    .filter(authHeader -> StringUtils.startsWithIgnoreCase(authHeader, "Basic"))
+                    .isPresent()) {
+                return AuthType.BasicAuth;
+            }
+
+            return AuthType.NotSupported;
+        }
+
+        return AuthType.NotSupported;
     }
 
     public HttpResponse negotiateAuthMethodWithResp(String connectUrl) throws IOException{
