@@ -21,6 +21,10 @@
  */
 package com.microsoft.azure.hdinsight.common;
 
+import com.microsoft.azuretools.authmanage.CommonSettings;
+
+import java.net.URI;
+
 public class CommonConst {
     public static final String ProductIconName = "Product";
     public static final String RefreshIConPath = "/icons/Refresh.png";
@@ -74,6 +78,7 @@ public class CommonConst {
     public static final String CosmosServerlessToolWindowIconName= "SparkSubmissionToolWindow";
 
     public static final String[] AZURE_LOGIN_HOSTS = new String[] {
-            "login.windows.net"
+            "login.windows.net",
+            URI.create(CommonSettings.getAdEnvironment().activeDirectoryEndpoint()).getHost()
     };
 }

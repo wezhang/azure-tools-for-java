@@ -50,6 +50,11 @@ public class MfaHdiAdditionalClusterDetail extends HDInsightAdditionalClusterDet
         try {
             String location = SparkBatchSubmission.getInstance().probeAuthRedirectUrl(getConnectionUrl());
             if (location != null) {
+                // Redirect location pattern should be like this:
+                // https://login.windows.net/<tenantId>/oauth2/authorize?client_id=<client_UUID>&response_type=code
+                //     &scope=User.Read&redirect_uri=https://<cluster_name>.azurehdinsight.net
+                //     &nonce=<nonce_UUID>&resource=https://graph.microsoft.com
+                //     &state=<state_seed>&response_mode=form_post
                 this.tenantId = Arrays.stream(URI.create(location).getPath().split("/"))
                         .skip(1)    // The URI path is starting by `/`
                         .findFirst()

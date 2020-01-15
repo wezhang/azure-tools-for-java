@@ -176,8 +176,16 @@ public class SparkBatchSubmission implements ILogger {
     }
 
     private boolean isAzureADLoginUrl(String url) {
+        if (url.split(",").length > 1) {
+            return false;
+        }
+
         try {
             String loginHost = URI.create(url).getHost();
+
+            if (StringUtils.isBlank(loginHost)) {
+                return false;
+            }
 
             return Arrays.stream(CommonConst.AZURE_LOGIN_HOSTS)
                     .anyMatch(it -> it.equalsIgnoreCase(loginHost));
