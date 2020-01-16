@@ -22,9 +22,8 @@
 
 package com.microsoft.azure.hdinsight.common;
 
-import org.apache.commons.lang3.StringUtils;
-
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.commons.lang3.StringUtils;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -45,7 +44,6 @@ public class AdlUri extends AzureStorageUri {
             Pattern.CASE_INSENSITIVE);
 
     private final LaterInit<String> storageName = new LaterInit<>();
-    private final LaterInit<String> path = new LaterInit<>();
 
     private AdlUri(URI rawUri) {
         super(rawUri);
@@ -72,18 +70,8 @@ public class AdlUri extends AzureStorageUri {
     }
 
     @Override
-    public String getPath() {
-        return this.path.get();
-    }
-
-    @Override
-    AzureStorageUri resolve(String path) {
-        return AdlUri.parse(getUri().resolve(path).toString());
-    }
-
-    @Override
-    AzureStorageUri normalizeWithSlashEnding() {
-        return AdlUri.parse(UriUtil.normalizeWithSlashEnding(getUri()).toString());
+    AzureStorageUri parseUri(URI encodedUri) {
+        return AdlUri.parse(encodedUri.toString());
     }
 
     @Override
@@ -115,7 +103,7 @@ public class AdlUri extends AzureStorageUri {
 
         final String pathMatched = matcher.group("path");
         final String relativePathMatched = URI.create("/" + (pathMatched == null ? "" : pathMatched)).getPath();
-        uri.path.set(relativePathMatched);
+        uri.path.set(URI.create(relativePathMatched));
 
         // TODO: matcher.group("port") is ignored now, should be fixed later
 
