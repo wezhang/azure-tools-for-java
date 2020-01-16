@@ -38,6 +38,8 @@ import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.azurecommons.helpers.StringHelper;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import rx.Observable;
 
@@ -48,6 +50,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.util.Collections.emptyList;
 
 public class ClusterManagerEx implements ILogger {
 
@@ -404,7 +408,7 @@ public class ClusterManagerEx implements ILogger {
         DefaultLoader.getIdeHelper().setApplicationProperty(CommonConst.SQL_BIG_DATA_LIVY_LINK_CLUSTERS, sqlBigDatalivyLinkClustersJson);
     }
 
-    List<IClusterDetail> loadAdditionalClusters() {
+    synchronized List<IClusterDetail> loadAdditionalClusters() {
         List<IClusterDetail> hdiAdditionalClusters = new ArrayList<>();
         List<IClusterDetail> hdiAdditionalMfaClusters = new ArrayList<>();
         List<IClusterDetail> hdiLivyLinkClusters = new ArrayList<>();
@@ -416,26 +420,37 @@ public class ClusterManagerEx implements ILogger {
         String additionalMfaClustersJson = DefaultLoader.getIdeHelper().getApplicationProperty(CommonConst.HDINSIGHT_ADDITIONAL_MFA_CLUSTERS);
         String livyLinkClustersJson = DefaultLoader.getIdeHelper().getApplicationProperty(CommonConst.HDINSIGHT_LIVY_LINK_CLUSTERS);
         String sqlBigDataClustersJson = DefaultLoader.getIdeHelper().getApplicationProperty(CommonConst.SQL_BIG_DATA_LIVY_LINK_CLUSTERS);
-        if (!StringHelper.isNullOrWhiteSpace(additionalClustersJson) && !StringHelper.isNullOrWhiteSpace(livyLinkClustersJson)) {
-            try {
-                hdiAdditionalClusters = gson.fromJson(additionalClustersJson, new TypeToken<ArrayList<HDInsightAdditionalClusterDetail>>() {
-                }.getType());
-                hdiAdditionalMfaClusters = gson.fromJson(additionalMfaClustersJson, new TypeToken<ArrayList<MfaHdiAdditionalClusterDetail>>() {
-                }.getType());
-                hdiLivyLinkClusters = gson.fromJson(livyLinkClustersJson, new TypeToken<ArrayList<HDInsightLivyLinkClusterDetail>>() {
-                }.getType());
-                sqlBigDataClusters = gson.fromJson(sqlBigDataClustersJson, new TypeToken<ArrayList<SqlBigDataLivyLinkClusterDetail>>() {
-                }.getType());
-            } catch (JsonSyntaxException e) {
-                isListAdditionalClusterSuccess = false;
-                // clear local cache if we cannot get information from local json
-                DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_ADDITIONAL_CLUSTERS);
-                DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_ADDITIONAL_MFA_CLUSTERS);
-                DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_LIVY_LINK_CLUSTERS);
-                DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.SQL_BIG_DATA_LIVY_LINK_CLUSTERS);
-                DefaultLoader.getUIHelper().showException("Failed to list linked clusters", e, "List Linked Clusters", false, true);
-                return new ArrayList<>();
-            }
+
+        try {
+            hdiAdditionalClusters = StringUtils.isBlank(additionalClustersJson)
+                ? emptyList()
+                : gson.fromJson(additionalClustersJson,
+                                new TypeToken<ArrayList<HDInsightAdditionalClusterDetail>>() { }.getType());
+
+            hdiAdditionalMfaClusters = StringUtils.isBlank(additionalMfaClustersJson)
+                    ? emptyList()
+                    : gson.fromJson(additionalMfaClustersJson,
+                                    new TypeToken<ArrayList<MfaHdiAdditionalClusterDetail>>() { }.getType());
+
+            hdiLivyLinkClusters = StringUtils.isBlank(livyLinkClustersJson)
+                    ? emptyList()
+                    : gson.fromJson(livyLinkClustersJson,
+                                    new TypeToken<ArrayList<HDInsightLivyLinkClusterDetail>>() { }.getType());
+
+            sqlBigDataClusters = StringUtils.isBlank(sqlBigDataClustersJson)
+                    ? emptyList()
+                    : gson.fromJson(sqlBigDataClustersJson,
+                                    new TypeToken<ArrayList<SqlBigDataLivyLinkClusterDetail>>() { }.getType());
+
+        } catch (JsonSyntaxException e) {
+            isListAdditionalClusterSuccess = false;
+            // clear local cache if we cannot get information from local json
+            DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_ADDITIONAL_CLUSTERS);
+            DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_ADDITIONAL_MFA_CLUSTERS);
+            DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.HDINSIGHT_LIVY_LINK_CLUSTERS);
+            DefaultLoader.getIdeHelper().unsetApplicationProperty(CommonConst.SQL_BIG_DATA_LIVY_LINK_CLUSTERS);
+            DefaultLoader.getUIHelper().showException("Failed to list linked clusters", e, "List Linked Clusters", false, true);
+            return new ArrayList<>();
         }
 
         isListAdditionalClusterSuccess = true;
