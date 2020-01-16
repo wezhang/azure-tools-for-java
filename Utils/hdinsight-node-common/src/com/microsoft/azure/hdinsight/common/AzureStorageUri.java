@@ -23,8 +23,10 @@
 package com.microsoft.azure.hdinsight.common;
 
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import org.apache.http.client.utils.URIBuilder;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 
 /**
@@ -32,6 +34,7 @@ import java.net.URL;
  */
 abstract public class AzureStorageUri {
     private final URI rawUri;
+    protected final LaterInit<URI> path = new LaterInit<>();
 
     protected AzureStorageUri(URI rawUri) {
         this.rawUri = rawUri;
@@ -47,7 +50,7 @@ abstract public class AzureStorageUri {
     }
 
     /**
-     * Get URI with specified scheme, not limited to HTTP or HTTPS
+     * Get URI with specified scheme except HTTP and HTTPS
      *
      * @return URI of current instance
      */
@@ -61,11 +64,22 @@ abstract public class AzureStorageUri {
     abstract public URL getUrl();
 
     /**
-     * Get URI path like URI.getPath()
+     * Get decoded URI path like URI.getPath()
      *
      * @return the path of current URI
      */
-    abstract public String getPath();
+    public String getPath() {
+        return path.get().getPath();
+    }
+
+    /**
+     * Get Raw URI path like URI.getRawPath()
+     *
+     * @return raw path of current URI
+     */
+    public String getRawPath() {
+        return path.get().getRawPath();
+    }
 
     /**
      * Resolve target path as URI.resolve(target)
@@ -73,14 +87,25 @@ abstract public class AzureStorageUri {
      * @param target the target path to resolve
      * @return resolved Azure storage URI
      */
-    abstract AzureStorageUri resolve(String target);
+    public AzureStorageUri resolve(String target) {
+        return parseUri(getUri().resolve("./" + target));
+    }
+
+    /**
+     * Parse the String to AzureStorageUri
+     * @param encodedUri the encoded Uri to parse
+     * @return parsed Azure storage URI
+     */
+    abstract AzureStorageUri parseUri(URI encodedUri);
 
     /**
      * Normalize the URI with slash ending
      *
      * @return a new instance with slash ended
      */
-    abstract AzureStorageUri normalizeWithSlashEnding();
+    public AzureStorageUri normalizeWithSlashEnding() {
+        return parseUri(UriUtil.normalizeWithSlashEnding(getUri()));
+    }
 
     /**
      * Treat current Azure Storage URI as root to resolve the target path
@@ -93,9 +118,7 @@ abstract public class AzureStorageUri {
      * @return A new instance with connecting the current URI as root path with target
      */
     public AzureStorageUri resolveAsRoot(String target) {
-        String normalizedTarget = URI.create("/").relativize(URI.create(target)).toString();
-
-        return normalizeWithSlashEnding().resolve(normalizedTarget);
+        return normalizeWithSlashEnding().resolve("./" + target);
     }
 
     /**
@@ -113,6 +136,28 @@ abstract public class AzureStorageUri {
         }
 
         return relativePath;
+    }
+
+    /**
+     * Encode and normalize the relative path in the Azure Storage URI.
+     *
+     * Note: There is a different behavior between this method and URI.normalize()
+     * even if both methods return URI with correct format.
+     *
+     * URI.create("./:bbb").normalize().toString will return "./:bbb"
+     * this.encodeAndNormalizePath("./:bbb") will return ":bbb"
+     *
+     * @param rawPath un-encoded raw path in the Azure Storage URI
+     * @return encoded and normalized path in the Azure Storage URI
+     */
+    public static String encodeAndNormalizePath(String rawPath) {
+        try {
+            String encodedPath = URI.create("/").relativize(new URIBuilder().setPath("/" + rawPath).build()).getRawPath();
+            return rawPath.startsWith("/") ? "/" + encodedPath : encodedPath;
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException(
+                    String.format("Error when encode raw path %s. Error:%s", rawPath, ex.getMessage()), ex);
+        }
     }
 
     @Override
