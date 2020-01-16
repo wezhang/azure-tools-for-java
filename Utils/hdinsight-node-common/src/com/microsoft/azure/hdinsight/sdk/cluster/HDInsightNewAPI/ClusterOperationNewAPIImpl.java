@@ -23,12 +23,13 @@
 package com.microsoft.azure.hdinsight.sdk.cluster.HDInsightNewAPI;
 
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azure.hdinsight.sdk.cluster.ClusterManager;
 import com.microsoft.azure.hdinsight.sdk.cluster.ClusterOperationImpl;
+import com.microsoft.azure.hdinsight.sdk.cluster.ClusterRawInfo;
 import com.microsoft.azure.hdinsight.sdk.common.AzureManagementHttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.errorresponse.ForbiddenHttpErrorStatus;
 import com.microsoft.azure.hdinsight.sdk.common.errorresponse.HttpErrorStatus;
 import com.microsoft.azure.hdinsight.sdk.common.errorresponse.NotFoundHttpErrorStatus;
-import com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
@@ -36,9 +37,7 @@ import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
 import com.microsoft.azuretools.telemetry.AppInsightsClient;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.http.Header;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.message.BasicHeader;
 import rx.Observable;
 
 import java.io.IOException;
@@ -90,10 +89,12 @@ public class ClusterOperationNewAPIImpl extends ClusterOperationImpl implements 
         }
     }
 
-    public Observable<Boolean> isProbeGetConfigurationSucceed(final String clusterId) {
+    public Observable<Boolean> isProbeGetConfigurationSucceed(final ClusterRawInfo clusterRawInfo) {
+        String clusterId = clusterRawInfo.getId();
+
         return getClusterConfigurationRequest(clusterId)
                 .map(clusterConfiguration -> {
-                    if (isValid(clusterConfiguration, clusterId)) {
+                    if (isClusterConfigurationValid(clusterRawInfo, clusterConfiguration)) {
                         setRoleType(HDInsightUserRoleType.OWNER);
                         return true;
                     } else {
@@ -142,28 +143,23 @@ public class ClusterOperationNewAPIImpl extends ClusterOperationImpl implements 
                 });
     }
 
-    private boolean isValid(ClusterConfiguration clusterConfiguration, String clusterId) {
+    private boolean isClusterConfigurationValid(ClusterRawInfo clusterRawInfo, @Nullable ClusterConfiguration clusterConfiguration) {
         if (clusterConfiguration == null
                 || clusterConfiguration.getConfigurations() == null
                 || clusterConfiguration.getConfigurations().getGateway() == null) {
             return false;
         }
 
-        Gateway gw = clusterConfiguration.getConfigurations().getGateway();
-        if (gw.getUsername() != null && gw.getPassword() != null) {
+        if (ClusterManager.getInstance().isMfaEspCluster(clusterRawInfo)) {
             return true;
         }
 
-        try {
-            String clusterName = clusterId.substring(clusterId.lastIndexOf("/") + 1);
-            if (SparkBatchSubmission.getInstance().negotiateAuthMethod(String.format("https://%s.azurehdinsight.net", clusterName)) != null) {
-                return true;
-            }
-        } catch (IOException ignore) {
-            log().warn(ignore.toString());
+        Gateway gw = clusterConfiguration.getConfigurations().getGateway();
+        if (Boolean.parseBoolean(gw.getIsEnabled())) {
+            return true;
         }
 
-        return false;
+        return gw.getUsername() != null || gw.getPassword() != null;
     }
 
     /**
