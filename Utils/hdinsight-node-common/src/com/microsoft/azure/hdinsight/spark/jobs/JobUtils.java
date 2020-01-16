@@ -85,7 +85,6 @@ import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.message.BasicHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -110,6 +109,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
+import static org.apache.http.HttpHeaders.AUTHORIZATION;
 import static rx.exceptions.Exceptions.propagate;
 
 public class JobUtils {
@@ -242,12 +242,11 @@ public class JobUtils {
     }
 
     private static ApplicationMasterLogs getYarnLogsFromWebClient(@NotNull final IClusterDetail clusterDetail, @NotNull final String url) throws HDIException, IOException {
-        final CredentialsProvider credentialsProvider  =  new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(clusterDetail.getHttpUserName(), clusterDetail.getHttpPassword()));
+        final String authCode = SparkBatchSubmission.getClusterSubmission(clusterDetail).getAuthCode();
 
-        String standerr = getInformationFromYarnLogDom(credentialsProvider, url, "stderr", 0, 0);
-        String standout = getInformationFromYarnLogDom(credentialsProvider, url, "stdout", 0, 0);
-        String directoryInfo = getInformationFromYarnLogDom(credentialsProvider, url, "directory.info", 0, 0);
+        String standerr = getInformationFromYarnLogDom(authCode, url, "stderr", 0, 0);
+        String standout = getInformationFromYarnLogDom(authCode, url, "stdout", 0, 0);
+        String directoryInfo = getInformationFromYarnLogDom(authCode, url, "directory.info", 0, 0);
 
         return new ApplicationMasterLogs(standout, standerr, directoryInfo);
     }
@@ -262,23 +261,7 @@ public class JobUtils {
         HTTP_WEB_CLIENT.setCache(globalCache);
 
         if (authCode != null) {
-            HTTP_WEB_CLIENT.addRequestHeader("Authorization", authCode);
-        }
-
-        return getInformationFromYarnLogDom(HTTP_WEB_CLIENT, baseUrl, type, start, size);
-    }
-
-    public static String getInformationFromYarnLogDom(final CredentialsProvider credentialsProvider,
-                                                      @NotNull String baseUrl,
-                                                      @NotNull String type,
-                                                      long start,
-                                                      int size) {
-        final WebClient HTTP_WEB_CLIENT = new WebClient(BrowserVersion.CHROME);
-        HTTP_WEB_CLIENT.getOptions().setUseInsecureSSL(HttpObservable.isSSLCertificateValidationDisabled());
-        HTTP_WEB_CLIENT.setCache(globalCache);
-
-        if (credentialsProvider != null) {
-            HTTP_WEB_CLIENT.setCredentialsProvider(credentialsProvider);
+            HTTP_WEB_CLIENT.addRequestHeader(AUTHORIZATION, authCode);
         }
 
         return getInformationFromYarnLogDom(HTTP_WEB_CLIENT, baseUrl, type, start, size);
@@ -357,14 +340,14 @@ public class JobUtils {
     /**
      * To create an Observable for specified Yarn container log type
      *
-     * @param credentialsProvider credential provider for HDInsight
+     * @param authCode the authCode in request's Authorization header
      * @param stop the stop observable to cancel the log fetch, refer to Observable.window() operation
      * @param containerLogUrl the contaniner log url
      * @param type the log type
      * @param blockSize the block size for one fetch, the value 0 for as many as possible
      * @return the log Observable
      */
-    public static Observable<String> createYarnLogObservable(@Nullable final CredentialsProvider credentialsProvider,
+    public static Observable<String> createYarnLogObservable(@Nullable final String authCode,
                                                              @Nullable final Observable<Object> stop,
                                                              @NotNull final String containerLogUrl,
                                                              @NotNull final String type,
@@ -389,7 +372,7 @@ public class JobUtils {
             try {
                 while (!ob.isUnsubscribed()) {
                     logs = JobUtils.getInformationFromYarnLogDom(
-                            credentialsProvider, containerLogUrl, type, nextStart, blockSize);
+                            authCode, containerLogUrl, type, nextStart, blockSize);
                     int lastLineBreak = logs.lastIndexOf('\n');
 
                     if (lastLineBreak < 0) {
@@ -426,7 +409,7 @@ public class JobUtils {
             } finally {
                 // Get the rest logs from history server
                 // Don't worry about the log is moved to history server, the YarnUI can do URL redirect by itself
-                logs = JobUtils.getInformationFromYarnLogDom(credentialsProvider, containerLogUrl, type, nextStart, 0);
+                logs = JobUtils.getInformationFromYarnLogDom(authCode, containerLogUrl, type, nextStart, 0);
 
                 new BufferedReader(new StringReader(remainedLine + logs)).lines().forEach(ob::onNext);
             }

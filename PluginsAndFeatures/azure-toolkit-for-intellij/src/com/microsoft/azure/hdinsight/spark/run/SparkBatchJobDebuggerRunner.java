@@ -68,6 +68,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission.getClusterSubmission;
+
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implements SparkSubmissionRunner {
     public static final Key<String> DebugTargetKey = new Key<>("debug-target");
     private static final Key<String> ProfileNameKey = new Key<>("profile-name");
@@ -325,11 +327,11 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
                             // Borrow BaseProgramRunner.postProcess() codes since it's only package public accessible.
                             if (descriptor != null) {
                                 descriptor.setExecutionId(env.getExecutionId());
-                                descriptor.setContentToolWindowId(ExecutionManager.getInstance(env.getProject()).getContentManager()
-                                        .getContentDescriptorToolWindowId(env.getRunnerAndConfigurationSettings()));
                                 RunnerAndConfigurationSettings settings = env.getRunnerAndConfigurationSettings();
-
                                 if (settings != null) {
+                                    descriptor.setContentToolWindowId(ExecutionManager.getInstance(env.getProject()).getContentManager()
+                                            .getContentDescriptorToolWindowId(settings.getConfiguration()));
+
                                     descriptor.setActivateToolWindowWhenAdded(settings.isActivateToolWindowBeforeRun());
                                 }
                             }
@@ -377,7 +379,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
 
             Deployable jobDeploy = SparkBatchJobDeployFactory.getInstance().buildSparkBatchJobDeploy(
                     debugModel, clusterDetail, ctrlSubject);
-            return new SparkBatchRemoteDebugJob(clusterDetail, debugModel.getSubmissionParameter(), SparkBatchSubmission.getInstance(), ctrlSubject, jobDeploy);
+            return new SparkBatchRemoteDebugJob(clusterDetail, debugModel.getSubmissionParameter(), getClusterSubmission(clusterDetail), ctrlSubject, jobDeploy);
         } catch (DebugParameterDefinedException e) {
             throw new ExecutionException(e);
         }

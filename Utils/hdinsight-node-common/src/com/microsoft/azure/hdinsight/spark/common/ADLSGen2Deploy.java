@@ -26,6 +26,10 @@
  */
 package com.microsoft.azure.hdinsight.spark.common;
 
+import org.apache.http.HttpStatus;
+import rx.Observable;
+import rx.exceptions.Exceptions;
+
 import com.microsoft.azure.hdinsight.common.AbfsUri;
 import com.microsoft.azure.hdinsight.common.UriUtil;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
@@ -34,14 +38,9 @@ import com.microsoft.azure.hdinsight.sdk.storage.adlsgen2.ADLSGen2FSOperation;
 import com.microsoft.azure.hdinsight.spark.jobs.JobUtils;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
-import com.microsoft.azuretools.azurecommons.helpers.Nullable;
-import org.apache.http.HttpStatus;
-import rx.Observable;
-import rx.exceptions.Exceptions;
 
 import java.io.File;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 public class ADLSGen2Deploy implements Deployable, ILogger {
     @NotNull
@@ -93,13 +92,7 @@ public class ADLSGen2Deploy implements Deployable, ILogger {
                 .flatMap(ignore -> op.createFile(filePath))
                 .flatMap(ignore -> op.uploadData(filePath, src))
                 .doOnNext(ignore -> log().info(String.format("Append data to file %s successfully.", filePath)))
-                .map(ignored -> {
-                    try {
-                        return getArtifactUploadedPath(filePath);
-                    } catch (URISyntaxException ex) {
-                        throw new RuntimeException(new IllegalArgumentException("Can not get valid artifact upload path" + ex.toString()));
-                    }
-                });
+                .map(ignored -> AbfsUri.parse(filePath).getUri().toString());
     }
 
     public static String getForbiddenErrorHints(String fileSystemRootPath) {
@@ -110,15 +103,5 @@ public class ADLSGen2Deploy implements Deployable, ILogger {
                 .append("   If the role is recently granted, please wait a while and try again later.\n")
                 .append("   Find more details at https://docs.microsoft.com/en-us/azure/storage/common/storage-access-blobs-queues-portal#azure-ad-account")
                 .toString();
-    }
-
-    @Nullable
-    private String getArtifactUploadedPath(String rootPath) throws URISyntaxException {
-        //convert https://fullAccountName/fileSystem/subfolder/guid/artifact.jar to /subfolder/xxxx
-        if (AbfsUri.isType(rootPath)) {
-            return AbfsUri.parse(rootPath).getPath();
-        }
-
-        throw new URISyntaxException(rootPath, "Cannot get valid artifact path");
     }
 }
