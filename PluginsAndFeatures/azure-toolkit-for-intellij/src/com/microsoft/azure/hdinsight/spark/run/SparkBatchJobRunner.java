@@ -42,7 +42,6 @@ import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
-import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster;
 import com.microsoft.azure.hdinsight.spark.common.*;
 import com.microsoft.azure.hdinsight.spark.run.action.SparkBatchJobDisconnectAction;
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration;
@@ -63,6 +62,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission.getClusterSubmission;
 
 public class SparkBatchJobRunner extends DefaultProgramRunner implements SparkSubmissionRunner, ILogger {
     @NotNull
@@ -112,17 +113,7 @@ public class SparkBatchJobRunner extends DefaultProgramRunner implements SparkSu
         SparkSubmissionParameter submissionParameter =
                 prepareSubmissionParameterWithTransformedGen2Uri(submitModel.getSubmissionParameter());
 
-        return new SparkBatchJob(clusterDetail, submissionParameter, getSparkBatchSubmission(clusterDetail), ctrlSubject, jobDeploy);
-    }
-
-    @NotNull
-    private SparkBatchSubmission getSparkBatchSubmission(@NotNull IClusterDetail clusterDetail) {
-        if (clusterDetail instanceof MfaEspCluster) {
-            String id = ((MfaEspCluster) clusterDetail).getTenantId();
-            return new SparkBatchEspMfaSubmission(id, clusterDetail.getName());
-        } else {
-            return SparkBatchSubmission.getInstance();
-        }
+        return new SparkBatchJob(clusterDetail, submissionParameter, getClusterSubmission(clusterDetail), ctrlSubject, jobDeploy);
     }
 
     protected void addConsoleViewFilter(@NotNull ISparkBatchJob job, @NotNull ConsoleView consoleView) {

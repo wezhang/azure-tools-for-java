@@ -26,6 +26,8 @@ import com.microsoft.azure.hdinsight.common.HDInsightLoader;
 import com.microsoft.azure.hdinsight.common.StreamUtil;
 import com.microsoft.azure.hdinsight.common.appinsight.AppInsightsHttpRequestInstallIdMapRecord;
 import com.microsoft.azure.hdinsight.common.logger.ILogger;
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
+import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster;
 import com.microsoft.azure.hdinsight.sdk.common.AuthType;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
@@ -84,6 +86,15 @@ public class SparkBatchSubmission implements ILogger {
         }
 
         return instance;
+    }
+
+    public static SparkBatchSubmission getClusterSubmission(IClusterDetail clusterDetail) {
+        if (clusterDetail instanceof MfaEspCluster) {
+            String id = ((MfaEspCluster) clusterDetail).getTenantId();
+            return new SparkBatchEspMfaSubmission(id, clusterDetail.getName());
+        } else {
+            return SparkBatchSubmission.getInstance();
+        }
     }
 
     private CredentialsProvider credentialsProvider =  new BasicCredentialsProvider();

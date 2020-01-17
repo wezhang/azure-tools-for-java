@@ -70,7 +70,7 @@ public class SparkBatchRemoteDebugJob extends SparkBatchJob implements ISparkBat
      */
     public int getYarnContainerJDBListenPort(String containerLogUrl) throws UnknownServiceException {
         int port = this.parseJvmDebuggingPort(JobUtils.getInformationFromYarnLogDom(
-                this.getSubmission().getCredentialsProvider(),
+                this.getSubmission().getAuthCode(),
                 containerLogUrl,
                 "stdout",
                 -4096,

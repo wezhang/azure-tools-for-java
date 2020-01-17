@@ -34,10 +34,13 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.HideableDecorator;
-import com.intellij.ui.ListCellRendererWrapper;
 import com.intellij.ui.SimpleListCellRenderer;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
+import rx.Observable;
+import rx.schedulers.Schedulers;
+
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
-import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
 import com.microsoft.azure.hdinsight.sdk.cluster.SparkClusterType;
 import com.microsoft.azure.hdinsight.sdk.common.AuthType;
@@ -56,23 +59,18 @@ import com.microsoft.azuretools.telemetrywrapper.EventUtil;
 import com.microsoft.intellij.hdinsight.messages.HDInsightBundle;
 import com.microsoft.intellij.rxjava.IdeaSchedulers;
 import com.microsoft.tooling.msservices.serviceexplorer.RefreshableNode;
-import cucumber.api.java.ca.I;
-import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTime;
-import rx.subjects.PublishSubject;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
-import javax.swing.plaf.basic.BasicComboBoxRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+
+import static com.intellij.execution.ui.ConsoleViewContentType.LOG_DEBUG_OUTPUT;
+import static java.lang.String.format;
 
 public class AddNewClusterForm extends DialogWrapper implements SettableControl<AddNewClusterModel> {
     private JPanel wholePanel;
@@ -313,6 +311,38 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
         yarnEndpointField = new HintTextField("(Optional)Example: http://hn0-spark2:8088");
         arisClusterNameField = new HintTextField("(Optional) Cluster name");
         arisHostField = new HintTextField("Example: 10.123.123.123");
+
+        clusterNameOrUrlField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                String clusterNameOrUrl = clusterNameOrUrlField.getText();
+
+                if (StringUtils.isBlank(clusterNameOrUrl)) {
+                    return;
+                }
+
+                Observable.fromCallable(() -> SparkBatchSubmission.getInstance().probeAuthType(
+                                                    getClusterConnectionUrl(clusterNameOrUrl.trim())))
+                        .subscribeOn(Schedulers.io())
+                        .subscribe(
+                                authType -> {
+                                    printLogLine(LOG_DEBUG_OUTPUT,
+                                                 format("The cluster %s authentication type is %s",
+                                                        clusterNameOrUrl, authType));
+
+                                    authComboBox.getModel().setSelectedItem(authType);
+                                },
+                                err -> printLogLine(LOG_DEBUG_OUTPUT,
+                                                    format("Can't probe cluster %s authentication type with error %s",
+                                                           clusterNameOrUrl, err.getMessage())));
+            }
+        });
+    }
+
+    private String getClusterConnectionUrl(String clusterNameOrUrl) {
+        return StringUtils.startsWithIgnoreCase(clusterNameOrUrl, "https://")
+                ? clusterNameOrUrl
+                : ClusterManagerEx.getInstance().getClusterConnectionString(clusterNameOrUrl);
     }
 
     public SparkClusterType getSparkClusterType() {

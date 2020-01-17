@@ -3,6 +3,7 @@
 All notable changes to "Azure Toolkit for IntelliJ IDEA" will be documented in this file.
 
 - [Change Log](#change-log)
+  - [3.32.0](#3320)
   - [3.31.0](#3310)
   - [3.30.0](#3300)
   - [3.29.0](#3290)
@@ -42,6 +43,28 @@ All notable changes to "Azure Toolkit for IntelliJ IDEA" will be documented in t
   - [3.0.8](#308)
   - [3.0.7](#307)
   - [3.0.6](#306)
+
+## 3.32.0
+
+### Added
+
+- Support Synapse default ADLS Gen2 storage uploading artifacts
+- Support Synapse default ADLS Gen2 storage explorer for reference files/jars
+- Synapse Spark batch job detail page link after submission
+- Support HIB cluster default ADLS Gen2 storage explorer for reference files/jars
+- Support Spark Job remote debugging for HIB cluster
+- Support Authentication type detection when linking HIB cluster
+
+### Changed
+
+- Mute warning messages when refreshing HDInsight cluster node in Azure explorer
+
+### Fixed
+
+- [#3899](https://github.com/microsoft/azure-tools-for-java/issues/3899) ADLS Gen2 Virtual File System explorer special characters in path issue
+- Linked HDInsight cluster persistent issue
+- [#3802](https://github.com/microsoft/azure-tools-for-java/issues/3802) HIB linked cluster logout issue
+- [#3887](https://github.com/microsoft/azure-tools-for-java/issues/3887) Stack Overflow issue of SparkBatchJobDebugExecutor
 
 ## 3.31.0
 
