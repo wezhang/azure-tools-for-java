@@ -37,6 +37,8 @@ import com.intellij.ui.HideableDecorator;
 import com.intellij.ui.SimpleListCellRenderer;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
+import rx.Observable;
+import rx.schedulers.Schedulers;
 
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx;
 import com.microsoft.azure.hdinsight.common.mvc.SettableControl;
@@ -64,9 +66,11 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+
+import static com.intellij.execution.ui.ConsoleViewContentType.LOG_DEBUG_OUTPUT;
+import static java.lang.String.format;
 
 public class AddNewClusterForm extends DialogWrapper implements SettableControl<AddNewClusterModel> {
     private JPanel wholePanel;
@@ -317,13 +321,20 @@ public class AddNewClusterForm extends DialogWrapper implements SettableControl<
                     return;
                 }
 
-                try {
-                    AuthType authType = SparkBatchSubmission.getInstance().probeAuthType(
-                            getClusterConnectionUrl(clusterNameOrUrl.trim()));
+                Observable.fromCallable(() -> SparkBatchSubmission.getInstance().probeAuthType(
+                                                    getClusterConnectionUrl(clusterNameOrUrl.trim())))
+                        .subscribeOn(Schedulers.io())
+                        .subscribe(
+                                authType -> {
+                                    printLogLine(LOG_DEBUG_OUTPUT,
+                                                 format("The cluster %s authentication type is %s",
+                                                        clusterNameOrUrl, authType));
 
-                    authComboBox.setSelectedItem(authType);
-                } catch (IOException ignored) {
-                }
+                                    authComboBox.getModel().setSelectedItem(authType);
+                                },
+                                err -> printLogLine(LOG_DEBUG_OUTPUT,
+                                                    format("Can't probe cluster %s authentication type with error %s",
+                                                           clusterNameOrUrl, err.getMessage())));
             }
         });
     }
