@@ -31,8 +31,10 @@ class WasbUriScenario {
     data class UrlUriEntry(val url: String, val uri: String)
     data class UriParameterEntry(val uri: String, val container: String, val path: String, val account: String, val endpointSuffix: String)
     data class UrlUriEqualEntry(val src: String, val dest: String, val isEqualed: Boolean)
+    data class UriPathResolveEntry(val uri: String, val path: String, val result: String)
     data class UriPathResolveAsRootEntry(val uri: String, val path: String, val result: String)
     data class UriRelativizeCheckEntry(val src: String, val dest: String, val result: String)
+    data class rawPathEncodedPathEntry(val rawPath: String, val encodedPath: String)
 
     @Then("convert Wasb URL restful path to URI should be")
     fun checkWasb2HttpConversion(checkTable: List<UrlUriEntry>) {
@@ -66,7 +68,7 @@ class WasbUriScenario {
             try {
                 val wasbUri = WasbUri.parse(it.uri)
 
-                assertEquals(it.path, wasbUri.path.toString(), "Check Wasb URI ${it.uri} path parameter")
+                assertEquals(it.path, wasbUri.getPath(), "Check Wasb URI ${it.uri} path parameter")
                 assertEquals(it.account, wasbUri.storageAccount.toString(), "Check Wasb URI ${it.uri} account parameter")
                 assertEquals(it.container, wasbUri.container.toString(), "Check Wasb URI ${it.uri} container parameter")
                 assertEquals(it.endpointSuffix, wasbUri.endpointSuffix.toString(), "Check Wasb URI ${it.uri} endpointSuffix parameter")
@@ -93,6 +95,19 @@ class WasbUriScenario {
         }
     }
 
+    @Then("check Wasb URI resolve method as below")
+    fun checkWasbUriResolve(checkTable: List<UriPathResolveEntry>) {
+        checkTable.forEach {
+            try {
+                val src = WasbUri.parse(it.uri)
+                val dest = WasbUri.parse(it.result)
+                assertEquals(src.resolve(it.path), dest)
+            } catch (ex: UnknownFormatConversionException) {
+                assertEquals("<invalid>", it.result)
+            }
+        }
+    }
+
     @Then("check Wasb URI resolve as root path as below")
     fun checkWasbUriResolveAsRoot(checkTable: List<UriPathResolveAsRootEntry>) {
         checkTable.forEach {
@@ -110,10 +125,23 @@ class WasbUriScenario {
             val dest = WasbUri.parse(it.dest)
 
             assertEquals(
-                    it.result.takeIf { result -> result != "<null>"},
+                    it.result.takeIf { result -> result != "<null>" },
                     src.relativize(dest),
                     "Check Wasb URI ${it.src} relativite ${it.dest} as root path"
             )
+        }
+    }
+
+    @Then("^check the encoded path as below$")
+    fun checkEncodedPath(checkTable: List<rawPathEncodedPathEntry>) {
+        checkTable.forEach {
+            val rawPath = it.rawPath
+            val expectedEncodedPath = it.encodedPath
+            try {
+                assertEquals(AzureStorageUri.encodeAndNormalizePath(rawPath), expectedEncodedPath, "Check encode path $rawPath")
+            } catch (ex: Throwable) {
+                assertEquals("<invalid>", expectedEncodedPath, "Get error when encode path $rawPath. ${ex.message}")
+            }
         }
     }
 }
