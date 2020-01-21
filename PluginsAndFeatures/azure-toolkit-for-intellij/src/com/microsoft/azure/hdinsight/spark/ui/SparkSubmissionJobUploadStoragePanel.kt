@@ -29,7 +29,7 @@ import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxModelDelegated
+import com.microsoft.azure.hdinsight.common.viewmodels.ImmutableComboBoxModelDelegated
 import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxSelectionDelegated
 import com.microsoft.azure.hdinsight.sdk.cluster.AzureAdAccountDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
@@ -38,6 +38,7 @@ import com.microsoft.azure.hdinsight.sdk.common.SharedKeyHttpObservable
 import com.microsoft.azure.hdinsight.sdk.storage.ADLSGen2StorageAccount
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.ui.ImmutableComboBoxModel.Companion.empty
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.*
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.ADLSGen2FileSystem
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AdlsGen2VirtualFile
@@ -52,7 +53,6 @@ import java.awt.CardLayout
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import java.awt.event.ItemEvent
-import javax.swing.ComboBoxModel
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
@@ -97,7 +97,7 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
     }
 
 
-    private val storageTypeComboBox = ComboBox<SparkSubmitStorageType>(arrayOf()).apply {
+    private val storageTypeComboBox = ComboBox<SparkSubmitStorageType>(empty()).apply {
         name = "storageTypeComboBox"
         // validate storage info after storage type is selected
         addItemListener { itemEvent ->
@@ -160,7 +160,7 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
 
     inner class ViewModel : DisposableObservers() {
         var deployStorageTypeSelection: SparkSubmitStorageType? by ComboBoxSelectionDelegated(storageTypeComboBox)
-        var deployStorageTypesModel: ComboBoxModel<SparkSubmitStorageType> by ComboBoxModelDelegated(storageTypeComboBox)
+        var deployStorageTypesModel: ImmutableComboBoxModel<SparkSubmitStorageType> by ImmutableComboBoxModelDelegated(storageTypeComboBox)
 
         val storageCheckSubject: PublishSubject<StorageCheckEvent> = disposableSubjectOf { PublishSubject.create() }
 
