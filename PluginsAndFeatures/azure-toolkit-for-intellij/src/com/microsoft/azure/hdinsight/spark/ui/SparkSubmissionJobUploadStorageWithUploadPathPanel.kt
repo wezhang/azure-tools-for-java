@@ -25,13 +25,11 @@ package com.microsoft.azure.hdinsight.spark.ui
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.Disposer
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.*
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.common.mvc.SettableControl
-import com.microsoft.azure.hdinsight.sdk.cluster.HDInsightAdditionalClusterDetail
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster
 import com.microsoft.azure.hdinsight.sdk.common.AzureSparkClusterManager
@@ -43,8 +41,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkBatchJob
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azure.hdinsight.spark.common.getSecureStoreServiceOf
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.StorageCheckEvent
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.StorageCheckSelectedClusterEvent
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.*
 import com.microsoft.azure.sqlbigdata.sdk.cluster.SqlBigDataLivyLinkClusterDetail
 import com.microsoft.azuretools.authmanage.AuthMethodManager
 import com.microsoft.azuretools.ijidea.ui.AccessibleHideableTitledPanel
@@ -52,12 +49,12 @@ import com.microsoft.azuretools.securestore.SecureStore
 import com.microsoft.azuretools.service.ServiceManager
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
+import com.microsoft.intellij.rxjava.IdeaSchedulers
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import rx.Observable
 import rx.Observable.empty
 import rx.Observable.just
-import rx.schedulers.Schedulers
 import rx.subjects.ReplaySubject
 import java.awt.CardLayout
 import java.util.concurrent.TimeUnit
@@ -67,7 +64,7 @@ import javax.swing.JPanel
 import javax.swing.JTextField
 
 class SparkSubmissionJobUploadStorageWithUploadPathPanel
-    : JPanel(), Disposable, SettableControl<SparkSubmitJobUploadStorageModel>, ILogger {
+    : JPanel(), Disposable, IdeaSettableControlWithRwLock<SparkSubmitJobUploadStorageModel>, ILogger {
     interface Control {
         val isCheckPassed: Boolean
         val resultMessage: String?
@@ -141,12 +138,14 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
             ReplaySubject.createWithSize(clusterSelectedCapacity)
         }
 
+        private val ideaSchedulers = IdeaSchedulers()
+
         private fun updateStorageTypesModelForCluster(clusterDetail: IClusterDetail): SparkSubmitStorageType? {
+            ApplicationManager.getApplication().assertIsDispatchThread()
+
             val optionTypes = clusterDetail.storageOptionsType.optionTypes
             val currentStorageTypesModel = uploadStorage.deployStorageTypesModel
-            val newStorageTypesModel = ImmutableComboBoxModel(optionTypes).apply {
-                selectedItem = clusterDetail.defaultStorageType
-            }
+            val newStorageTypesModel = ImmutableComboBoxModel(optionTypes)
 
             val storageTypesModelToSet = if (currentStorageTypesModel.size == optionTypes.size) {
                 // Deep compare the size and items
@@ -162,18 +161,13 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
             } else newStorageTypesModel
 
             if (storageTypesModelToSet != currentStorageTypesModel) {
-                // if selection.selectedItem is null ,will trigger storage type combo box deselected event and
-                // event.item is the model getSelectedItem which is model(0)
-                // reset selectedItem will trigger deselected and selected event which will repaint the panel in setData
-                uploadStorage.deployStorageTypeSelection = null
-
                 // there exist 4 cases to set the storage type
                 // 1.select cluster -> set to default
                 // 2.reload config with not null type -> set to saved type
                 // 3.reload config with null storage type -> set to default
                 // 4.create config  -> set to default
                 uploadStorage.deployStorageTypesModel = storageTypesModelToSet
-
+                uploadStorage.deployStorageTypeSelection = clusterDetail.defaultStorageType
             }
 
             return storageTypesModelToSet.selectedItem as? SparkSubmitStorageType ?: clusterDetail.defaultStorageType
@@ -181,6 +175,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
 
         private fun validateStorageInfo(checkEvent:StorageCheckEvent): Observable<SparkSubmitJobUploadStorageModel> {
             val cluster = clusterSelectedSubject.value ?: return empty()
+            val modalityState = ModalityState.stateForComponent(this@SparkSubmissionJobUploadStorageWithUploadPathPanel)
 
             return just(SparkSubmitJobUploadStorageModel()
                     .apply {
@@ -189,34 +184,18 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                             cluster.storageAccount?.accountType == StorageAccountType.ADLSGen2
                         }
                     })
-                    .map { model -> model.apply {
-                        getData(this)
-
+                    .doOnNext { model -> getData(model) }
+                    .observeOn(ideaSchedulers.dispatchUIThread(modalityState))
+                    .doOnNext { model -> model.apply {
                         if (checkEvent is StorageCheckSelectedClusterEvent) {
                             log().info("Current model storage account type is $storageAccountType")
                             storageAccountType = updateStorageTypesModelForCluster(cluster)
                             log().info("Update model storage account type to $storageAccountType")
-
-                            // Linked cluster has to read root path from configurations
-                            if (cluster is HDInsightAdditionalClusterDetail) {
-                                val defaultRootPath = cluster.defaultStorageRootPath
-
-                                when (StorageAccountType.parseUri(defaultRootPath) ?: StorageAccountType.UNKNOWN) {
-                                    StorageAccountType.BLOB -> storageAccount = WasbUri.parse(defaultRootPath).storageAccount
-                                    StorageAccountType.ADLS -> adlsRootPath = AdlUri.parse(defaultRootPath).toString()
-                                    StorageAccountType.ADLSGen2 -> gen2RootPath = AbfsUri.parse(defaultRootPath)
-                                    StorageAccountType.UNKNOWN -> { }
-                                }
-                            }
                         }
+                        // set error message to prevent user from applying the changes when validation is not completed
+                        errorMsg = "validating storage info is not completed"
                     }}
-                    // set error message to prevent user from applying the changes when validation is not completed
-                    .map { model -> model.apply {
-                            errorMsg = "validating storage info is not completed"
-                        }
-                    }
-                    .doOnNext { model -> setData(model) }
-                    .observeOn(Schedulers.io())
+                    .observeOn(ideaSchedulers.dispatchPooledThread())
                     .map { model ->
                         model.errorMsg = null
                         model.uploadPath = invalidUploadPath
@@ -287,7 +266,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                                     return@apply
                                 }
 
-                                val homeUri = if (cluster is MfaEspCluster) AbfsUri.parse(cluster.userPath) else rootPath
+                                val homeUri = if (cluster is MfaEspCluster) rootPath.resolveAsRoot(cluster.userPath) else rootPath
                                 uploadPath = homeUri.resolveAsRoot("SparkSubmission/").toString()
                             }
                             SparkSubmitStorageType.WEBHDFS -> model.apply {
@@ -322,6 +301,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
                             }
                         }
                     }
+                    .observeOn(ideaSchedulers.dispatchUIThread(modalityState))
                     .doOnNext { data ->
                         if (data.errorMsg != null) {
                             log().info("After selecting storage type, the storage info validation error is got: " + data.errorMsg)
@@ -337,7 +317,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
         Disposer.register(this@SparkSubmissionJobUploadStorageWithUploadPathPanel, this@apply)
     }
 
-    override fun getData(data: SparkSubmitJobUploadStorageModel) {
+    override fun readWithLock(data: SparkSubmitJobUploadStorageModel) {
         // Component -> Data
         data.errorMsg = storagePanel.errorMessage
         data.uploadPath = uploadPathField.text
@@ -372,111 +352,102 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
         }
     }
 
-    override fun setData(data: SparkSubmitJobUploadStorageModel) {
-        // data -> Component
-        val applyData: () -> Unit = {
-            if (data.storageAccountType != null && viewModel.uploadStorage.deployStorageTypesModel.selectedItem != data.storageAccountType) {
-                viewModel.uploadStorage.deployStorageTypesModel.selectedItem = data.storageAccountType
-            }
-
-            if (viewModel.uploadStorage.deployStorageTypeSelection != data.storageAccountType) {
-                if (viewModel.uploadStorage.deployStorageTypesModel.size == 0) {
-                    viewModel.uploadStorage.deployStorageTypesModel = ImmutableComboBoxModel(
+    override fun writeWithLock(data: SparkSubmitJobUploadStorageModel) {
+        viewModel.uploadStorage.apply {
+            if (deployStorageTypeSelection != data.storageAccountType) {
+                if (deployStorageTypesModel.size == 0) {
+                    deployStorageTypesModel = ImmutableComboBoxModel(
                             data.storageAccountType?.let { arrayOf(it) } ?: arrayOf())
                 }
+
+                deployStorageTypeSelection = data.storageAccountType
             }
-
-            if (viewModel.uploadStorage.deployStorageTypeSelection != data.storageAccountType) {
-                viewModel.uploadStorage.deployStorageTypeSelection = data.storageAccountType
-            }
-            storagePanel.errorMessage = data.errorMsg
-            uploadPathField.text = data.uploadPath
-            when (data.storageAccountType) {
-                SparkSubmitStorageType.BLOB -> {
-                    if (storagePanel.azureBlobCard.storageAccountField.text != data.storageAccount) {
-                        storagePanel.azureBlobCard.storageAccountField.text = data.storageAccount
-                    }
-
-                    val credentialAccount = SparkSubmitStorageType.BLOB.getSecureStoreServiceOf(data.storageAccount)
-                    val storageKeyToSet =
-                            if (StringUtils.isEmpty(data.errorMsg) && StringUtils.isEmpty(data.storageKey)) {
-                                credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.storageAccount) }
-                            } else {
-                                data.storageKey
-                            }
-                    if (storagePanel.azureBlobCard.storageKeyField.text != storageKeyToSet) {
-                        storagePanel.azureBlobCard.storageKeyField.text = storageKeyToSet
-                    }
-
-                    if (storagePanel.azureBlobCard.storageContainerUI.comboBox.model != data.containersModel) {
-                        if (data.containersModel.size == 0
-                                && StringUtils.isEmpty(storagePanel.errorMessage)
-                                && StringUtils.isNotEmpty(data.selectedContainer)) {
-                            storagePanel.azureBlobCard.storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedContainer))
-                        } else {
-                            storagePanel.azureBlobCard.storageContainerUI.comboBox.model = data.containersModel
-                        }
-                    }
-                }
-                SparkSubmitStorageType.ADLS_GEN1 -> {
-                    // Only set for changed
-                    if (storagePanel.adlsCard.adlsRootPathField.text != data.adlsRootPath) {
-                        storagePanel.adlsCard.adlsRootPathField.text = data.adlsRootPath
-                    }
-
-                    // show sign in/out panel based on whether user has signed in or not
-                    val curLayout = storagePanel.adlsCard.azureAccountCards.layout as CardLayout
-                    if (AzureSparkClusterManager.getInstance().isSignedIn()) {
-                        curLayout.show(storagePanel.adlsCard.azureAccountCards, storagePanel.adlsCard.signOutCard.title)
-                        storagePanel.adlsCard.signOutCard.azureAccountLabel.text = AzureSparkClusterManager.getInstance().getAzureAccountEmail()
-                    } else {
-                        curLayout.show(storagePanel.adlsCard.azureAccountCards, storagePanel.adlsCard.signInCard.title)
-                    }
-
-                    if (data.subscriptionsModel.size == 0 && StringUtils.isEmpty(storagePanel.errorMessage) && StringUtils.isNotEmpty(data.selectedSubscription)) {
-                        storagePanel.adlsCard.subscriptionsComboBox.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedSubscription))
-                    } else {
-                        storagePanel.adlsCard.subscriptionsComboBox.comboBox.model = data.subscriptionsModel
-                    }
-                }
-                SparkSubmitStorageType.WEBHDFS -> {
-                    if (storagePanel.webHdfsCard.webHdfsRootPathField.text != data.webHdfsRootPath) {
-                        storagePanel.webHdfsCard.webHdfsRootPathField.text = data.webHdfsRootPath
-                    }
-
-                    // show sign in/out panel based on whether user has signed in or not
-                    val curLayout = storagePanel.webHdfsCard.authAccountForWebHdfsCards.layout as CardLayout
-                    curLayout.show(storagePanel.webHdfsCard.authAccountForWebHdfsCards, storagePanel.webHdfsCard.signOutCard.title)
-                    storagePanel.webHdfsCard.signOutCard.authUserNameLabel.text = data.webHdfsAuthUser
-                }
-                SparkSubmitStorageType.ADLS_GEN2 -> {
-                    if (data.gen2RootPath?.toString() != storagePanel.adlsGen2Card.gen2RootPathField.text.trim()) {
-                        storagePanel.adlsGen2Card.gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
-                    }
-
-                    val credentialAccount = SparkSubmitStorageType.ADLS_GEN2.getSecureStoreServiceOf(data.gen2RootPath?.accountName)
-                    storagePanel.adlsGen2Card.storageKeyField.text =
-                            if (StringUtils.isEmpty(data.accessKey)) {
-                                credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.gen2Account) ?: "" }
-                            } else {
-                                data.accessKey
-                            }
-                }
-                SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> {
-                    val gen2PathText = storagePanel.adlsGen2OAuthCard.gen2RootPathField.text.trim()
-                    val parsedGen2Path = if (AbfsUri.isType(gen2PathText)) AbfsUri.parse(gen2PathText) else null
-                    if (data.gen2RootPath != parsedGen2Path) {
-                        storagePanel.adlsGen2OAuthCard.gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
-                    }
-                }
-                else -> { }
-            }
-
         }
 
-        try {
-            ApplicationManager.getApplication().invokeAndWait(applyData, ModalityState.any())
-        } catch (ignore: ProcessCanceledException) {
+        storagePanel.errorMessage = data.errorMsg
+        uploadPathField.text = data.uploadPath
+        when (data.storageAccountType) {
+            SparkSubmitStorageType.BLOB -> storagePanel.azureBlobCard.apply {
+                if (storageAccountField.text != data.storageAccount) {
+                    storageAccountField.text = data.storageAccount
+                }
+
+                val credentialAccount = SparkSubmitStorageType.BLOB.getSecureStoreServiceOf(data.storageAccount)
+                val storageKeyToSet =
+                        if (StringUtils.isEmpty(data.errorMsg) && StringUtils.isEmpty(data.storageKey)) {
+                            credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.storageAccount) }
+                        } else {
+                            data.storageKey
+                        }
+
+                if (storageKeyField.text != storageKeyToSet) {
+                    storageKeyField.text = storageKeyToSet
+                }
+
+                if (storageContainerUI.comboBox.model != data.containersModel) {
+                    if (data.containersModel.size == 0
+                            && StringUtils.isEmpty(storagePanel.errorMessage)
+                            && StringUtils.isNotEmpty(data.selectedContainer)) {
+                        storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedContainer))
+                    } else {
+                        storageContainerUI.comboBox.model = data.containersModel
+                    }
+                }
+            }
+            SparkSubmitStorageType.ADLS_GEN1 -> storagePanel.adlsCard.apply {
+                // Only set for changed
+                if (adlsRootPathField.text != data.adlsRootPath) {
+                    adlsRootPathField.text = data.adlsRootPath
+                }
+
+                // show sign in/out panel based on whether user has signed in or not
+                val curLayout = azureAccountCards.layout as CardLayout
+                if (AzureSparkClusterManager.getInstance().isSignedIn) {
+                    curLayout.show(azureAccountCards, storagePanel.adlsCard.signOutCard.title)
+                    signOutCard.azureAccountLabel.text = AzureSparkClusterManager.getInstance().azureAccountEmail
+                } else {
+                    curLayout.show(azureAccountCards, signInCard.title)
+                }
+
+                if (data.subscriptionsModel.size == 0
+                        && StringUtils.isEmpty(storagePanel.errorMessage)
+                        && StringUtils.isNotEmpty(data.selectedSubscription)) {
+                    subscriptionsComboBox.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedSubscription))
+                } else {
+                    subscriptionsComboBox.comboBox.model = data.subscriptionsModel
+                }
+            }
+            SparkSubmitStorageType.WEBHDFS -> storagePanel.webHdfsCard.apply {
+                if (webHdfsRootPathField.text != data.webHdfsRootPath) {
+                    webHdfsRootPathField.text = data.webHdfsRootPath
+                }
+
+                // show sign in/out panel based on whether user has signed in or not
+                val curLayout = authAccountForWebHdfsCards.layout as CardLayout
+                curLayout.show(authAccountForWebHdfsCards, signOutCard.title)
+                signOutCard.authUserNameLabel.text = data.webHdfsAuthUser
+            }
+            SparkSubmitStorageType.ADLS_GEN2 -> storagePanel.adlsGen2Card.apply {
+                if (data.gen2RootPath?.toString() != gen2RootPathField.text.trim()) {
+                    gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
+                }
+
+                val credentialAccount = SparkSubmitStorageType.ADLS_GEN2.getSecureStoreServiceOf(data.gen2RootPath?.accountName)
+                storageKeyField.text =
+                        if (StringUtils.isEmpty(data.accessKey)) {
+                            credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.gen2Account) ?: "" }
+                        } else {
+                            data.accessKey
+                        }
+            }
+            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> storagePanel.adlsGen2OAuthCard.apply {
+                val gen2PathText = gen2RootPathField.text.trim()
+                val parsedGen2Path = if (AbfsUri.isType(gen2PathText)) AbfsUri.parse(gen2PathText) else null
+                if (data.gen2RootPath != parsedGen2Path) {
+                    gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
+                }
+            }
+            else -> { }
         }
     }
 
