@@ -34,6 +34,11 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 
 class SparkSubmissionJobUploadStorageWebHdfsCard: SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model {
+        var webHdfsRootPath: String?
+        var webHdfsAuthUser: String?
+    }
+
     override val title: String =  SparkSubmitStorageType.WEBHDFS.description
     private val webHdfsRootPathTip = "e.g. http(s)://hdfsnamenode:port/webhdfs/v1/<cluster root directory>"
     private val webHdfsRootPathLabel = JLabel("WEBHDFS Root Path").apply { toolTipText = webHdfsRootPathTip }
@@ -44,8 +49,8 @@ class SparkSubmissionJobUploadStorageWebHdfsCard: SparkSubmissionJobUploadStorag
 
     private val authMethodLabel = JLabel("Authentication Method")
     private val authMethodComboBox = ComboBox<String>(arrayOf("Basic Authorization")).apply { name = "webHdfsCardAuthMethodComboBox" }
-    val signOutCard = SparkSubmissionJobUploadWebHdfsSignOutCard()
-    val authAccountForWebHdfsCards = JPanel(CardLayout()).apply {
+    private val signOutCard = SparkSubmissionJobUploadWebHdfsSignOutCard()
+    private val authAccountForWebHdfsCards = JPanel(CardLayout()).apply {
         add(signOutCard, signOutCard.title)
     }
 
@@ -74,5 +79,28 @@ class SparkSubmissionJobUploadStorageWebHdfsCard: SparkSubmissionJobUploadStorag
 
         layout = formBuilder.createGridLayoutManager()
         formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
+    }
+
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (to !is Model) {
+            return
+        }
+
+        to.webHdfsRootPath = webHdfsRootPathField.text?.trim()
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (from !is Model) {
+            return
+        }
+
+        if (webHdfsRootPathField.text != from.webHdfsRootPath) {
+            webHdfsRootPathField.text = from.webHdfsRootPath
+        }
+
+        // show sign in/out panel based on whether user has signed in or not
+        val curLayout = authAccountForWebHdfsCards.layout as CardLayout
+        curLayout.show(authAccountForWebHdfsCards, signOutCard.title)
+        signOutCard.authUserNameLabel.text = from.webHdfsAuthUser
     }
 }

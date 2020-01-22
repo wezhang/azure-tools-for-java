@@ -22,8 +22,21 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.Model
 import javax.swing.JPanel
 
-abstract class SparkSubmissionJobUploadStorageBasicCard: JPanel() {
+abstract class SparkSubmissionJobUploadStorageBasicCard
+    : JPanel(), IdeaSettableControlWithRwLock<Model> {
+    interface Model {
+        var errorMsg: String?
+    }
+
     abstract val title: String
+
+    final override fun setDataInDispatch(from: Model) = super.setDataInDispatch(from)
+
+    final override fun getData(to: Model) = super.getData(to)
+
+    final override fun setData(from: Model) = super.setData(from)
 }
