@@ -27,11 +27,25 @@ import com.intellij.ui.components.fields.ExpandableTextField
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.StreamUtil
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.common.getSecureStoreServiceOf
+import com.microsoft.azuretools.securestore.SecureStore
+import com.microsoft.azuretools.service.ServiceManager
 import com.microsoft.intellij.forms.dsl.panel
+import org.apache.commons.lang3.StringUtils
+import javax.swing.ComboBoxModel
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JLabel
 import javax.swing.JTextField
 
 class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model : SparkSubmissionJobUploadStorageBasicCard.Model {
+        var storageAccount : String?
+        var storageKey : String?
+        var containersModel : ComboBoxModel<Any>
+        var selectedContainer: String?
+    }
+
+    private val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
     private val refreshButtonIconPath = "/icons/refresh.png"
     private val storageAccountTip = "The default storage account of the HDInsight cluster, which can be found from HDInsight cluster properties of Azure portal."
     private val storageKeyTip = "The storage key of the default storage account, which can be found from HDInsight cluster storage accounts of Azure portal."
@@ -75,4 +89,45 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
     }
 
     override val title = SparkSubmitStorageType.BLOB.description
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (to !is Model) {
+            return
+        }
+
+        to.storageAccount = storageAccountField.text?.trim()
+        to.storageKey = storageKeyField.text?.trim()
+        to.containersModel = storageContainerUI.comboBox.model
+        to.selectedContainer = storageContainerUI.comboBox.selectedItem?.toString()
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (from !is Model) {
+            return
+        }
+
+        if (storageAccountField.text != from.storageAccount) {
+            storageAccountField.text = from.storageAccount
+        }
+
+        val credentialAccount = SparkSubmitStorageType.BLOB.getSecureStoreServiceOf(from.storageAccount)
+        val storageKeyToSet =
+                if (StringUtils.isBlank(from.errorMsg) && StringUtils.isEmpty(from.storageKey)) {
+                    credentialAccount?.let { secureStore?.loadPassword(credentialAccount, from.storageAccount) }
+                } else {
+                    from.storageKey
+                }
+
+        if (storageKeyField.text != storageKeyToSet) {
+            storageKeyField.text = storageKeyToSet
+        }
+
+        if (storageContainerUI.comboBox.model != from.containersModel) {
+            if (from.containersModel.size == 0
+                    && StringUtils.isNotEmpty(from.selectedContainer)) {
+                storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(from.selectedContainer))
+            } else {
+                storageContainerUI.comboBox.model = from.containersModel
+            }
+        }
+    }
 }

@@ -25,13 +25,25 @@ package com.microsoft.azure.hdinsight.spark.ui
 import com.intellij.ui.components.fields.ExpandableTextField
 import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
+import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.common.getSecureStoreServiceOf
 import com.microsoft.azuretools.ijidea.ui.HintTextField
+import com.microsoft.azuretools.securestore.SecureStore
+import com.microsoft.azuretools.service.ServiceManager
 import com.microsoft.intellij.forms.dsl.panel
+import org.apache.commons.lang3.StringUtils
 import java.awt.Dimension
 import javax.swing.JLabel
 
 class SparkSubmissionJobUploadStorageGen2Card : SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model {
+        var gen2RootPath: AbfsUri?
+        var gen2Account: String?
+        var accessKey: String?
+    }
+
+    private val secureStore: SecureStore? = ServiceManager.getServiceProvider(SecureStore::class.java)
     private val refreshButtonIconPath = "/icons/refresh.png"
     private val storageKeyTip = "The access key of the default storage account, which can be found from HDInsight cluster storage accounts of Azure portal."
     private val storageKeyLabel = JLabel("Access Key").apply { toolTipText = storageKeyTip }
@@ -68,4 +80,32 @@ class SparkSubmissionJobUploadStorageGen2Card : SparkSubmissionJobUploadStorageB
     }
 
     override val title = SparkSubmitStorageType.ADLS_GEN2.description
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (to !is Model) {
+            return
+        }
+
+        val rootPathText = gen2RootPathField.text?.trim()
+        to.gen2RootPath = if (AbfsUri.isType(rootPathText)) AbfsUri.parse(rootPathText) else null
+        to.gen2Account = to.gen2RootPath?.accountName
+        to.accessKey = storageKeyField.text?.trim()
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (from !is Model) {
+            return
+        }
+
+        if (from.gen2RootPath?.toString() != gen2RootPathField.text.trim()) {
+            gen2RootPathField.text = from.gen2RootPath?.uri?.toString() ?: ""
+        }
+
+        val credentialAccount = SparkSubmitStorageType.ADLS_GEN2.getSecureStoreServiceOf(from.gen2RootPath?.accountName)
+        storageKeyField.text =
+                if (StringUtils.isBlank(from.accessKey)) {
+                    credentialAccount?.let { secureStore?.loadPassword(credentialAccount, from.gen2Account) ?: "" }
+                } else {
+                    from.accessKey
+                }
+    }
 }

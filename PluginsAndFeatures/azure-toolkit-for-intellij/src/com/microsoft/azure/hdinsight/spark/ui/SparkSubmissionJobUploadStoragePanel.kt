@@ -29,6 +29,7 @@ import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.logger.ILogger
+import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
 import com.microsoft.azure.hdinsight.common.viewmodels.ImmutableComboBoxModelDelegated
 import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxSelectionDelegated
 import com.microsoft.azure.hdinsight.sdk.cluster.AzureAdAccountDetail
@@ -57,7 +58,18 @@ import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 
-open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
+open class SparkSubmissionJobUploadStoragePanel
+    : JPanel(), IdeaSettableControlWithRwLock<SparkSubmissionJobUploadStoragePanel.Model>, Disposable, ILogger {
+    interface Model:
+            SparkSubmissionJobUploadStorageAzureBlobCard.Model,
+            SparkSubmissionJobUploadStorageSparkInteractiveSessionCard.Model,
+            SparkSubmissionJobUploadStorageClusterDefaultStorageCard.Model,
+            SparkSubmissionJobUploadStorageClusterNotSupportStorageCard.Model,
+            SparkSubmissionJobUploadStorageAdlsCard.Model,
+            SparkSubmissionJobUploadStorageGen2Card.Model,
+            SparkSubmissionJobUploadStorageGen2OAuthCard.Model,
+            SparkSubmissionJobUploadStorageWebHdfsCard.Model,
+            SparkSubmissionJobUploadStorageAccountDefaultStorageCard.Model
 
     private val notFinishCheckMessage = "job upload storage validation check is not finished"
     private val storageTypeLabel = JLabel("Storage Type")
@@ -120,16 +132,20 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
         }
     }
 
+    private val storageCards = mapOf(
+            SparkSubmitStorageType.BLOB to azureBlobCard,
+            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION to sparkInteractiveSessionCard,
+            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT to sparkInteractiveSessionCard,
+            SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE to clusterDefaultStorageCard,
+            SparkSubmitStorageType.ADLS_GEN1 to adlsCard,
+            SparkSubmitStorageType.ADLS_GEN2 to adlsGen2Card,
+            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH to adlsGen2OAuthCard,
+            SparkSubmitStorageType.WEBHDFS to webHdfsCard,
+            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE to accountDefaultStorageCard
+    )
+
     private val storageCardsPanel = JPanel(CardLayout()).apply {
-        add(azureBlobCard, azureBlobCard.title)
-        add(sparkInteractiveSessionCard, sparkInteractiveSessionCard.title)
-        add(clusterDefaultStorageCard, clusterDefaultStorageCard.title)
-        add(notSupportStorageCard, notSupportStorageCard.title)
-        add(adlsCard, adlsCard.title)
-        add(adlsGen2Card, adlsGen2Card.title)
-        add(adlsGen2OAuthCard, adlsGen2OAuthCard.title)
-        add(webHdfsCard, webHdfsCard.title)
-        add(accountDefaultStorageCard, accountDefaultStorageCard.title)
+        storageCards.forEach { (_, card) -> add(card, card.title) }
     }
 
     var errorMessage: String? = notFinishCheckMessage
@@ -241,5 +257,23 @@ open class SparkSubmissionJobUploadStoragePanel: JPanel(), Disposable, ILogger {
     }
 
     override fun dispose() {
+    }
+
+    override fun readWithLock(to: Model) {
+        viewModel.deployStorageTypesModel.apply {
+            for (i in 0 until size) {
+                val card = storageCards[getElementAt(i)] ?: continue
+                card.readWithLock(to)
+            }
+        }
+    }
+
+    override fun writeWithLock(from: Model) {
+        viewModel.deployStorageTypesModel.apply {
+            for (i in 0 until size) {
+                val card = storageCards[getElementAt(i)] ?: continue
+                card.writeWithLock(from)
+            }
+        }
     }
 }

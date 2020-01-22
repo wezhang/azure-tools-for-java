@@ -25,5 +25,12 @@ package com.microsoft.azure.hdinsight.spark.ui
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 
 class SparkSubmissionJobUploadStorageClusterDefaultStorageCard: SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model
+
     override val title: String = SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT.description
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+    }
 }

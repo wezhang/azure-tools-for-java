@@ -27,15 +27,25 @@ import com.intellij.ui.ComboboxWithBrowseButton
 import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
 import com.microsoft.azure.hdinsight.common.StreamUtil
+import com.microsoft.azure.hdinsight.sdk.common.AzureSparkClusterManager
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
+import org.apache.commons.lang3.StringUtils
 import java.awt.CardLayout
 import java.awt.Dimension
+import javax.swing.ComboBoxModel
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JLabel
 import javax.swing.JPanel
 
 class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model : SparkSubmissionJobUploadStorageBasicCard.Model {
+        var adlsRootPath: String?
+        var subscriptionsModel: ComboBoxModel<Any>
+        var selectedSubscription: String?
+    }
+
     private val refreshButtonIconPath = "/icons/refresh.png"
     override val title: String = SparkSubmitStorageType.ADLS_GEN1.description
     private val adlsRootPathTip = "e.g. adl://myaccount.azuredatalakestore.net/<root path>"
@@ -90,4 +100,43 @@ class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBa
         layout = formBuilder.createGridLayoutManager()
         formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
     }
+
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (to !is Model) {
+            return
+        }
+
+        to.adlsRootPath = adlsRootPathField.text?.trim()
+        to.subscriptionsModel = subscriptionsComboBox.comboBox.model
+        to.selectedSubscription = subscriptionsComboBox.comboBox.selectedItem?.toString()
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (from !is Model) {
+            return
+        }
+
+        // Only set for changed
+        if (adlsRootPathField.text != from.adlsRootPath) {
+            adlsRootPathField.text = from.adlsRootPath
+        }
+
+        // show sign in/out panel based on whether user has signed in or not
+        val curLayout = azureAccountCards.layout as CardLayout
+        if (AzureSparkClusterManager.getInstance().isSignedIn) {
+            curLayout.show(azureAccountCards, signOutCard.title)
+            signOutCard.azureAccountLabel.text = AzureSparkClusterManager.getInstance().azureAccountEmail
+        } else {
+            curLayout.show(azureAccountCards, signInCard.title)
+        }
+
+        if (from.subscriptionsModel.size == 0
+                && StringUtils.isBlank(from.errorMsg)
+                && StringUtils.isNotEmpty(from.selectedSubscription)) {
+            subscriptionsComboBox.comboBox.model = DefaultComboBoxModel(arrayOf(from.selectedSubscription))
+        } else {
+            subscriptionsComboBox.comboBox.model = from.subscriptionsModel
+        }
+    }
+
 }

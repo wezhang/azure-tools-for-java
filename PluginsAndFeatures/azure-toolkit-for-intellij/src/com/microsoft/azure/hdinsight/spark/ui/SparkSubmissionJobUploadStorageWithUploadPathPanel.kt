@@ -323,33 +323,7 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
         data.uploadPath = uploadPathField.text
         data.storageAccountType = viewModel.uploadStorage.deployStorageTypesModel.selectedItem as? SparkSubmitStorageType
 
-        when (viewModel.uploadStorage.deployStorageTypeSelection) {
-            SparkSubmitStorageType.BLOB -> {
-                data.storageAccount = storagePanel.azureBlobCard.storageAccountField.text.trim()
-                data.storageKey = storagePanel.azureBlobCard.storageKeyField.text.trim()
-                data.containersModel = storagePanel.azureBlobCard.storageContainerUI.comboBox.model
-                data.selectedContainer = storagePanel.azureBlobCard.storageContainerUI.comboBox.selectedItem?.toString()
-            }
-            SparkSubmitStorageType.ADLS_GEN1 -> {
-                data.adlsRootPath = storagePanel.adlsCard.adlsRootPathField.text.trim()
-                data.subscriptionsModel = storagePanel.adlsCard.subscriptionsComboBox.comboBox.model
-                data.selectedSubscription = storagePanel.adlsCard.subscriptionsComboBox.comboBox.selectedItem?.toString()
-            }
-            SparkSubmitStorageType.WEBHDFS -> {
-                data.webHdfsRootPath= storagePanel.webHdfsCard.webHdfsRootPathField.text.trim()
-            }
-            SparkSubmitStorageType.ADLS_GEN2 -> {
-                val rootPathText = storagePanel.adlsGen2Card.gen2RootPathField.text.trim()
-                data.gen2RootPath = if (AbfsUri.isType(rootPathText)) AbfsUri.parse(rootPathText) else null
-                data.gen2Account = data.gen2RootPath?.accountName ?: ""
-                data.accessKey = storagePanel.adlsGen2Card.storageKeyField.text.trim()
-            }
-            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> {
-                val rootPathText = storagePanel.adlsGen2OAuthCard.gen2RootPathField.text.trim()
-                data.gen2RootPath = if (AbfsUri.isType(rootPathText)) AbfsUri.parse(rootPathText) else null
-            }
-            else -> {}
-        }
+        storagePanel.readWithLock(data)
     }
 
     override fun writeWithLock(data: SparkSubmitJobUploadStorageModel) {
@@ -366,89 +340,8 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
 
         storagePanel.errorMessage = data.errorMsg
         uploadPathField.text = data.uploadPath
-        when (data.storageAccountType) {
-            SparkSubmitStorageType.BLOB -> storagePanel.azureBlobCard.apply {
-                if (storageAccountField.text != data.storageAccount) {
-                    storageAccountField.text = data.storageAccount
-                }
 
-                val credentialAccount = SparkSubmitStorageType.BLOB.getSecureStoreServiceOf(data.storageAccount)
-                val storageKeyToSet =
-                        if (StringUtils.isEmpty(data.errorMsg) && StringUtils.isEmpty(data.storageKey)) {
-                            credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.storageAccount) }
-                        } else {
-                            data.storageKey
-                        }
-
-                if (storageKeyField.text != storageKeyToSet) {
-                    storageKeyField.text = storageKeyToSet
-                }
-
-                if (storageContainerUI.comboBox.model != data.containersModel) {
-                    if (data.containersModel.size == 0
-                            && StringUtils.isEmpty(storagePanel.errorMessage)
-                            && StringUtils.isNotEmpty(data.selectedContainer)) {
-                        storageContainerUI.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedContainer))
-                    } else {
-                        storageContainerUI.comboBox.model = data.containersModel
-                    }
-                }
-            }
-            SparkSubmitStorageType.ADLS_GEN1 -> storagePanel.adlsCard.apply {
-                // Only set for changed
-                if (adlsRootPathField.text != data.adlsRootPath) {
-                    adlsRootPathField.text = data.adlsRootPath
-                }
-
-                // show sign in/out panel based on whether user has signed in or not
-                val curLayout = azureAccountCards.layout as CardLayout
-                if (AzureSparkClusterManager.getInstance().isSignedIn) {
-                    curLayout.show(azureAccountCards, storagePanel.adlsCard.signOutCard.title)
-                    signOutCard.azureAccountLabel.text = AzureSparkClusterManager.getInstance().azureAccountEmail
-                } else {
-                    curLayout.show(azureAccountCards, signInCard.title)
-                }
-
-                if (data.subscriptionsModel.size == 0
-                        && StringUtils.isEmpty(storagePanel.errorMessage)
-                        && StringUtils.isNotEmpty(data.selectedSubscription)) {
-                    subscriptionsComboBox.comboBox.model = DefaultComboBoxModel(arrayOf(data.selectedSubscription))
-                } else {
-                    subscriptionsComboBox.comboBox.model = data.subscriptionsModel
-                }
-            }
-            SparkSubmitStorageType.WEBHDFS -> storagePanel.webHdfsCard.apply {
-                if (webHdfsRootPathField.text != data.webHdfsRootPath) {
-                    webHdfsRootPathField.text = data.webHdfsRootPath
-                }
-
-                // show sign in/out panel based on whether user has signed in or not
-                val curLayout = authAccountForWebHdfsCards.layout as CardLayout
-                curLayout.show(authAccountForWebHdfsCards, signOutCard.title)
-                signOutCard.authUserNameLabel.text = data.webHdfsAuthUser
-            }
-            SparkSubmitStorageType.ADLS_GEN2 -> storagePanel.adlsGen2Card.apply {
-                if (data.gen2RootPath?.toString() != gen2RootPathField.text.trim()) {
-                    gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
-                }
-
-                val credentialAccount = SparkSubmitStorageType.ADLS_GEN2.getSecureStoreServiceOf(data.gen2RootPath?.accountName)
-                storageKeyField.text =
-                        if (StringUtils.isEmpty(data.accessKey)) {
-                            credentialAccount?.let { secureStore?.loadPassword(credentialAccount, data.gen2Account) ?: "" }
-                        } else {
-                            data.accessKey
-                        }
-            }
-            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> storagePanel.adlsGen2OAuthCard.apply {
-                val gen2PathText = gen2RootPathField.text.trim()
-                val parsedGen2Path = if (AbfsUri.isType(gen2PathText)) AbfsUri.parse(gen2PathText) else null
-                if (data.gen2RootPath != parsedGen2Path) {
-                    gen2RootPathField.text = data.gen2RootPath?.uri?.toString() ?: ""
-                }
-            }
-            else -> { }
-        }
+        storagePanel.writeWithLock(data)
     }
 
     override fun dispose() {

@@ -25,6 +25,7 @@ package com.microsoft.azure.hdinsight.spark.ui
 import com.intellij.ui.components.fields.ExpandableTextField
 import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
+import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
@@ -32,6 +33,10 @@ import java.awt.Dimension
 import javax.swing.JLabel
 
 class SparkSubmissionJobUploadStorageGen2OAuthCard : SparkSubmissionJobUploadStorageBasicCard() {
+    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model {
+        var gen2RootPath: AbfsUri?
+    }
+
     private val gen2RootPathTip = "e.g. abfs://<file_system>@<account_name>.dfs.core.windows.net/<path>"
     private val gen2RootPathLabel = JLabel("ADLS GEN2 Root Path")
     val gen2RootPathField = HintTextField (gen2RootPathTip).apply {
@@ -61,4 +66,24 @@ class SparkSubmissionJobUploadStorageGen2OAuthCard : SparkSubmissionJobUploadSto
     }
 
     override val title = SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH.description
+    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (to !is Model) {
+            return
+        }
+
+        val rootPathText = gen2RootPathField.text?.trim()
+        to.gen2RootPath = if (AbfsUri.isType(rootPathText)) AbfsUri.parse(rootPathText) else null
+    }
+
+    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+        if (from !is Model) {
+            return
+        }
+
+        val gen2PathText = gen2RootPathField.text?.trim()
+        val parsedGen2Path = if (AbfsUri.isType(gen2PathText)) AbfsUri.parse(gen2PathText) else null
+        if (from.gen2RootPath != parsedGen2Path) {
+            gen2RootPathField.text = from.gen2RootPath?.uri?.toString() ?: ""
+        }
+    }
 }
