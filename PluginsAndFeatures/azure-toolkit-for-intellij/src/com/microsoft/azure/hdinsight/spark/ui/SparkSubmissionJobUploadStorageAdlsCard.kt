@@ -22,24 +22,32 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.ComboboxWithBrowseButton
 import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
 import com.microsoft.azure.hdinsight.common.StreamUtil
+import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.common.AzureSparkClusterManager
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azuretools.authmanage.AuthMethodManager
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
 import org.apache.commons.lang3.StringUtils
+import org.apache.commons.lang3.exception.ExceptionUtils
+import rx.Observable
+import rx.schedulers.Schedulers
 import java.awt.CardLayout
 import java.awt.Dimension
+import java.util.stream.Collectors
 import javax.swing.ComboBoxModel
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JLabel
 import javax.swing.JPanel
 
-class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBasicCard() {
+class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBasicCard(), ILogger {
     interface Model : SparkSubmissionJobUploadStorageBasicCard.Model {
         var adlsRootPath: String?
         var subscriptionsModel: ComboBoxModel<Any>
@@ -57,16 +65,27 @@ class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBa
     private val authMethodLabel = JLabel("Authentication Method")
     private val authMethodComboBox = ComboBox<String>(arrayOf("Azure Account")).apply { name = "adlsCardAuthMethodComboBox" }
     private val subscriptionsLabel = JLabel("Subscription List")
-    val subscriptionsComboBox  = ComboboxWithBrowseButton().apply {
+    private val subscriptionsComboBox  = ComboboxWithBrowseButton().apply {
         comboBox.name = "adlsCardSubscriptionsComboBoxCombo"
         button.name = "adlsCardSubscriptionsComboBoxButton"
         button.toolTipText = "Refresh"
         button.icon = StreamUtil.getImageResourceFile(refreshButtonIconPath)
+        button.addActionListener {
+            //refresh subscriptions after refresh button is clicked
+            if (button.isEnabled) {
+                button.isEnabled = false
+                refreshSubscriptions()
+                        .doOnEach { button.isEnabled = true }
+                        .subscribe(
+                                { },
+                                { err -> log().warn(ExceptionUtils.getStackTrace(err)) })
+            }
+        }
     }
 
     val signInCard = SparkSubmissionJobUploadStorageAdlsSignInCard()
     val signOutCard = SparkSubmissionJobUploadStorageAdlsSignOutCard()
-    val azureAccountCards = JPanel(CardLayout()).apply {
+    private val azureAccountCards = JPanel(CardLayout()).apply {
         add(signInCard, signInCard.title)
         add(signOutCard, signOutCard.title)
     }
@@ -99,6 +118,51 @@ class SparkSubmissionJobUploadStorageAdlsCard: SparkSubmissionJobUploadStorageBa
 
         layout = formBuilder.createGridLayoutManager()
         formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
+    }
+
+    private fun refreshSubscriptions(): Observable<SparkSubmitJobUploadStorageModel> {
+        ApplicationManager.getApplication().assertIsDispatchThread()
+
+        return Observable.just(SparkSubmitJobUploadStorageModel())
+                .doOnNext { getData(it) }
+                // set error message to prevent user from applying the change when refreshing is not completed
+                .map { it.apply { errorMsg = "refreshing subscriptions is not completed" } }
+                .doOnNext { setData(it) }
+                .observeOn(Schedulers.io())
+                .map { toUpdate ->
+                    toUpdate.apply {
+                        if (!AzureSparkClusterManager.getInstance().isSignedIn) {
+                            errorMsg = "ADLS Gen 1 storage type requires user to sign in first"
+                        } else {
+                            try {
+                                val subscriptionManager = AuthMethodManager.getInstance().azureManager.subscriptionManager
+                                val subscriptionNameList = subscriptionManager.selectedSubscriptionDetails
+                                        .stream()
+                                        .map { subDetail -> subDetail.subscriptionName }
+                                        .sorted()
+                                        .collect(Collectors.toList<String>())
+
+                                if (subscriptionNameList.size > 0) {
+                                    subscriptionsModel = DefaultComboBoxModel(subscriptionNameList.toTypedArray())
+                                    subscriptionsModel.selectedItem = subscriptionsModel.getElementAt(0)
+                                    selectedSubscription = subscriptionsModel.getElementAt(0)?.toString()
+                                    errorMsg = null
+                                } else {
+                                    errorMsg = "No subscriptions found in this storage account"
+                                }
+                            } catch (ex: Exception) {
+                                log().info("Refresh subscriptions error. " + ExceptionUtils.getStackTrace(ex))
+                                errorMsg = "Can't get subscriptions, check if subscriptions selected"
+                            }
+                        }
+                    }
+                }
+                .doOnNext { data ->
+                    if (data.errorMsg != null) {
+                        log().info("Refresh subscriptions error: " + data.errorMsg)
+                    }
+                    setData(data)
+                }
     }
 
     override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
