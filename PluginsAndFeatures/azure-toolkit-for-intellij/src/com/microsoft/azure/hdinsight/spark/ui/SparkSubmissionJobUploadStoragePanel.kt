@@ -45,7 +45,6 @@ import com.microsoft.azure.hdinsight.spark.ui.filesystem.ADLSGen2FileSystem
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AdlsGen2VirtualFile
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFile
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFileSystem
-import com.microsoft.azuretools.ijidea.actions.AzureSignInAction
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
 import org.apache.commons.lang3.StringUtils
@@ -73,11 +72,6 @@ open class SparkSubmissionJobUploadStoragePanel
 
     private val notFinishCheckMessage = "job upload storage validation check is not finished"
     private val storageTypeLabel = JLabel("Storage Type")
-    val azureBlobCard = SparkSubmissionJobUploadStorageAzureBlobCard()
-    val sparkInteractiveSessionCard = SparkSubmissionJobUploadStorageSparkInteractiveSessionCard()
-    val clusterDefaultStorageCard = SparkSubmissionJobUploadStorageClusterDefaultStorageCard()
-    val notSupportStorageCard = SparkSubmissionJobUploadStorageClusterNotSupportStorageCard()
-    val accountDefaultStorageCard = SparkSubmissionJobUploadStorageAccountDefaultStorageCard()
     val adlsGen2Card = SparkSubmissionJobUploadStorageGen2Card()
     val adlsGen2OAuthCard = SparkSubmissionJobUploadStorageGen2OAuthCard()
 
@@ -86,7 +80,6 @@ open class SparkSubmissionJobUploadStoragePanel
         arrayOf(signInCard.signInLink, signOutCard.signOutLink)
                 .forEach {
                     it.addActionListener {
-                        AzureSignInAction.onAzureSignIn(null)
                         viewModel.storageCheckSubject.onNext(StorageCheckSignInOutEvent())
                     }
                 }
@@ -99,7 +92,7 @@ open class SparkSubmissionJobUploadStoragePanel
         })
     }
 
-    val webHdfsCard = SparkSubmissionJobUploadStorageWebHdfsCard().apply {
+    private val webHdfsCard = SparkSubmissionJobUploadStorageWebHdfsCard().apply {
         // validate storage info when webhdfs root path field lost
         webHdfsRootPathField.addFocusListener( object : FocusAdapter() {
             override fun focusLost(e: FocusEvent?) {
@@ -133,15 +126,24 @@ open class SparkSubmissionJobUploadStoragePanel
     }
 
     private val storageCards = mapOf(
-            SparkSubmitStorageType.BLOB to azureBlobCard,
-            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION to sparkInteractiveSessionCard,
-            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT to sparkInteractiveSessionCard,
-            SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE to clusterDefaultStorageCard,
-            SparkSubmitStorageType.ADLS_GEN1 to adlsCard,
-            SparkSubmitStorageType.ADLS_GEN2 to adlsGen2Card,
-            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH to adlsGen2OAuthCard,
-            SparkSubmitStorageType.WEBHDFS to webHdfsCard,
-            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE to accountDefaultStorageCard
+            SparkSubmitStorageType.BLOB
+                    to SparkSubmissionJobUploadStorageAzureBlobCard(),
+            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION
+                    to SparkSubmissionJobUploadStorageSparkInteractiveSessionCard(),
+            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT
+                    to SparkSubmissionJobUploadStorageClusterDefaultStorageCard(),
+            SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE
+                    to SparkSubmissionJobUploadStorageClusterNotSupportStorageCard(),
+            SparkSubmitStorageType.ADLS_GEN1
+                    to adlsCard,
+            SparkSubmitStorageType.ADLS_GEN2
+                    to adlsGen2Card,
+            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH
+                    to adlsGen2OAuthCard,
+            SparkSubmitStorageType.WEBHDFS
+                    to webHdfsCard,
+            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE
+                    to SparkSubmissionJobUploadStorageAccountDefaultStorageCard()
     )
 
     private val storageCardsPanel = JPanel(CardLayout()).apply {
@@ -149,6 +151,8 @@ open class SparkSubmissionJobUploadStoragePanel
     }
 
     var errorMessage: String? = notFinishCheckMessage
+        private set
+
     init {
         val formBuilder = panel {
             columnTemplate {
@@ -260,6 +264,8 @@ open class SparkSubmissionJobUploadStoragePanel
     }
 
     override fun readWithLock(to: Model) {
+        to.errorMsg = errorMessage
+
         viewModel.deployStorageTypesModel.apply {
             for (i in 0 until size) {
                 val card = storageCards[getElementAt(i)] ?: continue
@@ -269,6 +275,8 @@ open class SparkSubmissionJobUploadStoragePanel
     }
 
     override fun writeWithLock(from: Model) {
+        errorMessage = from.errorMsg
+
         viewModel.deployStorageTypesModel.apply {
             for (i in 0 until size) {
                 val card = storageCards[getElementAt(i)] ?: continue

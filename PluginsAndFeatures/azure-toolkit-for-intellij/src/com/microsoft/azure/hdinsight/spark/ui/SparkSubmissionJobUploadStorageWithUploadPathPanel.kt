@@ -319,7 +319,6 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
 
     override fun readWithLock(data: SparkSubmitJobUploadStorageModel) {
         // Component -> Data
-        data.errorMsg = storagePanel.errorMessage
         data.uploadPath = uploadPathField.text
         data.storageAccountType = viewModel.uploadStorage.deployStorageTypesModel.selectedItem as? SparkSubmitStorageType
 
@@ -338,7 +337,6 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
             }
         }
 
-        storagePanel.errorMessage = data.errorMsg
         uploadPathField.text = data.uploadPath
 
         storagePanel.writeWithLock(data)

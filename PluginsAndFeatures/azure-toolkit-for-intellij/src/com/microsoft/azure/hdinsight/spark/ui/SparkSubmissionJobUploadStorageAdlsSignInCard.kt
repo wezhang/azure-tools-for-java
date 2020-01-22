@@ -24,6 +24,7 @@ package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
 import com.microsoft.azure.cosmosspark.common.JXHyperLinkWithUri
+import com.microsoft.azuretools.ijidea.actions.AzureSignInAction
 import com.microsoft.intellij.forms.dsl.panel
 import javax.swing.JPanel
 
@@ -32,6 +33,7 @@ class SparkSubmissionJobUploadStorageAdlsSignInCard: JPanel() {
     val signInLink = JXHyperLinkWithUri().apply {
         name = "adlsCardSignInHyperLink"
         text = "Sign In"
+        addActionListener { AzureSignInAction.onAzureSignIn(null) }
     }
 
     init {
