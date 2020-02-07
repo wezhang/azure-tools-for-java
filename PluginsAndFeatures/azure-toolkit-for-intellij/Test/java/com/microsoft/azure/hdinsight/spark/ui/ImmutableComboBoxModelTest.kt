@@ -20,19 +20,29 @@
  * SOFTWARE.
  */
 
-package com.microsoft.intellij.ui.util
+package com.microsoft.azure.hdinsight.spark.ui
 
-import javax.swing.ListModel
+import com.microsoft.intellij.ui.util.findFirst
+import com.microsoft.intellij.ui.util.iterator
+import junit.framework.TestCase
+import org.assertj.core.api.Assertions.*
+import org.junit.Test
 
-val <T> ListModel<T>.iterator: Iterator<T>
-    get() = this.let {
-        object: Iterator<T> {
-            private var position: Int = 0
+class ImmutableComboBoxModelTest: TestCase() {
+    @Test
+    fun testIterator() {
+        val data = listOf(3, 5, 4, 2)
+        val comboBoxModel = ImmutableComboBoxModel(data.toTypedArray())
 
-            override fun hasNext() = size > position
-            override fun next() = getElementAt(position++)
-        }
+        assertThat(comboBoxModel.iterator.asSequence().toList().toTypedArray()).containsExactlyElementsOf(data)
     }
 
-fun <T> ListModel<T>.findFirst(propertyMatcher: (T) -> Boolean): T? = this.iterator.asSequence().find(propertyMatcher)
+    @Test
+    fun testFindFirst() {
+        val data = listOf(3, 5, 4, 2)
+        val comboBoxModel = ImmutableComboBoxModel(data.toTypedArray())
 
+        assertEquals(3, comboBoxModel.findFirst { true })
+        assertEquals(4, comboBoxModel.findFirst { it % 2 == 0 })
+    }
+}
