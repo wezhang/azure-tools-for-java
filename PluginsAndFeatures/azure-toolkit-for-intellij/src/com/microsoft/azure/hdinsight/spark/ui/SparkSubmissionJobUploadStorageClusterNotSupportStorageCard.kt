@@ -22,15 +22,14 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE
 
-class SparkSubmissionJobUploadStorageClusterNotSupportStorageCard: SparkSubmissionJobUploadStorageBasicCard() {
-    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model
-
-    override val title: String = SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE.description
-    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
-    }
-
-    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+class SparkSubmissionJobUploadStorageClusterNotSupportStorageCard
+    : SparkSubmissionJobUploadStorageBasicCard(NOT_SUPPORT_STORAGE_TYPE.description) {
+    override fun createViewModel(): ViewModel = object: ViewModel() {
+        override fun getValidatedStorageUploadPath(config: Model): String {
+            throw RuntimeConfigurationError("Storage type is not supported")
+        }
     }
 }

@@ -22,29 +22,42 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.intellij.ui.components.fields.ExpandableTextField
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.uiDesigner.core.GridConstraints
 import com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST
 import com.microsoft.azure.hdinsight.common.AbfsUri
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.StorageCheckEvent.PathInputFocusLostEvent
+import com.microsoft.azuretools.authmanage.AuthMethodManager
 import com.microsoft.azuretools.ijidea.ui.HintTextField
 import com.microsoft.intellij.forms.dsl.panel
+import com.microsoft.intellij.ui.util.UIUtils
 import java.awt.Dimension
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
 import javax.swing.JLabel
 
-class SparkSubmissionJobUploadStorageGen2OAuthCard : SparkSubmissionJobUploadStorageBasicCard() {
+class SparkSubmissionJobUploadStorageGen2OAuthCard
+    : SparkSubmissionJobUploadStorageBasicCard(ADLS_GEN2_FOR_OAUTH.description) {
     interface Model: SparkSubmissionJobUploadStorageBasicCard.Model {
         var gen2RootPath: AbfsUri?
     }
 
     private val gen2RootPathTip = "e.g. abfs://<file_system>@<account_name>.dfs.core.windows.net/<path>"
     private val gen2RootPathLabel = JLabel("ADLS GEN2 Root Path")
-    val gen2RootPathField = HintTextField (gen2RootPathTip).apply {
+    private val gen2RootPathField = HintTextField (gen2RootPathTip).apply {
         name = "gen2OAuthCardRootPathField"
         preferredSize = Dimension(500, 0)
+
+        addFocusListener(object : FocusAdapter() {
+            override fun focusLost(e: FocusEvent?) {
+                viewModel.storageCheckSubject.onNext(PathInputFocusLostEvent(ADLS_GEN2_FOR_OAUTH))
+            }
+        })
     }
 
-    init {
+    override val view by lazy {
         val formBuilder = panel {
             columnTemplate {
                 col {
@@ -61,11 +74,31 @@ class SparkSubmissionJobUploadStorageGen2OAuthCard : SparkSubmissionJobUploadSto
             }
         }
 
-        layout = formBuilder.createGridLayoutManager()
-        formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
+        formBuilder.buildPanel()
     }
 
-    override val title = SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH.description
+    override fun createViewModel(): ViewModel = object : ViewModel() {
+        override fun getValidatedStorageUploadPath(config: SparkSubmissionJobUploadStorageBasicCard.Model)
+                : String {
+            if (config !is SparkSubmissionJobUploadStorageGen2Card.Model) {
+                return INVALID_UPLOAD_PATH
+            }
+
+            // There are IO operations
+            UIUtils.assertInPooledThread()
+
+            val rootPath = config.gen2RootPath ?: throw RuntimeConfigurationError("ADLS GEN2 Root Path is invalid")
+
+            if (!AuthMethodManager.getInstance().isSignedIn) {
+                throw RuntimeConfigurationError("Need to use azure account to login in first")
+            }
+
+            val cluster = this.cluster
+            val homeUri = if (cluster is MfaEspCluster) rootPath.resolveAsRoot(cluster.userPath) else rootPath
+            return homeUri.resolveAsRoot("SparkSubmission/").toString()
+        }
+    }
+
     override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
         if (to !is Model) {
             return

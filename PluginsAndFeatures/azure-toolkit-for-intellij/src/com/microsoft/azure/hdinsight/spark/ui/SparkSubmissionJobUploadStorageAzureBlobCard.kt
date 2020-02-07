@@ -22,26 +22,25 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.ComboboxWithBrowseButton
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.components.fields.ExpandableTextField
 import com.intellij.uiDesigner.core.GridConstraints.*
-import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx
 import com.microsoft.azure.hdinsight.common.StreamUtil
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.sdk.storage.ADLSGen2StorageAccount
-import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount
 import com.microsoft.azure.hdinsight.sdk.storage.HDStorageAccount.DefaultScheme
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.BLOB
 import com.microsoft.azure.hdinsight.spark.common.getSecureStoreServiceOf
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionContentPanel.Constants.Companion.submissionFolder
 import com.microsoft.azure.storage.blob.BlobRequestOptions
 import com.microsoft.azuretools.securestore.SecureStore
 import com.microsoft.azuretools.service.ServiceManager
 import com.microsoft.intellij.forms.dsl.panel
+import com.microsoft.intellij.ui.util.UIUtils
 import com.microsoft.tooling.msservices.helpers.azure.sdk.StorageClientSDKManager
 import com.microsoft.tooling.msservices.model.storage.BlobContainer
 import com.microsoft.tooling.msservices.model.storage.ClientStorageAccount
@@ -52,13 +51,11 @@ import rx.schedulers.Schedulers
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import java.awt.event.ItemEvent
-import javax.swing.ComboBoxModel
-import javax.swing.DefaultComboBoxModel
-import javax.swing.JLabel
-import javax.swing.JTextField
+import javax.swing.*
 import javax.swing.event.DocumentEvent
 
-class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStorageBasicCard(), ILogger {
+class SparkSubmissionJobUploadStorageAzureBlobCard
+    : SparkSubmissionJobUploadStorageBasicCard(BLOB.description), ILogger {
     interface Model : SparkSubmissionJobUploadStorageBasicCard.Model {
         var storageAccount : String?
         var storageKey : String?
@@ -95,7 +92,7 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
     }
 
     private val storageContainerLabel = JLabel("Storage Container")
-    val storageContainerUI = ComboboxWithBrowseButton().apply {
+    private val storageContainerUI = ComboboxWithBrowseButton().apply {
         comboBox.name = "blobCardStorageContainerComboBoxCombo"
 
         // after container is selected or new model is set, update upload path
@@ -139,7 +136,7 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
         }
     }
 
-    init {
+    override val view: JComponent by lazy {
         val formBuilder = panel {
             columnTemplate {
                 col {
@@ -162,8 +159,7 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
             }
         }
 
-        layout = formBuilder.createGridLayoutManager()
-        formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
+        formBuilder.buildPanel()
     }
 
     private fun refreshContainers(): Observable<SparkSubmitJobUploadStorageModel> {
@@ -248,14 +244,36 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
                 }
     }
 
-    private fun buildBlobUri(fullStorageBlobName: String?, container: String?): String? {
+    private fun buildBlobUri(fullStorageBlobName: String?, container: String?): String {
         if (StringUtils.isBlank(fullStorageBlobName) || StringUtils.isBlank(container))
             throw IllegalArgumentException("Blob Name ,container and scheme name cannot be empty")
 
         return "$DefaultScheme://$container@$fullStorageBlobName/$submissionFolder/"
     }
 
-    override val title = SparkSubmitStorageType.BLOB.description
+    override fun createViewModel(): ViewModel = object : ViewModel() {
+        override fun getValidatedStorageUploadPath(config: SparkSubmissionJobUploadStorageBasicCard.Model)
+                : String {
+            if (config !is Model) {
+                return INVALID_UPLOAD_PATH;
+            }
+
+            // There are IO operations
+            UIUtils.assertInPooledThread()
+
+            if (config.containersModel.size == 0
+                    || config.containersModel.selectedItem == null
+                    || config.storageAccount.isNullOrBlank()
+                    || config.storageKey.isNullOrBlank()) {
+                throw RuntimeConfigurationError("Azure Blob storage form is not completed")
+            }
+
+            return buildBlobUri(
+                    ClusterManagerEx.getInstance().getBlobFullName(config.storageAccount),
+                    config.containersModel.selectedItem as String)
+        }
+    }
+
     override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
         if (to !is Model) {
             return
@@ -276,7 +294,7 @@ class SparkSubmissionJobUploadStorageAzureBlobCard: SparkSubmissionJobUploadStor
             storageAccountField.text = from.storageAccount
         }
 
-        val credentialAccount = SparkSubmitStorageType.BLOB.getSecureStoreServiceOf(from.storageAccount)
+        val credentialAccount = BLOB.getSecureStoreServiceOf(from.storageAccount)
         val storageKeyToSet =
                 if (StringUtils.isBlank(from.errorMsg) && StringUtils.isEmpty(from.storageKey)) {
                     credentialAccount?.let { secureStore?.loadPassword(credentialAccount, from.storageAccount) }

@@ -83,9 +83,6 @@ class SparkSubmitJobUploadStorageModel: ILogger, SparkSubmissionJobUploadStorage
     // model for webhdfs  type
     @Attribute("webhdfs_root_path")
     override var webHdfsRootPath: String? = null
-
-    @Attribute("auth_user_for_webhdfs")
-    override var webHdfsAuthUser: String? = null
 }
 
 fun SparkSubmitStorageType.getSecureStoreServiceOf(account: String?): String? {

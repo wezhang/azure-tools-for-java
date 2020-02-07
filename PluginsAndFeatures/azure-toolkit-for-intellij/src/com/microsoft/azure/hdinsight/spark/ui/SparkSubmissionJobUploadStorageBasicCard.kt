@@ -22,21 +22,130 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.execution.configurations.RuntimeConfigurationException
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.util.Disposer
+import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
+import com.microsoft.azure.hdinsight.common.mvvm.Mvvm
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.Model
+import com.microsoft.intellij.rxjava.DisposableObservers
+import com.microsoft.intellij.rxjava.IdeaSchedulers
+import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
+import org.apache.commons.lang3.exception.ExceptionUtils.getRootCauseMessage
+import org.apache.commons.lang3.exception.ExceptionUtils.getRootCauseStackTrace
+import rx.subjects.BehaviorSubject
+import rx.subjects.PublishSubject
+import java.util.concurrent.TimeUnit
+import javax.swing.JComponent
 import javax.swing.JPanel
+import kotlin.properties.Delegates
 
-abstract class SparkSubmissionJobUploadStorageBasicCard
-    : JPanel(), IdeaSettableControlWithRwLock<Model> {
-    interface Model {
+abstract class SparkSubmissionJobUploadStorageBasicCard(val title: String)
+    : Mvvm, IdeaSettableControlWithRwLock<Model>, Disposable, ILogger {
+    companion object {
+        const val INVALID_UPLOAD_PATH = "<Invalid Upload Path>"
+        const val IN_PROGRESS_CHECKING = "<In progress of checking upload paths>"
+    }
+
+    interface Model: Mvvm.Model {
         var errorMsg: String?
     }
 
-    abstract val title: String
+    override val model: Model
+        get() = SparkSubmitJobUploadStorageModel().apply { getData(this) }
+
+    //storage check event for storageCheckSubject in panel
+    abstract class StorageCheckEvent(val message: String) {
+        class SelectedClusterEvent(val cluster: IClusterDetail?, preCluster: IClusterDetail?)
+            : StorageCheckEvent("Selected cluster ${cluster?.name} instead of previous ${preCluster?.title}")
+
+        class SignInOutEvent(isSignIn: Boolean)
+            : StorageCheckEvent("After user clicked sign ${if (isSignIn) "in" else "out"}")
+
+        class PathInputFocusLostEvent(rootPathType: SparkSubmitStorageType)
+            : StorageCheckEvent("$rootPathType root path focus lost")
+
+        class SelectedStorageTypeEvent(storageType: SparkSubmitStorageType)
+            : StorageCheckEvent("Selected storage type: $storageType")
+    }
+
+    open inner class ViewModel: Mvvm.ViewModel, DisposableObservers() {
+        val storageCheckSubject: PublishSubject<StorageCheckEvent> =
+                disposableSubjectOf { PublishSubject.create() }
+
+        open var cluster: IClusterDetail? by Delegates.observable(null as IClusterDetail?) { _, oldValue, newValue ->
+            assertInDispatchThread()
+
+            storageCheckSubject.onNext(StorageCheckEvent.SelectedClusterEvent(newValue, oldValue))
+            log().info("set cluster from ${oldValue?.title} to ${newValue?.title}")
+        }
+
+        val validatedStorageUploadUri: BehaviorSubject<String> = disposableSubjectOf {
+            BehaviorSubject.create(INVALID_UPLOAD_PATH)
+        }
+
+        // validate config with returning uploading path
+        @Throws(RuntimeConfigurationException::class)
+        open fun getValidatedStorageUploadPath(config: Model): String = INVALID_UPLOAD_PATH
+        private val ideaSchedulers = IdeaSchedulers()
+        var errorMessage: String? = null
+
+        init {
+            storageCheckSubject
+                    .doOnNext {
+                        // Set error message to prevent user from applying the changes
+                        // when validation is not completed
+                        errorMessage = "validating storage info is not completed"
+                        validatedStorageUploadUri.onNext(IN_PROGRESS_CHECKING)
+                    }
+                    .groupBy { checkEvent -> checkEvent::class.java.typeName}
+                    .subscribe(
+                            { groupedOb -> groupedOb
+                                    .throttleWithTimeout(200, TimeUnit.MILLISECONDS)
+                                    .doOnNext { log().info("Receive checking message ${it.message}") }
+                                    .observeOn(ideaSchedulers.dispatchUIThread())
+                                    .map { model }
+                                    .observeOn(ideaSchedulers.dispatchPooledThread())
+                                    .subscribe { model ->
+                                        try {
+                                            val uploadUri = getValidatedStorageUploadPath(model)
+
+                                            log().info("Artifact uploading URI parsed from storage configuration: $uploadUri")
+                                            validatedStorageUploadUri.onNext(uploadUri)
+                                        } catch (err: Exception) {
+                                            log().info("Checked result with error: ${err.message}")
+                                            errorMessage = err.message
+                                            validatedStorageUploadUri.onNext(INVALID_UPLOAD_PATH)
+                                        }
+                                    }
+                            },
+                            { err -> log().warn(getRootCauseMessage(err), getRootCauseStackTrace(err)) })
+        }
+    }
+
+    private var myViewModel: ViewModel? = null
+
+    // IntelliJ classloader can't handle well Kotlin's inner class lazy type, have to implement it manually
+    final override val viewModel: ViewModel
+        get() = myViewModel ?: synchronized(this) {
+            myViewModel ?: createViewModel().apply {
+                Disposer.register(this@SparkSubmissionJobUploadStorageBasicCard, this@apply)
+                myViewModel = this
+            }}
+
+    protected abstract fun createViewModel(): ViewModel
+    override val view: JComponent = JPanel()
 
     final override fun setDataInDispatch(from: Model) = super.setDataInDispatch(from)
-
     final override fun getData(to: Model) = super.getData(to)
-
     final override fun setData(from: Model) = super.setData(from)
+
+    override fun readWithLock(to: Model) { }
+    override fun writeWithLock(from: Model) { }
+
+    override fun dispose() { }
 }

@@ -23,6 +23,8 @@
 package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ModalityState.stateForComponent
+import com.intellij.openapi.application.runInEdt
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.SimpleListCellRenderer
@@ -30,78 +32,53 @@ import com.intellij.uiDesigner.core.GridConstraints.*
 import com.microsoft.azure.hdinsight.common.AbfsUri
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
-import com.microsoft.azure.hdinsight.common.viewmodels.ImmutableComboBoxModelDelegated
+import com.microsoft.azure.hdinsight.common.mvvm.Mvvm
 import com.microsoft.azure.hdinsight.common.viewmodels.ComboBoxSelectionDelegated
+import com.microsoft.azure.hdinsight.common.viewmodels.ImmutableComboBoxModelDelegated
 import com.microsoft.azure.hdinsight.sdk.cluster.AzureAdAccountDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.ADLSGen2OAuthHttpObservable
 import com.microsoft.azure.hdinsight.sdk.common.SharedKeyHttpObservable
 import com.microsoft.azure.hdinsight.sdk.storage.ADLSGen2StorageAccount
 import com.microsoft.azure.hdinsight.sdk.storage.IHDIStorageAccount
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.*
 import com.microsoft.azure.hdinsight.spark.ui.ImmutableComboBoxModel.Companion.empty
-import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageCtrl.*
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.StorageCheckEvent.SelectedStorageTypeEvent
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.ADLSGen2FileSystem
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AdlsGen2VirtualFile
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFile
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFileSystem
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
+import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
+import com.microsoft.intellij.ui.util.iterator
 import org.apache.commons.lang3.StringUtils
-import rx.subjects.PublishSubject
+import rx.Observable
+import rx.subjects.BehaviorSubject
+import rx.subjects.ReplaySubject
 import java.awt.CardLayout
-import java.awt.event.FocusAdapter
-import java.awt.event.FocusEvent
 import java.awt.event.ItemEvent
 import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.JPanel
 
 open class SparkSubmissionJobUploadStoragePanel
-    : JPanel(), IdeaSettableControlWithRwLock<SparkSubmissionJobUploadStoragePanel.Model>, Disposable, ILogger {
-    interface Model:
+    : Mvvm, IdeaSettableControlWithRwLock<SparkSubmissionJobUploadStoragePanel.Model>, Disposable, ILogger {
+    interface Model: Mvvm.Model,
             SparkSubmissionJobUploadStorageAzureBlobCard.Model,
-            SparkSubmissionJobUploadStorageSparkInteractiveSessionCard.Model,
-            SparkSubmissionJobUploadStorageClusterDefaultStorageCard.Model,
-            SparkSubmissionJobUploadStorageClusterNotSupportStorageCard.Model,
             SparkSubmissionJobUploadStorageAdlsCard.Model,
             SparkSubmissionJobUploadStorageGen2Card.Model,
             SparkSubmissionJobUploadStorageGen2OAuthCard.Model,
-            SparkSubmissionJobUploadStorageWebHdfsCard.Model,
-            SparkSubmissionJobUploadStorageAccountDefaultStorageCard.Model
+            SparkSubmissionJobUploadStorageWebHdfsCard.Model
 
-    private val notFinishCheckMessage = "job upload storage validation check is not finished"
     private val storageTypeLabel = JLabel("Storage Type")
-    val adlsGen2Card = SparkSubmissionJobUploadStorageGen2Card()
-    val adlsGen2OAuthCard = SparkSubmissionJobUploadStorageGen2OAuthCard()
+    private val adlsGen2Card = SparkSubmissionJobUploadStorageGen2Card()
+    private val adlsGen2OAuthCard = SparkSubmissionJobUploadStorageGen2OAuthCard()
 
-    val adlsCard = SparkSubmissionJobUploadStorageAdlsCard().apply {
-        // handle sign in/out action when sign in/out link is clicked
-        arrayOf(signInCard.signInLink, signOutCard.signOutLink)
-                .forEach {
-                    it.addActionListener {
-                        viewModel.storageCheckSubject.onNext(StorageCheckSignInOutEvent())
-                    }
-                }
-
-        // validate storage info when ADLS Root Path field focus lost
-        adlsRootPathField.addFocusListener( object : FocusAdapter() {
-            override fun focusLost(e: FocusEvent?) {
-                viewModel.storageCheckSubject.onNext(StorageCheckPathFocusLostEvent("ADLS"))
-            }
-        })
-    }
-
-    private val webHdfsCard = SparkSubmissionJobUploadStorageWebHdfsCard().apply {
-        // validate storage info when webhdfs root path field lost
-        webHdfsRootPathField.addFocusListener( object : FocusAdapter() {
-            override fun focusLost(e: FocusEvent?) {
-                viewModel.storageCheckSubject.onNext(StorageCheckPathFocusLostEvent("WEBHDFS"))
-            }
-        })
-    }
-
-
+    private val adlsCard = SparkSubmissionJobUploadStorageAdlsCard()
+    private val webHdfsCard = SparkSubmissionJobUploadStorageWebHdfsCard()
     private val storageTypeComboBox = ComboBox<SparkSubmitStorageType>(empty()).apply {
         name = "storageTypeComboBox"
         // validate storage info after storage type is selected
@@ -113,47 +90,36 @@ open class SparkSubmissionJobUploadStoragePanel
                 val selectedType = itemEvent.item as? SparkSubmitStorageType ?: return@addItemListener
 
                 curLayout.show(storageCardsPanel, selectedType.description)
-                viewModel.storageCheckSubject.onNext(StorageCheckSelectedStorageTypeEvent(selectedType.description))
+
+                // Send storage check event to current selected card
+                viewModel.currentCardViewModel?.storageCheckSubject?.onNext(SelectedStorageTypeEvent(selectedType))
             }
         }
 
-        @Suppress("MissingRecentApi") // Supported after 192.3099
         renderer = object: SimpleListCellRenderer<SparkSubmitStorageType>() {
             override fun customize(list: JList<out SparkSubmitStorageType>?, type: SparkSubmitStorageType?, index: Int, selected: Boolean, hasFocus: Boolean) {
-                text = type?.description
+                text = type?.description ?: "<No storage type selected>"
             }
         }
     }
 
     private val storageCards = mapOf(
-            SparkSubmitStorageType.BLOB
-                    to SparkSubmissionJobUploadStorageAzureBlobCard(),
-            SparkSubmitStorageType.SPARK_INTERACTIVE_SESSION
-                    to SparkSubmissionJobUploadStorageSparkInteractiveSessionCard(),
-            SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT
-                    to SparkSubmissionJobUploadStorageClusterDefaultStorageCard(),
-            SparkSubmitStorageType.NOT_SUPPORT_STORAGE_TYPE
-                    to SparkSubmissionJobUploadStorageClusterNotSupportStorageCard(),
-            SparkSubmitStorageType.ADLS_GEN1
-                    to adlsCard,
-            SparkSubmitStorageType.ADLS_GEN2
-                    to adlsGen2Card,
-            SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH
-                    to adlsGen2OAuthCard,
-            SparkSubmitStorageType.WEBHDFS
-                    to webHdfsCard,
-            SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE
-                    to SparkSubmissionJobUploadStorageAccountDefaultStorageCard()
+            ADLA_ACCOUNT_DEFAULT_STORAGE to SparkSubmissionJobUploadStorageAccountDefaultStorageCard(),
+            BLOB to SparkSubmissionJobUploadStorageAzureBlobCard(),
+            SPARK_INTERACTIVE_SESSION to SparkSubmissionJobUploadStorageSparkInteractiveSessionCard(),
+            DEFAULT_STORAGE_ACCOUNT to SparkSubmissionJobUploadStorageClusterDefaultStorageCard(),
+            NOT_SUPPORT_STORAGE_TYPE to SparkSubmissionJobUploadStorageClusterNotSupportStorageCard(),
+            ADLS_GEN1 to adlsCard,
+            ADLS_GEN2 to adlsGen2Card,
+            ADLS_GEN2_FOR_OAUTH to adlsGen2OAuthCard,
+            WEBHDFS to webHdfsCard
     )
 
     private val storageCardsPanel = JPanel(CardLayout()).apply {
-        storageCards.forEach { (_, card) -> add(card, card.title) }
+        storageCards.forEach { (_, card) -> add(card.view, card.title) }
     }
 
-    var errorMessage: String? = notFinishCheckMessage
-        private set
-
-    init {
+    override val view by lazy {
         val formBuilder = panel {
             columnTemplate {
                 col {
@@ -174,24 +140,97 @@ open class SparkSubmissionJobUploadStoragePanel
             }
         }
 
-        layout = formBuilder.createGridLayoutManager()
-        formBuilder.allComponentConstraints.forEach { (component, gridConstrains) -> add(component, gridConstrains) }
+        formBuilder.buildPanel()
     }
 
-    inner class ViewModel : DisposableObservers() {
+    open inner class ViewModel : Mvvm.ViewModel, DisposableObservers() {
         var deployStorageTypeSelection: SparkSubmitStorageType? by ComboBoxSelectionDelegated(storageTypeComboBox)
         var deployStorageTypesModel: ImmutableComboBoxModel<SparkSubmitStorageType> by ImmutableComboBoxModelDelegated(storageTypeComboBox)
 
-        val storageCheckSubject: PublishSubject<StorageCheckEvent> = disposableSubjectOf { PublishSubject.create() }
+        val validatedStorageUploadUri: BehaviorSubject<String> = disposableSubjectOf {  BehaviorSubject.create() }
+
+        // In order to get the pre select cluster name, use Replay Subject type
+        private val clusterSelectedCapacity = 2
+        val clusterSelectedSubject: ReplaySubject<IClusterDetail> = disposableSubjectOf {
+            ReplaySubject.createWithSize(clusterSelectedCapacity)
+        }
+
+        val currentCardViewModel
+            get() = storageCards[deployStorageTypeSelection]?.viewModel
+
+        // Update storage type selection combo
+        private fun updateStorageTypesModelForCluster(clusterDetail: IClusterDetail?): SparkSubmitStorageType? {
+            assertInDispatchThread()
+
+            if (clusterDetail == null) {
+                return deployStorageTypeSelection
+            }
+
+            val optionTypes = clusterDetail.storageOptionsType.optionTypes
+            val currentStorageTypesModel = deployStorageTypesModel
+            val newStorageTypesModel = ImmutableComboBoxModel(optionTypes)
+
+            val storageTypesModelToSet = if (currentStorageTypesModel.size == optionTypes.size) {
+                // Deep compare the size and items
+                var isDeepEqualed = true
+                for (i in 0 until currentStorageTypesModel.size) {
+                    if (currentStorageTypesModel.getElementAt(i) != optionTypes[i]) {
+                        isDeepEqualed = false
+                        break
+                    }
+                }
+
+                if (isDeepEqualed) currentStorageTypesModel else newStorageTypesModel
+            } else newStorageTypesModel
+
+            if (storageTypesModelToSet != currentStorageTypesModel) {
+                // there exist 4 cases to set the storage type
+                // 1.select cluster -> set to default
+                // 2.reload config with not null type -> set to saved type
+                // 3.reload config with null storage type -> set to default
+                // 4.create config  -> set to default
+                deployStorageTypesModel = storageTypesModelToSet
+                deployStorageTypeSelection = clusterDetail.defaultStorageType
+            }
+
+            return storageTypesModelToSet.selectedItem as? SparkSubmitStorageType ?: clusterDetail.defaultStorageType
+        }
+
+        val errorMessage: String?
+            get() {
+                val currentCardViewModel = this.currentCardViewModel
+                        ?: return "No selected artifacts uploading storage type"
+
+                return currentCardViewModel.errorMessage
+            }
+
+        init {
+            // Merge all storage cards storage validated upload URI events into the panel's
+            Observable.merge(storageCards.values.map { it.viewModel.validatedStorageUploadUri })
+                      .subscribe(validatedStorageUploadUri::onNext,
+                                 validatedStorageUploadUri::onError,
+                                 validatedStorageUploadUri::onCompleted)
+
+            clusterSelectedSubject
+                    .doOnNext {
+                        runInEdt(stateForComponent(view)) {
+                            log().info("Current model storage account type is $deployStorageTypeSelection")
+                            updateStorageTypesModelForCluster(it)
+                            log().info("Update model storage account type to $deployStorageTypeSelection")
+
+                            currentCardViewModel?.cluster = it
+                        }
+                    }
+                    .subscribe()
+        }
 
         fun prepareVFSRoot(uploadRootPathUri: AbfsUri, storageAccount: IHDIStorageAccount?, cluster: IClusterDetail?): AzureStorageVirtualFile? {
-            var fileSystem: AzureStorageVirtualFileSystem?
             var account: String? = null
             var accessKey: String? = null
             var fsType: AzureStorageVirtualFileSystem.VFSSupportStorageType? = null
             try {
                 when (viewModel.deployStorageTypeSelection) {
-                    SparkSubmitStorageType.DEFAULT_STORAGE_ACCOUNT -> {
+                    DEFAULT_STORAGE_ACCOUNT -> {
                         when (storageAccount) {
                             is ADLSGen2StorageAccount  -> {
                                 fsType = AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2
@@ -201,13 +240,13 @@ open class SparkSubmissionJobUploadStoragePanel
                         }
                     }
 
-                    SparkSubmitStorageType.ADLS_GEN2 -> {
+                    ADLS_GEN2 -> {
                         fsType = AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2
                         account = uploadRootPathUri.accountName
                         accessKey = adlsGen2Card.storageKeyField.text.trim()
                     }
 
-                    SparkSubmitStorageType.ADLS_GEN2_FOR_OAUTH -> {
+                    ADLS_GEN2_FOR_OAUTH -> {
                         fsType = AzureStorageVirtualFileSystem.VFSSupportStorageType.ADLSGen2
                         account = uploadRootPathUri.accountName
                     }
@@ -246,7 +285,7 @@ open class SparkSubmissionJobUploadStoragePanel
                             SharedKeyHttpObservable(account, accessKey)
                         }
 
-                    fileSystem = ADLSGen2FileSystem(http, uploadRootPathUri)
+                    val fileSystem = ADLSGen2FileSystem(http, uploadRootPathUri)
                     return AdlsGen2VirtualFile(uploadRootPathUri, true, fileSystem)
                 }
                 else -> {
@@ -256,32 +295,28 @@ open class SparkSubmissionJobUploadStoragePanel
         }
     }
 
-    val viewModel = ViewModel().apply {
+    override val viewModel = ViewModel().apply {
         Disposer.register(this@SparkSubmissionJobUploadStoragePanel, this@apply)
+        storageCards.values.forEach { card -> Disposer.register(this@SparkSubmissionJobUploadStoragePanel, card) }
     }
+
+    override val model: Model
+        get() = SparkSubmitJobUploadStorageModel().apply { getData(this) }
 
     override fun dispose() {
     }
 
     override fun readWithLock(to: Model) {
-        to.errorMsg = errorMessage
-
-        viewModel.deployStorageTypesModel.apply {
-            for (i in 0 until size) {
-                val card = storageCards[getElementAt(i)] ?: continue
-                card.readWithLock(to)
-            }
+        viewModel.deployStorageTypesModel.iterator.forEach {
+            storageCards[it]?.readWithLock(to)
         }
+
+        to.errorMsg = viewModel.currentCardViewModel?.errorMessage
     }
 
     override fun writeWithLock(from: Model) {
-        errorMessage = from.errorMsg
-
-        viewModel.deployStorageTypesModel.apply {
-            for (i in 0 until size) {
-                val card = storageCards[getElementAt(i)] ?: continue
-                card.writeWithLock(from)
-            }
+        viewModel.deployStorageTypesModel.iterator.forEach {
+            storageCards[it]?.writeWithLock(from)
         }
     }
 }

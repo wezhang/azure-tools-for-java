@@ -22,15 +22,19 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.microsoft.azure.hdinsight.common.logger.ILogger
+import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkServerlessAccount
+import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE
 
-class SparkSubmissionJobUploadStorageAccountDefaultStorageCard: SparkSubmissionJobUploadStorageBasicCard() {
-    interface Model: SparkSubmissionJobUploadStorageBasicCard.Model
+class SparkSubmissionJobUploadStorageAccountDefaultStorageCard
+    : SparkSubmissionJobUploadStorageBasicCard(ADLA_ACCOUNT_DEFAULT_STORAGE.description), ILogger {
+    override fun createViewModel(): ViewModel = object: ViewModel() {
+        override fun getValidatedStorageUploadPath(config: Model) : String {
+            val account = cluster as? AzureSparkServerlessAccount
+                    ?: throw RuntimeConfigurationError("Selected ADLA account does not exist")
 
-    override val title: String = SparkSubmitStorageType.ADLA_ACCOUNT_DEFAULT_STORAGE.description
-    override fun readWithLock(to: SparkSubmissionJobUploadStorageBasicCard.Model) {
-    }
-
-    override fun writeWithLock(from: SparkSubmissionJobUploadStorageBasicCard.Model) {
+            return "${account.storageRootPath}SparkSubmission/"
+        }
     }
 }
