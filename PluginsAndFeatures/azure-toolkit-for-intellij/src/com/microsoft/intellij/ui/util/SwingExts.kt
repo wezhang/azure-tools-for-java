@@ -24,15 +24,17 @@ package com.microsoft.intellij.ui.util
 
 import javax.swing.ListModel
 
-val <T> ListModel<T>.iterator: Iterator<T>
-    get() = this.let {
+val <T> ListModel<T>?.iterator: Iterator<T>
+    get() = if (this != null) {
         object: Iterator<T> {
             private var position: Int = 0
 
             override fun hasNext() = size > position
             override fun next() = getElementAt(position++)
         }
+    } else {
+        emptyList<T>().iterator()
     }
 
-fun <T> ListModel<T>.findFirst(propertyMatcher: (T) -> Boolean): T? = this.iterator.asSequence().find(propertyMatcher)
+fun <T> ListModel<T>?.findFirst(predicate: (T) -> Boolean): T? = this?.iterator?.asSequence()?.find(predicate)
 

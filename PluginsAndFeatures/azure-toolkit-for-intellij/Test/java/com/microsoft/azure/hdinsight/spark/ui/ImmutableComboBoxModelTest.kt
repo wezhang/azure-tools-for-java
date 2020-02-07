@@ -35,6 +35,9 @@ class ImmutableComboBoxModelTest: TestCase() {
         val comboBoxModel = ImmutableComboBoxModel(data.toTypedArray())
 
         assertThat(comboBoxModel.iterator.asSequence().toList().toTypedArray()).containsExactlyElementsOf(data)
+
+        val emptyModel: ImmutableComboBoxModel<Int>? = null
+        assertFalse(emptyModel.iterator.hasNext())
     }
 
     @Test
@@ -44,5 +47,8 @@ class ImmutableComboBoxModelTest: TestCase() {
 
         assertEquals(3, comboBoxModel.findFirst { true })
         assertEquals(4, comboBoxModel.findFirst { it % 2 == 0 })
+
+        val emptyModel: ImmutableComboBoxModel<Int>? = null
+        assertNull(emptyModel.findFirst { true })
     }
 }
