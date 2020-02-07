@@ -81,8 +81,6 @@ public class IdeaSchedulers implements IdeSchedulers {
     }
 
     public Scheduler dispatchUIThread() {
-        Application application = ApplicationManager.getApplication();
-
         return dispatchUIThread(ModalityState.any());
     }
 
