@@ -658,10 +658,6 @@ open class SparkSubmissionContentPanel(private val myProject: Project, val type:
 
         // get Job upload storage panel data
         storageWithUploadPathPanel.getData(data.jobUploadStorageModel)
-        data.errors.apply {
-            removeAll { true }
-            add(data.jobUploadStorageModel.errorMsg)
-        }
     }
 
     override fun dispose() {

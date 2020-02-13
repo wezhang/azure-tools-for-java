@@ -23,8 +23,6 @@
 package com.microsoft.azure.hdinsight.spark.ui
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ModalityState.stateForComponent
-import com.intellij.openapi.application.runInEdt
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.SimpleListCellRenderer
@@ -52,6 +50,7 @@ import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFile
 import com.microsoft.azure.hdinsight.spark.ui.filesystem.AzureStorageVirtualFileSystem
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
+import com.microsoft.intellij.rxjava.IdeaSchedulers
 import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
 import com.microsoft.intellij.ui.util.iterator
 import org.apache.commons.lang3.StringUtils
@@ -71,7 +70,9 @@ open class SparkSubmissionJobUploadStoragePanel
             SparkSubmissionJobUploadStorageAdlsCard.Model,
             SparkSubmissionJobUploadStorageGen2Card.Model,
             SparkSubmissionJobUploadStorageGen2OAuthCard.Model,
-            SparkSubmissionJobUploadStorageWebHdfsCard.Model
+            SparkSubmissionJobUploadStorageWebHdfsCard.Model {
+        var storageAccountType: SparkSubmitStorageType?
+    }
 
     private val storageTypeLabel = JLabel("Storage Type")
     private val adlsGen2Card = SparkSubmissionJobUploadStorageGen2Card()
@@ -204,6 +205,8 @@ open class SparkSubmissionJobUploadStoragePanel
                 return currentCardViewModel.errorMessage
             }
 
+        private val ideaSchedulers = IdeaSchedulers()
+
         init {
             // Merge all storage cards storage validated upload URI events into the panel's
             Observable.merge(storageCards.values.map { it.viewModel.validatedStorageUploadUri })
@@ -212,15 +215,14 @@ open class SparkSubmissionJobUploadStoragePanel
                                  validatedStorageUploadUri::onCompleted)
 
             clusterSelectedSubject
+                    .observeOn(ideaSchedulers.dispatchUIThread())
                     .doOnNext {
-                        runInEdt(stateForComponent(view)) {
-                            log().info("Current model storage account type is $deployStorageTypeSelection")
-                            updateStorageTypesModelForCluster(it)
-                            log().info("Update model storage account type to $deployStorageTypeSelection")
-
-                            currentCardViewModel?.cluster = it
-                        }
+                        log().info("Current model storage account type is $deployStorageTypeSelection")
+                        updateStorageTypesModelForCluster(it)
+                        log().info("Update model storage account type to $deployStorageTypeSelection")
                     }
+                    .observeOn(ideaSchedulers.dispatchPooledThread())
+                    .doOnNext { currentCardViewModel?.cluster = it }
                     .subscribe()
         }
 
@@ -311,10 +313,22 @@ open class SparkSubmissionJobUploadStoragePanel
             storageCards[it]?.readWithLock(to)
         }
 
+        to.storageAccountType = viewModel.deployStorageTypesModel.selectedItem as? SparkSubmitStorageType
         to.errorMsg = viewModel.currentCardViewModel?.errorMessage
     }
 
     override fun writeWithLock(from: Model) {
+        viewModel.apply {
+            if (deployStorageTypeSelection != from.storageAccountType) {
+                if (deployStorageTypesModel.size == 0) {
+                    deployStorageTypesModel = ImmutableComboBoxModel(
+                            from.storageAccountType?.let { arrayOf(it) } ?: emptyArray())
+                }
+
+                deployStorageTypeSelection = from.storageAccountType
+            }
+        }
+
         viewModel.deployStorageTypesModel.iterator.forEach {
             storageCards[it]?.writeWithLock(from)
         }

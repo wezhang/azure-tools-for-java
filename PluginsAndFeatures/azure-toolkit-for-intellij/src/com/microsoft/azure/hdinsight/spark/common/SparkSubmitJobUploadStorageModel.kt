@@ -71,7 +71,7 @@ class SparkSubmitJobUploadStorageModel: ILogger, SparkSubmissionJobUploadStorage
     override var selectedSubscription: String? = null
 
     @Attribute("storage_account_type")
-    var storageAccountType: SparkSubmitStorageType? = null
+    override var storageAccountType: SparkSubmitStorageType? = null
 
     @get:Transient @set:Transient
     override var errorMsg: String? = null

@@ -34,7 +34,7 @@ import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
 import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.Model
 import com.microsoft.intellij.rxjava.DisposableObservers
 import com.microsoft.intellij.rxjava.IdeaSchedulers
-import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
+import com.microsoft.intellij.ui.util.UIUtils.assertInPooledThread
 import org.apache.commons.lang3.exception.ExceptionUtils.getRootCauseMessage
 import org.apache.commons.lang3.exception.ExceptionUtils.getRootCauseStackTrace
 import rx.subjects.BehaviorSubject
@@ -47,8 +47,15 @@ import kotlin.properties.Delegates
 abstract class SparkSubmissionJobUploadStorageBasicCard(val title: String)
     : Mvvm, IdeaSettableControlWithRwLock<Model>, Disposable, ILogger {
     companion object {
-        const val INVALID_UPLOAD_PATH = "<Invalid Upload Path>"
-        const val IN_PROGRESS_CHECKING = "<In progress of checking upload paths>"
+        private const val NOT_READY_PATH_PREFIX     = "<"
+        private const val NOT_READY_PATH_POSTFIX    = ">"
+
+        val INVALID_UPLOAD_PATH: String     = buildNotReadyPath("Invalid upload path")
+        val IN_PROGRESS_CHECKING: String    = buildNotReadyPath("In progress of checking upload paths")
+
+        fun buildNotReadyPath(message: String): String = "$NOT_READY_PATH_PREFIX $message $NOT_READY_PATH_POSTFIX"
+
+        fun isNotReadyPath(message: String?): Boolean = message?.startsWith(NOT_READY_PATH_PREFIX) == true
     }
 
     interface Model: Mvvm.Model {
@@ -78,7 +85,7 @@ abstract class SparkSubmissionJobUploadStorageBasicCard(val title: String)
                 disposableSubjectOf { PublishSubject.create() }
 
         open var cluster: IClusterDetail? by Delegates.observable(null as IClusterDetail?) { _, oldValue, newValue ->
-            assertInDispatchThread()
+            assertInPooledThread()
 
             storageCheckSubject.onNext(StorageCheckEvent.SelectedClusterEvent(newValue, oldValue))
             log().info("set cluster from ${oldValue?.title} to ${newValue?.title}")
@@ -118,8 +125,8 @@ abstract class SparkSubmissionJobUploadStorageBasicCard(val title: String)
                                             validatedStorageUploadUri.onNext(uploadUri)
                                         } catch (err: Exception) {
                                             log().info("Checked result with error: ${err.message}")
-                                            errorMessage = err.message
-                                            validatedStorageUploadUri.onNext(INVALID_UPLOAD_PATH)
+                                            errorMessage = err.message ?: "unknown"
+                                            validatedStorageUploadUri.onNext(buildNotReadyPath(err.message ?: "unknown"))
                                         }
                                     }
                             },

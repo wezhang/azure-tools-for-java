@@ -22,6 +22,8 @@
 
 package com.microsoft.azure.hdinsight.spark.ui
 
+import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.intellij.execution.configurations.RuntimeConfigurationException
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.uiDesigner.core.GridConstraints.*
@@ -29,7 +31,8 @@ import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.common.mvc.IdeaSettableControlWithRwLock
 import com.microsoft.azure.hdinsight.common.mvvm.Mvvm
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadStorageModel
-import com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType
+import com.microsoft.azure.hdinsight.spark.run.SparkSubmissionRunner
+import com.microsoft.azure.hdinsight.spark.ui.SparkSubmissionJobUploadStorageBasicCard.Companion.isNotReadyPath
 import com.microsoft.azuretools.ijidea.ui.AccessibleHideableTitledPanel
 import com.microsoft.intellij.forms.dsl.panel
 import com.microsoft.intellij.rxjava.DisposableObservers
@@ -101,26 +104,28 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
     override val model: SparkSubmitJobUploadStorageModel
         get() = SparkSubmitJobUploadStorageModel().apply { getData(this) }
 
+    @Throws(RuntimeConfigurationException::class)
+    fun checkConfigurationBeforeRun(runner: SparkSubmissionRunner, config: SparkSubmitJobUploadStorageModel) {
+        val uploadPath = config.uploadPath?.trimStart()
+
+        val errHint = when {
+            uploadPath.isNullOrBlank() -> "upload path is blank"
+            isNotReadyPath(uploadPath) -> uploadPath
+            else -> return
+        }
+
+        throw RuntimeConfigurationError(
+                "There are artifacts uploading storage configuration issues, fix it before continue, please: $errHint")
+    }
+
     override fun readWithLock(to: SparkSubmitJobUploadStorageModel) {
         // Component -> Data
         to.uploadPath = uploadPathField.text
-        to.storageAccountType = viewModel.uploadStorage.deployStorageTypesModel.selectedItem as? SparkSubmitStorageType
 
         storagePanel.readWithLock(to)
     }
 
     override fun writeWithLock(from: SparkSubmitJobUploadStorageModel) {
-        viewModel.uploadStorage.apply {
-            if (deployStorageTypeSelection != from.storageAccountType) {
-                if (deployStorageTypesModel.size == 0) {
-                    deployStorageTypesModel = ImmutableComboBoxModel(
-                            from.storageAccountType?.let { arrayOf(it) } ?: emptyArray())
-                }
-
-                deployStorageTypeSelection = from.storageAccountType
-            }
-        }
-
         uploadPathField.text = from.uploadPath
 
         storagePanel.writeWithLock(from)
