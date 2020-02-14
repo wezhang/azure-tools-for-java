@@ -93,7 +93,10 @@ class SparkSubmissionJobUploadStorageWithUploadPathPanel
         init {
             uploadStorage.validatedStorageUploadUri
                     .observeOn(ideaSchedulers.dispatchUIThread())
-                    .subscribe { uploadPathField.text = it }
+                    .subscribe(
+                            { uploadPathField.text = it },
+                            { log().warn("Failed to update upload path field: ${it.message}") }
+                    )
         }
     }
 

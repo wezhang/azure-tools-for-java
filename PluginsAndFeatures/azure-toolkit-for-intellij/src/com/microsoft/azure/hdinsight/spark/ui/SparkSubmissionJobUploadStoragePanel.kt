@@ -222,8 +222,10 @@ open class SparkSubmissionJobUploadStoragePanel
                         log().info("Update model storage account type to $deployStorageTypeSelection")
                     }
                     .observeOn(ideaSchedulers.dispatchPooledThread())
-                    .doOnNext { currentCardViewModel?.cluster = it }
-                    .subscribe()
+                    .subscribe(
+                            { currentCardViewModel?.cluster = it },
+                            { log().warn("Failed to update storage type model: ${it.message}") }
+                    )
         }
 
         fun prepareVFSRoot(uploadRootPathUri: AbfsUri, storageAccount: IHDIStorageAccount?, cluster: IClusterDetail?): AzureStorageVirtualFile? {
