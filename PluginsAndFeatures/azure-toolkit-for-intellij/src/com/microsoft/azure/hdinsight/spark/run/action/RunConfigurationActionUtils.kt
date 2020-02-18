@@ -25,18 +25,25 @@ package com.microsoft.azure.hdinsight.spark.run.action
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.configuration.AbstractRunConfiguration
-import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunnerSettings
-import com.intellij.execution.configurations.RuntimeConfigurationError
-import com.intellij.execution.configurations.RuntimeConfigurationException
 import com.intellij.execution.impl.RunDialog
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
+import com.intellij.openapi.progress.ProcessCanceledException
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.Messages.YES
+import com.intellij.openapi.ui.Messages.showYesNoDialog
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azuretools.telemetrywrapper.ErrorType
-import com.microsoft.azuretools.telemetrywrapper.EventUtil
+import com.microsoft.azure.hdinsight.spark.run.SparkSubmissionRunner
+import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
+import com.microsoft.azuretools.telemetrywrapper.ErrorType.userError
+import com.microsoft.azuretools.telemetrywrapper.EventUtil.logError
+import com.microsoft.azuretools.telemetrywrapper.EventUtil.logErrorWithComplete
+import com.microsoft.intellij.rxjava.IdeaSchedulers
 import com.microsoft.intellij.telemetry.TelemetryKeys
+import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
+import rx.Observable.fromCallable
 
 object RunConfigurationActionUtils: ILogger {
     fun runEnvironmentProfileWithCheckSettings(environment: ExecutionEnvironment,
@@ -45,57 +52,61 @@ object RunConfigurationActionUtils: ILogger {
         val setting = environment.runnerAndConfigurationSettings ?: return
         val asyncOperation = environment.getUserData(TelemetryKeys.OPERATION)
 
-        try {
-            if (setting.isEditBeforeRun && !RunDialog.editConfiguration(environment, title)) {
-                EventUtil.logErrorWithComplete(asyncOperation, ErrorType.userError, ExecutionException("run config dialog closed"), null, null)
-                return
-            }
+        if (setting.isEditBeforeRun && !RunDialog.editConfiguration(environment, title)) {
+            logErrorWithComplete(asyncOperation, userError, ExecutionException("run config dialog closed"), null, null)
+            return
+        }
 
-            var configError = getRunConfigurationError(environment.runProfile, runner)
-            while (configError != null) {
-                EventUtil.logError(asyncOperation, ErrorType.userError, ExecutionException(configError), null, null)
+        val ideaScheds = IdeaSchedulers(environment.project)
+        val sparkRunConfig = environment.runProfile as LivySparkBatchJobRunConfiguration
 
-                if (Messages.YES == Messages.showYesNoDialog(
-                                environment.project,
-                                "Configuration is incorrect: $configError. Do you want to edit it?",
-                                "Change Configuration Settings",
-                                "Edit",
-                                "Continue Anyway",
-                                Messages.getErrorIcon())) {
-                    if (!RunDialog.editConfiguration(environment, "Edit configuration")) {
-                        EventUtil.logErrorWithComplete(asyncOperation, ErrorType.userError, ExecutionException("run config dialog closed"), null, null)
-                        return
+        fromCallable { checkRunnerSettings(sparkRunConfig, runner) }
+                .subscribeOn(ideaScheds.dispatchUIThread()) // Check Runner Settings in EDT
+                .observeOn(ideaScheds.backgroundableTask("Checking Spark Job configuration settings"))
+                .flatMap { sparkRunConfig.buildSparkJobForRunner(runner as SparkSubmissionRunner) }
+                .retryWhen{ errOb -> errOb.observeOn(ideaScheds.dispatchUIThread())
+                        .doOnNext { logError(asyncOperation, userError, ExecutionException(it), null, null) }
+                        .takeWhile { configError -> // Check when can retry
+                            showFixOrNotDialogForError(environment.project, configError.message ?: "Unknown").apply {
+                                if (!this) {
+                                    throw ExecutionException(configError);
+                                }
+                            } && RunDialog.editConfiguration(environment, "Edit configuration").apply {
+                                if (!this) {
+                                    throw ProcessCanceledException(configError)
+                                }
+                            }
+                        }
+                } .subscribe({
+                    sparkRunConfig.sparkRemoteBatch = it
+                    environment.assignNewExecutionId()
+
+                    runner.execute(environment)
+
+                }, { err ->
+                    if (err is ProcessCanceledException) {
+                        // User cancelled edit configuration dialog
+                        logErrorWithComplete(asyncOperation, userError, ExecutionException("run config dialog closed"), null, null)
+
+                        return@subscribe
                     }
-                } else {
-                    break
-                }
 
-                configError = getRunConfigurationError(environment.runProfile, runner)
-            }
-
-            environment.assignNewExecutionId()
-
-            // asyncOperation is completed at class SparkBatchRemoteRunState
-            runner.execute(environment)
-        } catch (e: ExecutionException) {
-            EventUtil.logErrorWithComplete(asyncOperation, ErrorType.userError, e, null, null)
-
-            ProgramRunnerUtil.handleExecutionError(environment.project, environment, e, setting.configuration)
-        }
+                    logErrorWithComplete(asyncOperation, userError, err, null, null)
+                    ProgramRunnerUtil.handleExecutionError(environment.project, environment, err, setting.configuration)
+                }, { })
     }
 
-    fun checkRunnerSettings(runProfile: RunProfile?, runner: ProgramRunner<RunnerSettings>) {
-        (runProfile as? AbstractRunConfiguration)?.checkRunnerSettings(runner, null, null)
-    }
+    private fun showFixOrNotDialogForError(project: Project, configError: String): Boolean = showYesNoDialog(
+                            project,
+                            "Configuration is incorrect: $configError. Do you want to edit it?",
+                            "Change Configuration Settings",
+                            "Edit",
+                            "Continue Anyway",
+                            Messages.getErrorIcon()) == YES
 
-    fun getRunConfigurationError(runProfile: RunProfile?, runner: ProgramRunner<RunnerSettings>): String? {
-        try {
-            checkRunnerSettings(runProfile, runner)
-        } catch (err: RuntimeConfigurationError) {
-            return err.message
-        } catch (ignored: RuntimeConfigurationException) {
-        }
+    fun checkRunnerSettings(runProfile: AbstractRunConfiguration, runner: ProgramRunner<RunnerSettings>) {
+        assertInDispatchThread()
 
-        return null
+        runProfile.checkRunnerSettings(runner, null, null)
     }
 }

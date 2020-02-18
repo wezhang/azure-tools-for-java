@@ -72,6 +72,7 @@ import static com.microsoft.azure.hdinsight.spark.common.SparkBatchSubmission.ge
 
 public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implements SparkSubmissionRunner {
     public static final Key<String> DebugTargetKey = new Key<>("debug-target");
+    public static final String RUNNER_ID = "SparkBatchJobDebug";
     private static final Key<String> ProfileNameKey = new Key<>("profile-name");
     public static final String DebugDriver = "driver";
     public static final String DebugExecutor = "executor";
@@ -96,7 +97,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
     @NotNull
     @Override
     public String getRunnerId() {
-        return "SparkBatchJobDebug";
+        return RUNNER_ID;
     }
 
     @Override
@@ -147,7 +148,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
         final SparkBatchJobRemoteDebugProcess driverDebugProcess = new SparkBatchJobRemoteDebugProcess(
                 schedulers,
                 session,
-                (ISparkBatchDebugJob) buildSparkBatchJob(submitModel, ctrlSubject),
+                (ISparkBatchDebugJob) submissionState.getSparkBatch(),
                 submitModel.getArtifactPath().orElseThrow(() -> new ExecutionException("No artifact selected")),
                 submitModel.getSubmissionParameter().getMainClassName(),
                 submitModel.getAdvancedConfigModel(),
@@ -366,8 +367,9 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
 
     @NotNull
     @Override
-    public ISparkBatchJob buildSparkBatchJob(@NotNull SparkSubmitModel submitModel, @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) throws ExecutionException {
-        try {
+    public Observable<ISparkBatchJob> buildSparkBatchJob(@NotNull SparkSubmitModel submitModel,
+                                                         @NotNull Observer<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject) {
+        return Observable.fromCallable(() -> {
             SparkSubmissionAdvancedConfigPanel.Companion.checkSettings(submitModel.getAdvancedConfigModel());
             SparkSubmissionParameter debugSubmissionParameter = SparkBatchRemoteDebugJob.convertToDebugParameter(submitModel.getSubmissionParameter());
             SparkSubmitModel debugModel = new SparkSubmitModel(submitModel.getProject(), debugSubmissionParameter,
@@ -380,9 +382,7 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
             Deployable jobDeploy = SparkBatchJobDeployFactory.getInstance().buildSparkBatchJobDeploy(
                     debugModel, clusterDetail, ctrlSubject);
             return new SparkBatchRemoteDebugJob(clusterDetail, debugModel.getSubmissionParameter(), getClusterSubmission(clusterDetail), ctrlSubject, jobDeploy);
-        } catch (DebugParameterDefinedException e) {
-            throw new ExecutionException(e);
-        }
+        });
     }
 
     @Override
