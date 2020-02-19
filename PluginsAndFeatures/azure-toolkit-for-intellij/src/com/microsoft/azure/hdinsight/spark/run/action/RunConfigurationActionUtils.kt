@@ -35,14 +35,15 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.Messages.YES
 import com.intellij.openapi.ui.Messages.showYesNoDialog
 import com.microsoft.azure.hdinsight.common.logger.ILogger
-import com.microsoft.azure.hdinsight.spark.run.SparkSubmissionRunner
-import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
+import com.microsoft.azure.hdinsight.spark.run.configuration.RunProfileStatePrepare
 import com.microsoft.azuretools.telemetrywrapper.ErrorType.userError
 import com.microsoft.azuretools.telemetrywrapper.EventUtil.logError
 import com.microsoft.azuretools.telemetrywrapper.EventUtil.logErrorWithComplete
 import com.microsoft.intellij.rxjava.IdeaSchedulers
 import com.microsoft.intellij.telemetry.TelemetryKeys
 import com.microsoft.intellij.ui.util.UIUtils.assertInDispatchThread
+import rx.Observable
+import rx.Observable.empty
 import rx.Observable.fromCallable
 
 object RunConfigurationActionUtils: ILogger {
@@ -58,12 +59,11 @@ object RunConfigurationActionUtils: ILogger {
         }
 
         val ideaScheds = IdeaSchedulers(environment.project)
-        val sparkRunConfig = environment.runProfile as LivySparkBatchJobRunConfiguration
+        val runConfig = environment.runProfile as AbstractRunConfiguration
 
-        fromCallable { checkRunnerSettings(sparkRunConfig, runner) }
+        fromCallable { checkRunnerSettings(runConfig, runner) }
                 .subscribeOn(ideaScheds.dispatchUIThread()) // Check Runner Settings in EDT
-                .observeOn(ideaScheds.backgroundableTask("Checking Spark Job configuration settings"))
-                .flatMap { sparkRunConfig.buildSparkJobForRunner(runner as SparkSubmissionRunner) }
+                .flatMap { checkAndPrepareRunProfileState(runConfig, runner, ideaScheds) }
                 .retryWhen{ errOb -> errOb.observeOn(ideaScheds.dispatchUIThread())
                         .doOnNext { logError(asyncOperation, userError, ExecutionException(it), null, null) }
                         .takeWhile { configError -> // Check when can retry
@@ -77,13 +77,7 @@ object RunConfigurationActionUtils: ILogger {
                                 }
                             }
                         }
-                } .subscribe({
-                    sparkRunConfig.sparkRemoteBatch = it
-                    environment.assignNewExecutionId()
-
-                    runner.execute(environment)
-
-                }, { err ->
+                } .subscribe({ }, { err ->
                     if (err is ProcessCanceledException) {
                         // User cancelled edit configuration dialog
                         logErrorWithComplete(asyncOperation, userError, ExecutionException("run config dialog closed"), null, null)
@@ -93,7 +87,11 @@ object RunConfigurationActionUtils: ILogger {
 
                     logErrorWithComplete(asyncOperation, userError, err, null, null)
                     ProgramRunnerUtil.handleExecutionError(environment.project, environment, err, setting.configuration)
-                }, { })
+                }, {
+                    environment.assignNewExecutionId()
+
+                    runner.execute(environment)
+                })
     }
 
     private fun showFixOrNotDialogForError(project: Project, configError: String): Boolean = showYesNoDialog(
@@ -104,9 +102,20 @@ object RunConfigurationActionUtils: ILogger {
                             "Continue Anyway",
                             Messages.getErrorIcon()) == YES
 
-    fun checkRunnerSettings(runProfile: AbstractRunConfiguration, runner: ProgramRunner<RunnerSettings>) {
+    private fun checkRunnerSettings(runProfile: AbstractRunConfiguration, runner: ProgramRunner<RunnerSettings>) {
         assertInDispatchThread()
 
         runProfile.checkRunnerSettings(runner, null, null)
+    }
+
+    private fun checkAndPrepareRunProfileState(runProfile: AbstractRunConfiguration,
+                                               runner: ProgramRunner<RunnerSettings>,
+                                               ideaSchedulers: IdeaSchedulers): Observable<out Any?> {
+        if (runProfile !is RunProfileStatePrepare<*>) {
+            return empty()
+        }
+
+        return runProfile.prepare(runner)
+                .subscribeOn(ideaSchedulers.backgroundableTask("Checking Spark Job configuration settings"))
     }
 }

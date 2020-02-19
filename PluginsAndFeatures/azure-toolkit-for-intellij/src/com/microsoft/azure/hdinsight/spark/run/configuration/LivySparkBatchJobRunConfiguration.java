@@ -73,10 +73,11 @@ import static com.microsoft.azure.hdinsight.spark.common.SparkSubmitJobUploadSto
 import static com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.ADLS_GEN2;
 import static com.microsoft.azure.hdinsight.spark.common.SparkSubmitStorageType.BLOB;
 
-public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration implements ILogger
+public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration
+        implements RunProfileStatePrepare<ISparkBatchJob>, ILogger
 {
     @Nullable
-    public ISparkBatchJob sparkRemoteBatch = null;
+    private ISparkBatchJob sparkRemoteBatch = null;
 
     enum RunMode {
         LOCAL,
@@ -270,8 +271,14 @@ public class LivySparkBatchJobRunConfiguration extends AbstractRunConfiguration 
         super.checkRunnerSettings(runner, runnerSettings, configurationPerRunnerSettings);
     }
 
-    public Observable<ISparkBatchJob> buildSparkJobForRunner(SparkSubmissionRunner runner) {
-        return runner.buildSparkBatchJob(getSubmitModel(), PublishSubject.create());
+    @Override
+    public Observable<ISparkBatchJob> prepare(final ProgramRunner<RunnerSettings> runner) {
+        if (!(runner instanceof SparkSubmissionRunner)) {
+            return Observable.empty();
+        }
+
+        return ((SparkSubmissionRunner) runner).buildSparkBatchJob(getSubmitModel(), PublishSubject.create())
+                .doOnNext(batch -> sparkRemoteBatch = batch);
     }
 
     protected String getErrorMessageClusterNull() {
