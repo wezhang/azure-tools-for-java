@@ -143,12 +143,14 @@ public class SparkBatchJobDebuggerRunner extends GenericDebuggerRunner implement
 
         final Project project = submitModel.getProject();
         final IdeaSchedulers schedulers = new IdeaSchedulers(project);
-        final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
         final PublishSubject<SparkBatchJobSubmissionEvent> debugEventSubject = PublishSubject.create();
+        final ISparkBatchDebugJob sparkDebugBatch = (ISparkBatchDebugJob) submissionState.getSparkBatch();
+        final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject =
+                (PublishSubject<SimpleImmutableEntry<MessageInfoType, String>>) sparkDebugBatch.getCtrlSubject();
         final SparkBatchJobRemoteDebugProcess driverDebugProcess = new SparkBatchJobRemoteDebugProcess(
                 schedulers,
                 session,
-                (ISparkBatchDebugJob) submissionState.getSparkBatch(),
+                sparkDebugBatch,
                 submitModel.getArtifactPath().orElseThrow(() -> new ExecutionException("No artifact selected")),
                 submitModel.getSubmissionParameter().getMainClassName(),
                 submitModel.getAdvancedConfigModel(),

@@ -179,10 +179,12 @@ public class SparkBatchJobRunner extends DefaultProgramRunner implements SparkSu
         String artifactPath = submitModel.getArtifactPath().orElse(null);
         assert artifactPath != null : "artifactPath should be checked in LivySparkBatchJobRunConfiguration::checkSubmissionConfigurationBeforeRun";
 
-        PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject = PublishSubject.create();
+        final ISparkBatchJob sparkBatch = submissionState.getSparkBatch();
+        final PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject =
+                (PublishSubject<SimpleImmutableEntry<MessageInfoType, String>>) sparkBatch.getCtrlSubject();
         SparkBatchJobRemoteProcess remoteProcess = new SparkBatchJobRemoteProcess(
                 new IdeaSchedulers(project),
-                submissionState.getSparkBatch(),
+                sparkBatch,
                 artifactPath,
                 submitModel.getSubmissionParameter().getMainClassName(),
                 ctrlSubject);
