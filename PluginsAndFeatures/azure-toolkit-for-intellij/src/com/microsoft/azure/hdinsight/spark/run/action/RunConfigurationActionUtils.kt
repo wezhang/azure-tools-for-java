@@ -58,21 +58,22 @@ object RunConfigurationActionUtils: ILogger {
             return
         }
 
-        val ideaScheds = IdeaSchedulers(environment.project)
-        val runConfig = environment.runProfile as AbstractRunConfiguration
+        val ideaSchedulers = IdeaSchedulers(environment.project)
 
-        fromCallable { checkRunnerSettings(runConfig, runner) }
-                .subscribeOn(ideaScheds.dispatchUIThread()) // Check Runner Settings in EDT
-                .flatMap { checkAndPrepareRunProfileState(runConfig, runner, ideaScheds) }
-                .retryWhen{ errOb -> errOb.observeOn(ideaScheds.dispatchUIThread())
+        fromCallable { checkRunnerSettings(environment.runProfile as AbstractRunConfiguration, runner) }
+                .subscribeOn(ideaSchedulers.dispatchUIThread()) // Check Runner Settings in EDT
+                .flatMap { checkAndPrepareRunProfileState(it, runner, ideaSchedulers) }
+                .retryWhen { errOb -> errOb.observeOn(ideaSchedulers.dispatchUIThread() )
                         .doOnNext { logError(asyncOperation, userError, ExecutionException(it), null, null) }
                         .takeWhile { configError -> // Check when can retry
                             showFixOrNotDialogForError(environment.project, configError.message ?: "Unknown").apply {
                                 if (!this) {
+                                    // User clicks `Cancel Submit` button
                                     throw ExecutionException(configError);
                                 }
                             } && RunDialog.editConfiguration(environment, "Edit configuration").apply {
                                 if (!this) {
+                                    // User clicks `Cancel` button in Run Configuration Editor dialog
                                     throw ProcessCanceledException(configError)
                                 }
                             }
@@ -99,13 +100,16 @@ object RunConfigurationActionUtils: ILogger {
                             "Configuration is incorrect: $configError. Do you want to edit it?",
                             "Change Configuration Settings",
                             "Edit",
-                            "Continue Anyway",
+                            "Cancel Submit",
                             Messages.getErrorIcon()) == YES
 
-    private fun checkRunnerSettings(runProfile: AbstractRunConfiguration, runner: ProgramRunner<RunnerSettings>) {
+    private fun checkRunnerSettings(runProfile: AbstractRunConfiguration, runner: ProgramRunner<RunnerSettings>)
+            : AbstractRunConfiguration {
         assertInDispatchThread()
 
         runProfile.checkRunnerSettings(runner, null, null)
+
+        return runProfile
     }
 
     private fun checkAndPrepareRunProfileState(runProfile: AbstractRunConfiguration,

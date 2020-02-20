@@ -50,18 +50,15 @@ class CosmosSparkBatchRunner : SparkBatchJobRunner() {
                                                        submitModel.accountName,
                                                   submitModel.clusterId
                                                           ?: throw ExecutionException("Can't get the Azure Serverless Spark cluster, please sign in and refresh."))
-    ).flatMap { (tenantId, accountName, clusterId) ->
-        val clusterDetail = AzureSparkCosmosClusterManager.getInstance().findCluster(accountName, clusterId)
-                .toBlocking().singleOrDefault(null) ?: throw ExecutionException("Can't get Spark on Cosmos cluster")
-
-        val livyUriOb = submitModel.livyUri
-                ?.let { just(URI.create(it)) }
-                ?: clusterDetail.get().map { it.livyUri }
-
-        livyUriOb.map { livyUri -> CosmosSparkBatchJob(
-                prepareSubmissionParameterWithTransformedGen2Uri(submitModel.submissionParameter),
-                SparkBatchAzureSubmission(tenantId, accountName, clusterId, livyUri),
-                ctrlSubject)
-        }
+    ).flatMap { (tenantId, accountName, clusterId) -> AzureSparkCosmosClusterManager.getInstance()
+            .findCluster(accountName, clusterId)
+            .flatMap { clusterDetail -> submitModel.livyUri
+                    ?.let { just(URI.create(it)) }
+                    ?: clusterDetail.get().map { it.livyUri } }
+            .map { livyUri -> CosmosSparkBatchJob(
+                    prepareSubmissionParameterWithTransformedGen2Uri(submitModel.submissionParameter),
+                    SparkBatchAzureSubmission(tenantId, accountName, clusterId, livyUri),
+                    ctrlSubject)
+            }
     }
 }
