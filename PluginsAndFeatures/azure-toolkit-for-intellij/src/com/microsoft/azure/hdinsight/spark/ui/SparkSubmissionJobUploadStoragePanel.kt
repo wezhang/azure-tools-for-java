@@ -191,7 +191,9 @@ open class SparkSubmissionJobUploadStoragePanel
                 // 3.reload config with null storage type -> set to default
                 // 4.create config  -> set to default
                 deployStorageTypesModel = storageTypesModelToSet
-                deployStorageTypeSelection = clusterDetail.defaultStorageType
+                deployStorageTypesModel.selectedItem = null
+                deployStorageTypeSelection = (currentStorageTypesModel.selectedItem as? SparkSubmitStorageType)
+                        ?: clusterDetail.defaultStorageType
             }
 
             return storageTypesModelToSet.selectedItem as? SparkSubmitStorageType ?: clusterDetail.defaultStorageType
