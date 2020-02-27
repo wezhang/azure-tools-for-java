@@ -196,6 +196,7 @@ open class SparkSubmissionJobUploadStoragePanel
                 deployStorageTypesModel = storageTypesModelToSet
                 deployStorageTypesModel.selectedItem = null
                 deployStorageTypeSelection = (currentStorageTypesModel.selectedItem as? SparkSubmitStorageType)
+                        ?.takeIf { currentSelected -> deployStorageTypesModel.getIndexOf(currentSelected) >= 0 }
                         ?: clusterDetail.defaultStorageType
             }
 
