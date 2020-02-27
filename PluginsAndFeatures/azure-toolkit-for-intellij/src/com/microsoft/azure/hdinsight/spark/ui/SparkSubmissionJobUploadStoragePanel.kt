@@ -94,6 +94,9 @@ open class SparkSubmissionJobUploadStoragePanel
 
                 // Send storage check event to current selected card
                 viewModel.currentCardViewModel?.storageCheckSubject?.onNext(SelectedStorageTypeEvent(selectedType))
+
+                // Recheck cluster for new selected type card
+                viewModel.clusterSelectedSubject.onNext(viewModel.clusterSelectedSubject.value)
             }
         }
 
