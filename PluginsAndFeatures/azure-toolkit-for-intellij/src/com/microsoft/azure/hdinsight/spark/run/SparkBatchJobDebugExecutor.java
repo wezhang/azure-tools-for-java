@@ -96,27 +96,18 @@ public class SparkBatchJobDebugExecutor extends Executor {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
         if (!(obj instanceof Executor)) {
             return false;
         }
 
-        Executor other = (Executor) obj;
-        Executor defaultDebugExecutor;
-
-        try {
-            // Workaround for Issue #2983
-            // Mute the error of "Fatal error initializing 'com.intellij.execution.ExecutorRegistry'"
-            defaultDebugExecutor = DefaultDebugExecutor.getDebugExecutorInstance();
-
-            if (defaultDebugExecutor == null) {
-                return false;
-            }
-        } catch (Throwable ignored) {
-            return false;
-        }
+        final Executor other = (Executor) obj;
 
         // Intellij requires the executor equaling DefaultDebugExecutor to enable the support for multiple debug tabs
         // And all executors are Singletons, only compare the ID
-        return other.getId().equals(defaultDebugExecutor.getId()) || other.getId().equals(this.getId());
+        return other.getId().equals(DefaultDebugExecutor.EXECUTOR_ID) || other.getId().equals(this.getId());
     }
 }
