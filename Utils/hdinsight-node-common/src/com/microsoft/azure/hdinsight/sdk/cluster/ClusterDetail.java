@@ -499,4 +499,22 @@ public class ClusterDetail implements IClusterDetail, LivyCluster, YarnCluster, 
             return SparkSubmitStorageTypeOptionsForCluster.ClusterWithUnknown;
         }
     }
+
+    @Override
+    public int hashCode() {
+        return getName().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) {
+            return true;
+        }
+
+        if (!(o instanceof IClusterDetail)) {
+            return false;
+        }
+
+        return o.hashCode() == this.hashCode();
+    }
 }
