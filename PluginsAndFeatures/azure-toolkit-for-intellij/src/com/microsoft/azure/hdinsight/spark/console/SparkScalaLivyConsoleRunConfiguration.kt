@@ -61,9 +61,13 @@ open class SparkScalaLivyConsoleRunConfiguration(project: Project,
     protected var cluster: IClusterDetail? = null
 
     protected val consoleBuilder: SparkScalaConsoleBuilder
-        get() = SparkScalaConsoleBuilder(project, batchRunConfiguration?.modules?.firstOrNull()
-            ?: throw ExecutionException(RuntimeConfigurationError(
-                    "The default module needs to be set in the local run tab of Run Configuration")))
+        get() {
+            batchRunConfiguration?.configurationModule?.setModuleToAnyFirstIfNotSpecified()
+
+            return SparkScalaConsoleBuilder(project, batchRunConfiguration?.modules?.firstOrNull()
+                    ?: throw ExecutionException(RuntimeConfigurationError(
+                            "The default module needs to be set in the local run tab of Run Configuration")))
+        }
 
 
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> =

@@ -240,6 +240,8 @@ class SparkScalaLocalConsoleRunConfiguration(
             }
         }
 
+        batchRunConfiguration.configurationModule.setModuleToAnyFirstIfNotSpecified()
+
         state.consoleBuilder = SparkScalaConsoleBuilder(project, batchRunConfiguration.modules.firstOrNull()
                 ?: throw ExecutionException(RuntimeConfigurationError(
                         "The default module needs to be set in the local run tab of Run Configuration")))
