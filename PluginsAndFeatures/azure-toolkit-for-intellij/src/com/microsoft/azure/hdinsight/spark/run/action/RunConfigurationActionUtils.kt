@@ -91,7 +91,11 @@ object RunConfigurationActionUtils: ILogger {
                 }, {
                     environment.assignNewExecutionId()
 
-                    runner.execute(environment)
+                    try {
+                        runner.execute(environment)
+                    } catch (err: ExecutionException) {
+                        ProgramRunnerUtil.handleExecutionError(environment.project, environment, err, setting.configuration)
+                    }
                 })
     }
 
