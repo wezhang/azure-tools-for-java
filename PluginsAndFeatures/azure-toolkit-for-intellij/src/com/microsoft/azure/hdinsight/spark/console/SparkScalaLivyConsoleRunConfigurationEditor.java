@@ -40,8 +40,6 @@ public class SparkScalaLivyConsoleRunConfigurationEditor extends SettingsEditor<
 
     @Override
     protected void applyEditorTo(@NotNull SparkScalaLivyConsoleRunConfiguration destConf) throws ConfigurationException {
-        // Apply the panel's setting to RunConfiguration
-        destConf.setClusterName(clusterNameField.getText());
     }
 
     @NotNull

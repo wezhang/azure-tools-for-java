@@ -23,24 +23,25 @@
 package com.microsoft.azure.cosmosspark.spark.console
 
 import com.intellij.execution.ExecutionException
-import com.intellij.execution.Executor
 import com.intellij.execution.configurations.ConfigurationPerRunnerSettings
-import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.configurations.RuntimeConfigurationError
-import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.project.Project
 import com.microsoft.azure.cosmosspark.sdk.common.livy.interactive.CosmosSparkSession
+import com.microsoft.azure.hdinsight.common.MessageInfoType
+import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkCosmosCluster
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkCosmosClusterManager
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession
 import com.microsoft.azure.hdinsight.sdk.rest.azure.serverless.spark.models.SparkItemGroupState
 import com.microsoft.azure.hdinsight.spark.common.CosmosSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.console.SparkScalaLivyConsoleRunConfiguration
 import com.microsoft.azure.hdinsight.spark.console.SparkScalaLivyConsoleRunConfigurationFactory
-import com.microsoft.azure.hdinsight.spark.console.SparkScalaLivyConsoleRunProfileState
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
+import rx.Observer
 import java.net.URI
+import java.util.AbstractMap
 
 class CosmosSparkScalaLivyConsoleRunConfiguration(project: Project,
                                                   configurationFactory: SparkScalaLivyConsoleRunConfigurationFactory,
@@ -51,19 +52,15 @@ class CosmosSparkScalaLivyConsoleRunConfiguration(project: Project,
 {
     override val runConfigurationTypeName = "Azure Data Lake Spark Run Configuration"
 
-    override fun getState(executor: Executor, env: ExecutionEnvironment): RunProfileState? {
-        val sparkCluster = cluster as? AzureSparkCosmosCluster ?: throw ExecutionException(RuntimeConfigurationError(
+    override fun createSession(sparkCluster: IClusterDetail, logObserver: Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>>): SparkSession {
+        val sparkPool = cluster as? AzureSparkCosmosCluster ?: throw ExecutionException(RuntimeConfigurationError(
                 "Can't prepare Spark Cosmos interactive session since the target account isn't set or found"))
 
-        val livyUrl = (sparkCluster.livyUri?.toString() ?: return null).trimEnd('/') + "/"
+        val livyUrl = (sparkPool.livyUri?.toString() ?: throw ExecutionException(RuntimeConfigurationError(
+                "Can't prepare Spark Cosmos interactive session since the Livy URI is null")))
+                .trimEnd('/') + "/"
 
-        val session = CosmosSparkSession(
-                name,
-                URI.create(livyUrl),
-                sparkCluster.tenantId,
-                sparkCluster.account)
-
-        return SparkScalaLivyConsoleRunProfileState(consoleBuilder, session)
+        return CosmosSparkSession(name, URI.create(livyUrl), sparkPool.tenantId, sparkPool.account, logObserver)
     }
 
     override fun checkRunnerSettings(runner: ProgramRunner<*>, runnerSettings: RunnerSettings?, configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {

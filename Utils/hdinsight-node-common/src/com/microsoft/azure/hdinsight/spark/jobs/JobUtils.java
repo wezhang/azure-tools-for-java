@@ -594,7 +594,7 @@ public class JobUtils {
         logSubject.onNext(new SimpleImmutableEntry<>(Info, "Create Spark helper interactive session..."));
 
         try {
-            return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
+            return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password, logSubject),
                     SparkSession::create,
                     SparkSession::close)
                     .map(sparkSession -> {

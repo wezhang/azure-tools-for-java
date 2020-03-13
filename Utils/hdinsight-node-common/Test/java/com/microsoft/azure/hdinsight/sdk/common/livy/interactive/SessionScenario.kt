@@ -31,6 +31,7 @@ import cucumber.api.java.en.And
 import cucumber.api.java.en.Given
 import cucumber.api.java.en.Then
 import org.assertj.core.api.Assertions.assertThat
+import rx.subjects.PublishSubject
 import java.net.URI
 import kotlin.test.fail
 
@@ -53,7 +54,7 @@ class SessionScenario {
 
     @And("^create a livy Spark interactive session instance with name '(.+)'$")
     fun newSparkSession(name: String) {
-        sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")))
+        sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")), PublishSubject.create())
     }
 
     @Given("^create the Spark interactive session, and save the response$")
