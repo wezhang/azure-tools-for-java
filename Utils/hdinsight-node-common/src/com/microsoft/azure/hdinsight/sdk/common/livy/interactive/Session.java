@@ -117,6 +117,16 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
         this(name, baseUrl, null, null, logObserver);
     }
 
+    /**
+     * Create a Livy session instance.
+     *
+     * @param name the session name which will be found in resource manager, such as Yarn
+     * @param baseUrl the connect URL of Livy, also the parent URL of submitting POST Livy session request,
+     *                ending with '/'
+     * @param username the username of Basic Authentication, leave NULL for other authentication methods
+     * @param password the password of Basic Authentication, leave NULL for other authentication methods
+     * @param logObserver the observer for session operation logs output
+     */
     public Session(final String name,
                    final URI baseUrl,
                    final @Nullable String username,
