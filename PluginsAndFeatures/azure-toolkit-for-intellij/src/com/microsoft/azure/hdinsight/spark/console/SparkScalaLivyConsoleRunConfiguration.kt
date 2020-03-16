@@ -36,44 +36,50 @@ import com.intellij.packaging.impl.artifacts.ArtifactUtil
 import com.intellij.packaging.impl.run.BuildArtifactsBeforeRunTaskProvider.setBuildArtifactBeforeRun
 import com.microsoft.azure.arcadia.sdk.common.livy.interactive.MfaEspSparkSession
 import com.microsoft.azure.hdinsight.common.ClusterManagerEx
-import com.microsoft.azure.hdinsight.common.MessageInfoType
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.cluster.LivyCluster
 import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession
+import com.microsoft.azure.hdinsight.spark.common.Deployable
 import com.microsoft.azure.hdinsight.spark.common.SparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDeployFactory
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
-import rx.Observer
-import rx.subjects.PublishSubject
+import com.microsoft.azure.hdinsight.spark.run.configuration.RunProfileStatePrepare
+import rx.Observable
 import java.net.URI
-import java.util.AbstractMap.SimpleImmutableEntry
 
 open class SparkScalaLivyConsoleRunConfiguration(project: Project,
                                                  configurationFactory: SparkScalaLivyConsoleRunConfigurationFactory,
                                                  private val batchRunConfiguration: LivySparkBatchJobRunConfiguration?,
                                                  name: String)
-    : AbstractRunConfiguration (
+    : RunProfileStatePrepare<SparkScalaLivyConsoleRunConfiguration>, AbstractRunConfiguration (
         name, batchRunConfiguration?.configurationModule ?: RunConfigurationModule(project), configurationFactory)
 {
     open val runConfigurationTypeName = "HDInsight Spark Run Configuration"
 
-    protected open val submitModel : SparkSubmitModel?
+    protected val submitModel : SparkSubmitModel?
         get() = batchRunConfiguration?.submitModel
 
-    protected open val clusterName : String
+    private var deployDelegate: Deployable? = null
+
+    private val clusterName : String
         get() = submitModel?.submissionParameter?.clusterName
             ?: throw RuntimeConfigurationWarning("A $runConfigurationTypeName should be selected to start a console")
 
-    protected var cluster: IClusterDetail? = null
+    private var cluster: IClusterDetail? = null
+
+    open fun findCluster(clusterName: String): IClusterDetail = ClusterManagerEx.getInstance()
+            .getClusterDetailByName(clusterName)
+            .orElseThrow { RuntimeConfigurationError(
+                    "Can't prepare Spark Livy interactive session since the target cluster isn't set or found") }
 
     private val consoleBuilder: SparkScalaConsoleBuilder
         get() {
             batchRunConfiguration?.configurationModule?.setModuleToAnyFirstIfNotSpecified()
 
             return SparkScalaConsoleBuilder(project, batchRunConfiguration?.modules?.firstOrNull()
-                    ?: throw ExecutionException(RuntimeConfigurationError(
-                            "The default module needs to be set in the local run tab of Run Configuration")))
+                    ?: throw RuntimeConfigurationError(
+                            "The default module needs to be set in the local run tab of Run Configuration"))
         }
 
 
@@ -90,48 +96,47 @@ open class SparkScalaLivyConsoleRunConfiguration(project: Project,
     }
 
     override fun getState(executor: Executor, env: ExecutionEnvironment): RunProfileState? {
-        val logSubject = PublishSubject.create<SimpleImmutableEntry<MessageInfoType, String>>()
-        val sparkCluster = cluster ?: throw ExecutionException(RuntimeConfigurationError(
-                        "Can't prepare Spark Livy interactive session since the target cluster isn't set or found"))
+        try {
+            val sparkCluster = cluster ?: throw RuntimeConfigurationError(
+                    "The Spark cluster is not set. Invoke prepare() method firstly.")
+            val artifactDeploy = deployDelegate ?: throw RuntimeConfigurationError(
+                    "The Spark deploy delegate is not set. Invoke prepare() method firstly.")
+            val sparkSession = createSession(sparkCluster).apply {
+                applyRunConfiguration(sparkCluster, this, artifactDeploy)
+            }
 
-        val session = createSession(sparkCluster, logSubject)
-        applyRunConfiguration(sparkCluster, session)
-
-        return SparkScalaLivyConsoleRunProfileState(consoleBuilder, session, logSubject)
+            return SparkScalaLivyConsoleRunProfileState(consoleBuilder, sparkSession)
+        } catch (err: Throwable) {
+            throw ExecutionException(err)
+        }
     }
 
-    open fun createSession(sparkCluster: IClusterDetail,
-                           logObserver: Observer<SimpleImmutableEntry<MessageInfoType, String>>): SparkSession {
+    open fun createSession(sparkCluster: IClusterDetail): SparkSession {
         val url = URI.create((sparkCluster as? LivyCluster)?.livyConnectionUrl
-                ?: throw ExecutionException(RuntimeConfigurationError(
-                        "Can't prepare Spark interactive session since Livy URL is empty")))
+                ?: throw RuntimeConfigurationError("Can't prepare Spark interactive session since Livy URL is empty"))
 
         return if (sparkCluster is MfaEspCluster) MfaEspSparkSession(
                 name,
                 url,
-                sparkCluster.tenantId,
-                logObserver)
+                sparkCluster.tenantId)
         else SparkSession(
                 name,
                 url,
                 sparkCluster.httpUserName,
-                sparkCluster.httpPassword,
-                logObserver)
+                sparkCluster.httpPassword)
     }
 
-    open fun applyRunConfiguration(sparkCluster: IClusterDetail, session: SparkSession) {
-        val batchSubmitModel = this.batchRunConfiguration?.submitModel ?: throw ExecutionException(
-                RuntimeConfigurationError("Can't find Spark batch job configuration to inherit"))
+    private val batchSubmitModel: SparkSubmitModel
+            get() = this.batchRunConfiguration?.submitModel
+                    ?: throw RuntimeConfigurationError("Can't find Spark batch job configuration to inherit")
 
+    open fun applyRunConfiguration(sparkCluster: IClusterDetail, session: SparkSession, deploy: Deployable) {
         session.jars = batchSubmitModel.referenceJars
         session.files = batchSubmitModel.referenceFiles
         session.conf = batchSubmitModel.jobConfigs.map { it[0] to it[1] } .toMap()
 
-        val deployDelegate = SparkBatchJobDeployFactory.getInstance().buildSparkBatchJobDeploy(
-                batchSubmitModel, sparkCluster)
-
         batchSubmitModel.artifactPath.ifPresent {
-            session.deploy = deployDelegate
+            session.deploy = deploy
             synchronized(session.artifactsToDeploy) {
                 session.artifactsToDeploy.clear()
                 session.artifactsToDeploy.add(it)
@@ -145,8 +150,24 @@ open class SparkScalaLivyConsoleRunConfiguration(project: Project,
         }
     }
 
-    override fun checkRunnerSettings(runner: ProgramRunner<*>, runnerSettings: RunnerSettings?, configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {
-        cluster = ClusterManagerEx.getInstance().getClusterDetailByName(clusterName)
-                .orElseThrow { RuntimeConfigurationError("Can't find the target cluster $clusterName") }
+    override fun checkRunnerSettings(runner: ProgramRunner<*>,
+                                     runnerSettings: RunnerSettings?,
+                                     configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {
+        batchRunConfiguration?.checkRunnerSettings(runner, runnerSettings, configurationPerRunnerSettings)
+    }
+
+    override fun prepare(runner: ProgramRunner<RunnerSettings>): Observable<SparkScalaLivyConsoleRunConfiguration> {
+        return Observable.fromCallable {
+            try {
+                val sparkCluster = findCluster(clusterName)
+                deployDelegate = SparkBatchJobDeployFactory.getInstance().buildSparkBatchJobDeploy(
+                        batchSubmitModel, sparkCluster)
+                cluster = sparkCluster
+
+                this
+            } catch (err: Throwable) {
+                throw ExecutionException(err)
+            }
+        }
     }
 }

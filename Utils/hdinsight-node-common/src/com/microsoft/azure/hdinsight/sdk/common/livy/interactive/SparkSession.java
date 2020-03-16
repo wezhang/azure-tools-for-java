@@ -22,26 +22,21 @@
 
 package com.microsoft.azure.hdinsight.sdk.common.livy.interactive;
 
-import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.rest.livy.interactive.SessionKind;
-import rx.Observer;
 
 import java.net.URI;
-import java.util.AbstractMap;
 
 public class SparkSession extends Session {
     public SparkSession(final String name,
-                        final URI baseUrl,
-                        final Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> logObserver) {
-        super(name, baseUrl, logObserver);
+                        final URI baseUrl) {
+        super(name, baseUrl);
     }
 
     public SparkSession(final String name,
                         final URI baseUrl,
                         final String username,
-                        final String password,
-                        final Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> logObserver) {
-        super(name, baseUrl, username, password, logObserver);
+                        final String password) {
+        super(name, baseUrl, username, password);
     }
 
     @Override

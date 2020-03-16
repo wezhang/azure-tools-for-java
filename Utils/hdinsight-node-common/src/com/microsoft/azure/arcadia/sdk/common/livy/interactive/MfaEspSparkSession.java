@@ -23,21 +23,15 @@
 package com.microsoft.azure.arcadia.sdk.common.livy.interactive;
 
 import com.microsoft.azure.arcadia.sdk.common.MfaEspSparkHttpObservable;
-import com.microsoft.azure.hdinsight.common.MessageInfoType;
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession;
-import rx.Observer;
 
 import java.net.URI;
-import java.util.AbstractMap;
 
 public class MfaEspSparkSession extends SparkSession {
     private final MfaEspSparkHttpObservable http;
 
-    public MfaEspSparkSession(final String name,
-                              final URI baseUrl,
-                              final String tenantId,
-                              final Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>> logObserver) {
-        super(name, baseUrl, logObserver);
+    public MfaEspSparkSession(final String name, final URI baseUrl, final String tenantId) {
+        super(name, baseUrl);
         this.http = new MfaEspSparkHttpObservable(tenantId);
     }
 

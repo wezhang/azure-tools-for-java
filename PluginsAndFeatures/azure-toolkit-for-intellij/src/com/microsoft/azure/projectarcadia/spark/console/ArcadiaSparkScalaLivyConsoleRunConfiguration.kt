@@ -22,14 +22,9 @@
 
 package com.microsoft.azure.projectarcadia.spark.console
 
-import com.intellij.execution.ExecutionException
-import com.intellij.execution.configurations.ConfigurationPerRunnerSettings
-import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.configurations.RuntimeConfigurationError
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.project.Project
 import com.microsoft.azure.arcadia.sdk.common.livy.interactive.ArcadiaSparkSession
-import com.microsoft.azure.hdinsight.common.MessageInfoType
 import com.microsoft.azure.hdinsight.common.logger.ILogger
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession
@@ -39,7 +34,6 @@ import com.microsoft.azure.hdinsight.spark.run.configuration.ArcadiaSparkSubmitM
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
 import com.microsoft.azure.projectarcadia.common.ArcadiaSparkCompute
 import com.microsoft.azure.projectarcadia.common.ArcadiaSparkComputeManager
-import rx.Observer
 import java.net.URI
 import java.util.*
 
@@ -51,30 +45,27 @@ class ArcadiaSparkScalaLivyConsoleRunConfiguration(project: Project,
         project, configurationFactory, batchRunConfiguration, name), ILogger {
     override val runConfigurationTypeName: String = "Synapse Spark Run Configuration"
 
-    override fun createSession(sparkCluster: IClusterDetail, logObserver: Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>>): SparkSession {
-        val sparkPool = cluster as? ArcadiaSparkCompute ?: throw ExecutionException(RuntimeConfigurationError(
-                "Can't prepare Synapse Spark interactive session since the spark pool cannot be found"))
-        val livyUrl = sparkPool.connectionUrl ?: throw ExecutionException(RuntimeConfigurationError(
-                "Can't prepare Synapse Spark interactive session since Livy URL is empty"))
+    override fun createSession(sparkCluster: IClusterDetail): SparkSession {
+        val livyUrl = sparkCluster.connectionUrl ?: throw RuntimeConfigurationError(
+                "Can't prepare Synapse Spark interactive session since Livy URL is empty")
 
-        return ArcadiaSparkSession(name, URI.create(livyUrl), sparkPool.subscription.tenantId, logObserver)
+        return ArcadiaSparkSession(name, URI.create(livyUrl), sparkCluster.subscription.tenantId)
     }
 
-    override fun checkRunnerSettings(runner: ProgramRunner<*>, runnerSettings: RunnerSettings?, configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {
+    override fun findCluster(clusterName: String): ArcadiaSparkCompute {
         val arcadiaModel = (submitModel as? ArcadiaSparkSubmitModel)?.apply {
             if (sparkCompute == null || tenantId == null || sparkWorkspace == null) {
                 log().warn("Synapse Spark pool is not selected. " +
-                            "Spark pool: $sparkCompute, tenant id: $tenantId, spark workspace: $sparkWorkspace")
+                        "Spark pool: $sparkCompute, tenant id: $tenantId, spark workspace: $sparkWorkspace")
                 throw RuntimeConfigurationError("Synapse Spark pool is not selected")
             }
-        }
-            ?: throw RuntimeConfigurationError("Can't cast submitModel to ArcadiaSparkSubmitModel")
+        } ?: throw RuntimeConfigurationError("Can't cast submitModel to ArcadiaSparkSubmitModel")
 
-        cluster = try {
+        return try {
             ArcadiaSparkComputeManager.getInstance()
-                .findCompute(arcadiaModel.tenantId, arcadiaModel.sparkWorkspace, arcadiaModel.sparkCompute)
-                .toBlocking()
-                .first()
+                    .findCompute(arcadiaModel.tenantId, arcadiaModel.sparkWorkspace, arcadiaModel.sparkCompute)
+                    .toBlocking()
+                    .first()
         } catch (ex: NoSuchElementException) {
             throw RuntimeConfigurationError(
                     "Can't find Synapse Spark pool (${arcadiaModel.sparkWorkspace}:${arcadiaModel.sparkCompute})"

@@ -54,7 +54,7 @@ class SessionScenario {
 
     @And("^create a livy Spark interactive session instance with name '(.+)'$")
     fun newSparkSession(name: String) {
-        sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")), PublishSubject.create())
+        sessionMock = SparkSession(name, URI.create(httpServerMock!!.completeUrl("/")))
     }
 
     @Given("^create the Spark interactive session, and save the response$")

@@ -28,19 +28,14 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleViewContentType.LOG_ERROR_OUTPUT
-import com.microsoft.azure.hdinsight.common.MessageInfoType
 import com.microsoft.azure.hdinsight.common.print
-import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.Session
+import com.microsoft.azure.hdinsight.sdk.common.livy.interactive.SparkSession
 import com.microsoft.intellij.rxjava.IdeaSchedulers
 import org.jetbrains.plugins.scala.console.ScalaLanguageConsole
-import rx.subjects.PublishSubject
-import java.util.AbstractMap
 
 class SparkScalaLivyConsoleRunProfileState(
         private val consoleBuilder: SparkScalaConsoleBuilder,
-        val session: Session,
-        private val logSubject: PublishSubject<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>>
-): RunProfileState {
+        private val session: SparkSession): RunProfileState {
     private val postStartCodes = """
         val __welcome = List(
             "Spark context available as 'sc' (master = " + sc.master + ", app id = " + sc.getConf.getAppId + ").",
@@ -59,7 +54,7 @@ class SparkScalaLivyConsoleRunProfileState(
         val livySessionProcessHandler = SparkLivySessionProcessHandler(livySessionProcess)
 
         console.attachToProcess(livySessionProcessHandler)
-        logSubject.subscribe({ typedMessage -> console.print(typedMessage) }, { err ->
+        session.ctrlSubject.subscribe({ typedMessage -> console.print(typedMessage) }, { err ->
             console.print("Livy interactive session is stopped or not started due to the error ${err.message}\n",
                           LOG_ERROR_OUTPUT)
         })
@@ -72,7 +67,7 @@ class SparkScalaLivyConsoleRunProfileState(
                         // Customize the Spark Livy interactive console
                         prompt = "\nSpark>"
                     }
-                }, { err -> logSubject.onError(err) })
+                }, { err -> session.ctrlSubject.onError(err) })
 
         return DefaultExecutionResult(console, livySessionProcessHandler)
     }

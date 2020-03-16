@@ -594,10 +594,13 @@ public class JobUtils {
         logSubject.onNext(new SimpleImmutableEntry<>(Info, "Create Spark helper interactive session..."));
 
         try {
-            return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password, logSubject),
+            return Observable.using(() -> new SparkSession(sessionName, livyUri, username, password),
                     SparkSession::create,
                     SparkSession::close)
                     .map(sparkSession -> {
+                        sparkSession.getCtrlSubject()
+                                .subscribe(logSubject::onNext, logSubject::onError, logSubject::onCompleted);
+
                         ClusterFileBase64BufferedOutputStream clusterFileBase64Out = new ClusterFileBase64BufferedOutputStream(
                                 sparkSession, destUri);
                         Base64OutputStream base64Enc = new Base64OutputStream(clusterFileBase64Out, true);

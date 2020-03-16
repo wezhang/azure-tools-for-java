@@ -22,14 +22,9 @@
 
 package com.microsoft.azure.cosmosspark.spark.console
 
-import com.intellij.execution.ExecutionException
-import com.intellij.execution.configurations.ConfigurationPerRunnerSettings
-import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.configurations.RuntimeConfigurationError
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.project.Project
 import com.microsoft.azure.cosmosspark.sdk.common.livy.interactive.CosmosSparkSession
-import com.microsoft.azure.hdinsight.common.MessageInfoType
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkCosmosCluster
 import com.microsoft.azure.hdinsight.sdk.common.azure.serverless.AzureSparkCosmosClusterManager
@@ -39,9 +34,7 @@ import com.microsoft.azure.hdinsight.spark.common.CosmosSparkSubmitModel
 import com.microsoft.azure.hdinsight.spark.console.SparkScalaLivyConsoleRunConfiguration
 import com.microsoft.azure.hdinsight.spark.console.SparkScalaLivyConsoleRunConfigurationFactory
 import com.microsoft.azure.hdinsight.spark.run.configuration.LivySparkBatchJobRunConfiguration
-import rx.Observer
 import java.net.URI
-import java.util.AbstractMap
 
 class CosmosSparkScalaLivyConsoleRunConfiguration(project: Project,
                                                   configurationFactory: SparkScalaLivyConsoleRunConfigurationFactory,
@@ -52,30 +45,29 @@ class CosmosSparkScalaLivyConsoleRunConfiguration(project: Project,
 {
     override val runConfigurationTypeName = "Azure Data Lake Spark Run Configuration"
 
-    override fun createSession(sparkCluster: IClusterDetail, logObserver: Observer<AbstractMap.SimpleImmutableEntry<MessageInfoType, String>>): SparkSession {
-        val sparkPool = cluster as? AzureSparkCosmosCluster ?: throw ExecutionException(RuntimeConfigurationError(
-                "Can't prepare Spark Cosmos interactive session since the target account isn't set or found"))
-
-        val livyUrl = (sparkPool.livyUri?.toString() ?: throw ExecutionException(RuntimeConfigurationError(
-                "Can't prepare Spark Cosmos interactive session since the Livy URI is null")))
+    override fun createSession(sparkCluster: IClusterDetail): SparkSession {
+        val livyUrl = ((sparkCluster as? AzureSparkCosmosCluster)?.livyUri?.toString()
+                ?: throw RuntimeConfigurationError(
+                        "Can't prepare Spark Cosmos interactive session since the Livy URI is null"))
                 .trimEnd('/') + "/"
 
-        return CosmosSparkSession(name, URI.create(livyUrl), sparkPool.tenantId, sparkPool.account, logObserver)
+        return CosmosSparkSession(name, URI.create(livyUrl), sparkCluster.tenantId, sparkCluster.account)
     }
 
-    override fun checkRunnerSettings(runner: ProgramRunner<*>, runnerSettings: RunnerSettings?, configurationPerRunnerSettings: ConfigurationPerRunnerSettings?) {
-        val cosmosSparkSubmitModel = (submitModel as? CosmosSparkSubmitModel)
-                ?: throw RuntimeConfigurationError("Can't cast submitModel to CosmosSparkSubmitModel")
+    override fun findCluster(clusterName: String): AzureSparkCosmosCluster {
+        val adlAccount = (submitModel as? CosmosSparkSubmitModel
+                ?: throw RuntimeConfigurationError(
+                        "The submit model is not a CosmosSparkSubmitModel")).accountName
+                ?: throw RuntimeConfigurationError("The target ADL account name is NULL")
 
-        val adlAccount = cosmosSparkSubmitModel.accountName
-                ?: throw RuntimeConfigurationError("The target cluster name is not selected")
-
-        cluster = AzureSparkCosmosClusterManager
+        return AzureSparkCosmosClusterManager
                 .getInstance()
                 .getAccountByName(adlAccount)
                 .clusters
-                .find { it.name == this.clusterName &&
-                        (it as AzureSparkCosmosCluster).clusterStateForShow.equals(SparkItemGroupState.STABLE.toString(), ignoreCase = true )}
-                ?:throw RuntimeConfigurationError("Can't find the workable(STABLE) target cluster $clusterName@$adlAccount")
+                .filterIsInstance(AzureSparkCosmosCluster::class.java)
+                .find { it.name == clusterName
+                        && it.clusterStateForShow.equals(SparkItemGroupState.STABLE.toString(), ignoreCase = true )}
+                ?: throw RuntimeConfigurationError(
+                        "Can't find the workable(STABLE) target cluster $clusterName@$adlAccount")
     }
 }

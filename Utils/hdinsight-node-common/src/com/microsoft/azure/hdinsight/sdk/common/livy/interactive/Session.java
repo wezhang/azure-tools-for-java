@@ -43,9 +43,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.http.entity.StringEntity;
 import rx.Observable;
-import rx.Observer;
 import rx.Scheduler;
 import rx.schedulers.Schedulers;
+import rx.subjects.PublishSubject;
 
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
@@ -105,16 +105,14 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
 
     private Map<? extends String, ? extends String> conf = new HashMap<>(); // Job Configs
 
-    final private Observer<SimpleImmutableEntry<MessageInfoType, String>> logObserver;
+    final private PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> ctrlSubject;
 
     /*
      * Constructor
      */
 
-    public Session(final String name,
-                   final URI baseUrl,
-                   final Observer<SimpleImmutableEntry<MessageInfoType, String>> logObserver) {
-        this(name, baseUrl, null, null, logObserver);
+    public Session(final String name, final URI baseUrl) {
+        this(name, baseUrl, null, null);
     }
 
     /**
@@ -125,13 +123,11 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
      *                ending with '/'
      * @param username the username of Basic Authentication, leave NULL for other authentication methods
      * @param password the password of Basic Authentication, leave NULL for other authentication methods
-     * @param logObserver the observer for session operation logs output
      */
     public Session(final String name,
                    final URI baseUrl,
                    final @Nullable String username,
-                   final @Nullable String password,
-                   final Observer<SimpleImmutableEntry<MessageInfoType, String>> logObserver) {
+                   final @Nullable String password) {
         this.name = name;
         this.baseUrl = baseUrl;
         this.lastState = SessionState.NOT_STARTED;
@@ -142,7 +138,7 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
             this.http = new HttpObservable(username, password);
         }
 
-        this.logObserver = logObserver;
+        this.ctrlSubject = PublishSubject.create();
     }
 
     /*
@@ -297,6 +293,10 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
         return lastLogs;
     }
 
+    public PublishSubject<SimpleImmutableEntry<MessageInfoType, String>> getCtrlSubject() {
+        return ctrlSubject;
+    }
+
     /*
      * Overrides
      */
@@ -305,6 +305,8 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
         kill().toBlocking().subscribe( session -> {}, err -> {
             log().warn("Kill session failed. " + ExceptionUtils.getStackTrace(err));
         });
+
+        this.ctrlSubject.onCompleted();
     }
 
     /*
@@ -358,10 +360,10 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
         }
 
         return Observable.from(getArtifactsToDeploy())
-                .doOnNext(artifactPath -> logObserver.onNext(new SimpleImmutableEntry<>(
+                .doOnNext(artifactPath -> ctrlSubject.onNext(new SimpleImmutableEntry<>(
                         Info, "Start uploading artifact " + artifactPath)))
-                .flatMap(artifactPath -> deployDelegate.deploy(new File(artifactPath), logObserver))
-                .doOnNext(uri -> logObserver.onNext(new SimpleImmutableEntry<>(Info, "Uploaded to " + uri)) )
+                .flatMap(artifactPath -> deployDelegate.deploy(new File(artifactPath), ctrlSubject))
+                .doOnNext(uri -> ctrlSubject.onNext(new SimpleImmutableEntry<>(Info, "Uploaded to " + uri)) )
                 .toList()
                 .map(uploadedUris -> {
                     this.uploadedArtifactsUris = ImmutableList.copyOf(uploadedUris);
