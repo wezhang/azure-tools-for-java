@@ -34,9 +34,13 @@ import java.util.AbstractMap.SimpleImmutableEntry
 fun ConsoleView.print(text: String, messageInfoType: MessageInfoType) {
     // Redirect the remote process control message to console view
     when (messageInfoType) {
+        MessageInfoType.Debug ->
+            this.print("DEBUG: $text\n", ConsoleViewContentType.LOG_DEBUG_OUTPUT)
         MessageInfoType.Info ->
-            this.print("INFO: $text\n", ConsoleViewContentType.SYSTEM_OUTPUT)
-        MessageInfoType.Warning, MessageInfoType.Log ->
+            this.print("INFO: $text\n", ConsoleViewContentType.LOG_INFO_OUTPUT)
+        MessageInfoType.Warning ->
+            this.print("WARN: $text\n", ConsoleViewContentType.LOG_WARNING_OUTPUT)
+        MessageInfoType.Log ->
             this.print("LOG: $text\n", ConsoleViewContentType.SYSTEM_OUTPUT)
         MessageInfoType.Hyperlink ->
             BrowserUtil.browse(URI.create(text))
