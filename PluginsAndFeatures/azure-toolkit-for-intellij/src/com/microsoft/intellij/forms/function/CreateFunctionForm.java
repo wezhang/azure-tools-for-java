@@ -39,6 +39,7 @@ import com.microsoft.azure.management.eventhub.EventHub;
 import com.microsoft.azure.management.eventhub.EventHubConsumerGroup;
 import com.microsoft.azure.management.eventhub.EventHubNamespace;
 import com.microsoft.azure.management.resources.Subscription;
+import com.microsoft.azure.management.resources.fluentcore.arm.models.HasName;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.core.mvp.model.AzureMvpModel;
 import com.microsoft.azuretools.telemetry.TelemetryProperties;
@@ -358,6 +359,7 @@ public class CreateFunctionForm extends DialogWrapper implements TelemetryProper
                     PagedList<EventHubNamespace> pagedList = azure.eventHubNamespaces().list();
                     pagedList.loadAll();
                     eventHubNamespaces.addAll(pagedList);
+                    eventHubNamespaces.sort(Comparator.comparing(HasName::name));
                 }
             }
             return eventHubNamespaces;
