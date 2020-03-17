@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.microsoft.azure.hdinsight.common.MessageInfoType.Debug;
 import static com.microsoft.azure.hdinsight.common.MessageInfoType.Info;
 import static java.lang.Thread.sleep;
 import static rx.exceptions.Exceptions.propagate;
@@ -425,6 +426,9 @@ public abstract class Session implements AutoCloseable, Closeable, ILogger {
         final PostSessions postBody = preparePostSessions();
         final String json = postBody.convertToJson()
                 .orElseThrow(() -> new IllegalArgumentException("Bad session arguments to post."));
+
+        getCtrlSubject().onNext(new SimpleImmutableEntry<>(Debug,
+                "Create Livy Session by sending request to " + uri + " with body " + json));
 
         final StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
         entity.setContentType("application/json");
