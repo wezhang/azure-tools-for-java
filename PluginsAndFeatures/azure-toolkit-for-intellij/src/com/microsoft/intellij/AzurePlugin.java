@@ -29,16 +29,13 @@ import com.intellij.ide.plugins.cl.PluginClassLoader;
 import com.intellij.notification.Notification;
 import com.intellij.notification.NotificationType;
 import com.intellij.notification.Notifications;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.IdeActions;
 import com.intellij.openapi.application.PermanentInstallationID;
-import com.intellij.openapi.components.AbstractProjectComponent;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.ModuleTypeId;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.startup.StartupActivity;
 import com.intellij.openapi.startup.StartupManager;
 import com.intellij.util.PlatformUtils;
 import com.intellij.util.containers.HashSet;
@@ -80,7 +77,7 @@ import static com.microsoft.azuretools.telemetry.TelemetryConstants.*;
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
 
-public class AzurePlugin extends AbstractProjectComponent {
+public class AzurePlugin implements StartupActivity.DumbAware {
     private static final Logger LOG = Logger.getInstance("#com.microsoft.intellij.AzurePlugin");
     public static final String PLUGIN_VERSION = CommonConst.PLUGIN_VERISON;
     public static final String AZURE_LIBRARIES_VERSION = "1.0.0";
@@ -101,39 +98,24 @@ public class AzurePlugin extends AbstractProjectComponent {
 
     private String dataFile = PluginHelper.getTemplateFile(message("dataFileName"));
 
-    private final AzureSettings azureSettings;
+    private AzureSettings azureSettings;
 
     private String installationID;
 
     private Boolean firstInstallationByVersion;
 
-    public AzurePlugin(Project project) {
-        super(project);
+    @Override
+    public void runActivity(@NotNull Project project) {
         this.azureSettings = AzureSettings.getSafeInstance(project);
         String hasMac = GetHashMac.getHashMac();
         this.installationID = StringUtils.isNotEmpty(hasMac) ? hasMac : GetHashMac.hash(PermanentInstallationID.get());
         CommonSettings.setUserAgent(String.format(USER_AGENT, PLUGIN_VERSION,
-            TelemetryUtils.getMachieId(dataFile, message("prefVal"), message("instID"))));
-    }
+                TelemetryUtils.getMachieId(dataFile, message("prefVal"), message("instID"))));
 
+        initializeAIRegistry(project);
+        // Showing dialog needs to be run in UI thread
+        initializeFeedbackNotification(project);
 
-    public void projectOpened() {
-        initializeAIRegistry();
-        initializeFeedbackNotification();
-    }
-
-    private void initializeFeedbackNotification() {
-        CustomerSurveyHelper.INSTANCE.showFeedbackNotification(myProject);
-    }
-
-    public void projectClosed() {
-    }
-
-    /**
-     * Method is called after plugin is already created and configured. Plugin can start to communicate with
-     * other plugins only in this method.
-     */
-    public void initComponent() {
         if (!IS_ANDROID_STUDIO) {
             LOG.info("Starting Azure Plugin");
             firstInstallationByVersion = new Boolean(isFirstInstallationByVersion());
@@ -142,10 +124,7 @@ public class AzurePlugin extends AbstractProjectComponent {
                 copyPluginComponents();
                 initializeTelemetry();
                 clearTempDirectory();
-                loadWebappsSettings();
-                // Put Azure action group initialization code here to avoid the following error in EAP2020.1.
-                // Should be called at least in the state COMPONENTS_LOADED, the current state is: CONFIGURATION_STORE_INITIALIZED
-                initializeAzureActionGroup();
+                loadWebappsSettings(project);
             } catch (Exception e) {
             /* This is not a user initiated task
                So user should not get any exception prompt.*/
@@ -154,18 +133,8 @@ public class AzurePlugin extends AbstractProjectComponent {
         }
     }
 
-    private void initializeAzureActionGroup() {
-        if (myProject.isDefault()) {
-            return;
-        }
-
-        ActionManager am = ActionManager.getInstance();
-        DefaultActionGroup toolbarGroup = (DefaultActionGroup) am.getAction(IdeActions.GROUP_MAIN_TOOLBAR);
-        toolbarGroup.addAll((DefaultActionGroup) am.getAction("AzureToolbarGroup"));
-        DefaultActionGroup popupGroup = (DefaultActionGroup) am.getAction(IdeActions.GROUP_PROJECT_VIEW_POPUP);
-        popupGroup.add(am.getAction("AzurePopupGroup"));
-        DefaultActionGroup projectPopupGroup = (DefaultActionGroup) am.getAction(IdeActions.GROUP_PROJECT_VIEW_POPUP);
-        projectPopupGroup.add(am.getAction("Actions.SubmitSparkApplicationAction"));
+    private void initializeFeedbackNotification(Project myProject) {
+        CustomerSurveyHelper.INSTANCE.showFeedbackNotification(myProject);
     }
 
     private synchronized void initializeTelemetry() throws Exception {
@@ -237,7 +206,7 @@ public class AzurePlugin extends AbstractProjectComponent {
         }
     }
 
-    private void initializeAIRegistry() {
+    private void initializeAIRegistry(Project myProject) {
         try {
             AzureSettings.getSafeInstance(myProject).loadAppInsights();
             Module[] modules = ModuleManager.getInstance(myProject).getModules();
@@ -301,12 +270,7 @@ public class AzurePlugin extends AbstractProjectComponent {
         }
     }
 
-    private void loadWebappsSettings() {
-        // Skip default project to avoid the following error in EAP 2020.1
-        // java.lang.Throwable: Assertion failed: Please don't register startup activities for the default project: they won't ever be run
-        if (myProject.isDefault()) {
-            return;
-        }
+    private void loadWebappsSettings(Project myProject) {
         StartupManager.getInstance(myProject).runWhenProjectIsInitialized(
                 new Runnable() {
                     @Override
@@ -331,7 +295,7 @@ public class AzurePlugin extends AbstractProjectComponent {
                 });
     }
 
-    private void telemetryAI() {
+    private void telemetryAI(Project myProject) {
         ModuleManager.getInstance(myProject).getModules();
     }
 
