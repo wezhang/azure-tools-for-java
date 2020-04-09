@@ -48,13 +48,8 @@ import org.apache.commons.collections.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.idea.maven.project.MavenProject;
 
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
+import javax.swing.*;
 import javax.swing.event.PopupMenuEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
@@ -257,26 +252,18 @@ public class FunctionDeploymentPanel extends AzureSettingPanel<FunctionDeployCon
     }
 
     private void createNewFunctionApp() {
-        // todo: add create function dialog
         cbxFunctionApp.setPopupVisible(false);
         final FunctionCreationDialog dialog = new FunctionCreationDialog(this.project);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this.getMainPanel());
-        dialog.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosed(WindowEvent e) {
-                super.windowClosed(e);
-                final FunctionApp functionApp = dialog.getCreatedWebApp();
-                if (functionApp != null) {
-                    functionDeployConfiguration.setFunctionId(functionApp.id());
-                    // We need to reload the app settings as new created function will generate some required properties as well
-                    presenter.loadFunctionApps(true, true);
-                } else {
-                    presenter.loadFunctionApps(false, false);
-                }
+        if (dialog.showAndGet()) {
+            final FunctionApp functionApp = dialog.getCreatedWebApp();
+            if (functionApp != null) {
+                functionDeployConfiguration.setFunctionId(functionApp.id());
+                // We need to reload the app settings as new created function will generate some required properties as well
+                presenter.loadFunctionApps(true, true);
+            } else {
+                presenter.loadFunctionApps(false, false);
             }
-        });
-        dialog.show();
+        }
     }
 
     private void createUIComponents() {

@@ -36,10 +36,7 @@ import rx.Observable;
 import rx.Subscription;
 import rx.schedulers.Schedulers;
 
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
+import javax.swing.*;
 import javax.swing.event.PopupMenuEvent;
 import java.awt.Window;
 import java.awt.event.ItemListener;
@@ -119,22 +116,28 @@ public class AppServicePlanPanel extends JPanel {
     }
 
     public void loadAppServicePlan(String subscriptionId, OperatingSystem operatingSystem) {
-        this.subscriptionId = subscriptionId;
-        this.operatingSystem = operatingSystem;
-        if (subscription != null && !subscription.isUnsubscribed()) {
-            subscription.unsubscribe();
+        if (!StringUtils.equalsIgnoreCase(subscriptionId, this.subscriptionId)) {
+            this.subscriptionId = subscriptionId;
+            this.operatingSystem = operatingSystem;
+            if (subscription != null && !subscription.isUnsubscribed()) {
+                subscription.unsubscribe();
+            }
+            beforeLoadAppServicePlan();
+            subscription = Observable.fromCallable(() -> {
+                return AzureFunctionMvpModel.getInstance()
+                                            .listAppServicePlanBySubscriptionId(subscriptionId).stream()
+                                            .sorted((first, second) -> StringUtils.compare(first.name(), second.name()))
+                                            .collect(Collectors.toList());
+            }).subscribeOn(Schedulers.newThread()).subscribe(this::fillAppServicePlan);
         }
-        beforeLoadAppServicePlan();
-        subscription = Observable.fromCallable(() -> {
-            return AzureFunctionMvpModel.getInstance()
-                    .listAppServicePlanBySubscriptionId(subscriptionId).stream()
-                    .sorted((first, second) -> StringUtils.compare(first.name(), second.name()))
-                    .collect(Collectors.toList());
-        }).subscribeOn(Schedulers.newThread()).subscribe(this::fillAppServicePlan);
     }
 
     public void addItemListener(ItemListener actionListener) {
         cbAppServicePlan.addItemListener(actionListener);
+    }
+
+    public JComponent getComboComponent() {
+        return cbAppServicePlan;
     }
 
     private void onSelectAppServicePlan() {
@@ -144,6 +147,9 @@ public class AppServicePlanPanel extends JPanel {
             showAppServicePlan(selectedAppServicePlan);
         } else if (CREATE_APP_SERVICE_PLAN.equals(selectedObject)) {
             ApplicationManager.getApplication().invokeLater(this::createAppServicePlan);
+        } else {
+            selectedAppServicePlan = null;
+            showAppServicePlan(null);
         }
     }
 
