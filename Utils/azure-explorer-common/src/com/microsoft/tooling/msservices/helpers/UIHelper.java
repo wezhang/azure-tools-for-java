@@ -31,11 +31,12 @@ import com.microsoft.tooling.msservices.serviceexplorer.azure.arm.deployments.De
 import com.microsoft.tooling.msservices.serviceexplorer.azure.container.ContainerRegistryNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.function.FunctionNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.rediscache.RedisCacheNode;
+import com.microsoft.tooling.msservices.serviceexplorer.azure.springcloud.SpringCloudAppNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.WebAppNode;
 import com.microsoft.tooling.msservices.serviceexplorer.azure.webapp.deploymentslot.DeploymentSlotNode;
 
+import java.awt.*;
 import java.io.File;
-import java.util.function.Function;
 
 public interface UIHelper {
     void showException(@NotNull String message,
@@ -48,6 +49,11 @@ public interface UIHelper {
 
     boolean showConfirmation(@NotNull String message, @NotNull String title, @NotNull String[] options, String defaultOption);
 
+    default boolean showConfirmation(@NotNull Component component, @NotNull String message, @NotNull String title, @NotNull String[] options,
+                                     String defaultOption) {
+        return showConfirmation(message, title, options, defaultOption);
+    }
+
     void showInfo(@NotNull Node node, @NotNull String message);
 
     void showError(@NotNull Node node, @NotNull String message);
@@ -58,9 +64,13 @@ public interface UIHelper {
 
     File showFileSaver(String title, String fileName);
 
-    <T extends StorageServiceTreeItem> void openItem(Object projectObject, final StorageAccount storageAccount, final T item, String itemType, String itemName, String iconName);
+    <T extends StorageServiceTreeItem> void openItem(
+            Object projectObject, final StorageAccount storageAccount,
+            final T item, String itemType, String itemName, String iconName);
 
-    <T extends StorageServiceTreeItem> void openItem(Object projectObject, final ClientStorageAccount clientStorageAccount, final T item, String itemType, String itemName, String iconName);
+    <T extends StorageServiceTreeItem> void openItem(
+            Object projectObject, final ClientStorageAccount clientStorageAccount,
+            final T item, String itemType, String itemName, String iconName);
 
     void openItem(@NotNull Object projectObject, @NotNull Object itemVirtualFile);
 
@@ -90,6 +100,9 @@ public interface UIHelper {
 
     }
 
+    default void openSpringCloudAppPropertyView(@NotNull SpringCloudAppNode node) {
+    }
+
     void openDeploymentSlotPropertyView(@NotNull DeploymentSlotNode node);
 
     @Nullable
@@ -98,4 +111,8 @@ public interface UIHelper {
             @NotNull T item);
 
     boolean isDarkTheme();
+
+    default void closeSpringCloudAppPropertyView(@NotNull Object project, @NotNull String appId) {
+
+    }
 }

@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/Microsoft/azure-tools-for-java">
   <id>com.microsoft.tooling.msservices.intellij.azure</id>
   <name>Azure Toolkit for IntelliJ</name>
-  <version>3.34.0</version>
+  <version>3.35.0</version>
   <vendor email="java@microsoft.com" url="http://www.microsoft.com">Microsoft</vendor>
 
   <description><![CDATA[
@@ -20,26 +20,44 @@
   <change-notes>
     <![CDATA[
     <html>
-    <h3>3.34.0</h3>
+    <h3>3.35.0</h3>
     <h4>Added</h4>
     <ul>
-        <li>Add Azure Function support in Azure Toolkits
+        <li>Add Azure Spring Cloud support in Azure Toolkits
             <ul>
-                <li>Scaffold functions project</li>
-                <li>Create new functions class by trigger type</li>
-                <li>Local run/debug functions</li>
-                <li>Create/deploy Function apps on Azure</li>
-                <li>List/view existing Function apps on Azure</li>
-                <li>Stop/start/restart Function apps on Azure</li>
-                <li>Trigger azure functions</li>
+                <li>Manage Azure Spring Cloud project dependencies</li>
+                <li>Manage Azure Spring Cloud apps in Azure Explorer</li>
+                <ul>
+                    <li>Create/Delete/Start/Stop/Restart</li>
+                    <li>Assign/un-assign public endpoint</li>
+                    <li>Update environment variables </li>
+                    <li>Update JVM options</li>
+                    <li>View app properties</li>
+                </ul>
+                <li>Deploying apps from current project</li>
+                <li>Monitoring and troubleshooting apps</li>
+                <ul>
+                    <li>Getting public url</li>
+                    <li>Getting test endpoint</li>
+                    <li>Instance status(shown in app properties view)</li>
+                </ul>
             </ul>
         </li>
-        <li>Support project artifact dependencies in Spark interactive console</li>
-        <li>Add more debug log when creating Spark Livy interactive console</li>
+        <li>Support trigger function with timer trigger</li>
+        <li>Support log streaming for Windows functions</li>
     </ul>
-    <h4>Changed</h4>
+    <h4>Fixed</h4>
     <ul>
-        <li>Enable Spark on Synapse feature by default</li>
+        <li><a href="https://github.com/microsoft/azure-tools-for-java/issues/4157">#4157</a> Can't trigger function/admin
+            http function when click 'Trigger Function' button</li>
+        <li><a href="https://github.com/microsoft/azure-tools-for-java/issues/4160">#4160</a> Nothing shown in function run
+            mark</li>
+        <li><a href="https://github.com/microsoft/azure-tools-for-java/issues/4179">#4179</a> Fixed NPE caused Spark job
+            submission failure in 201EAP</li>
+        <li><a href="https://github.com/microsoft/azure-tools-for-java/issues/4213">#4213</a> Unhandled error when creating
+            function app</li>
+        <li><a href="https://github.com/microsoft/azure-tools-for-java/issues/4215">#4215</a> App settings not loaded when
+            openning the deploy wizard</li>
     </ul>
     <p>You may get the full change log <a
             href="https://github.com/Microsoft/azure-tools-for-java/blob/develop/CHANGELOG.md">here</a></p>
@@ -61,20 +79,20 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <toolWindow
-          anchor="bottom"
-          factoryClass="com.microsoft.intellij.activitylog.ActivityLogToolWindowFactory"
-          id="Azure Activity Log"
-          canCloseContents="true"
-          icon="/icons/RoleFolder.gif"
-          conditionClass="com.microsoft.intellij.activitylog.ActivityLogToolWindowFactoryCondition"/>
+            anchor="bottom"
+            factoryClass="com.microsoft.intellij.activitylog.ActivityLogToolWindowFactory"
+            id="Azure Activity Log"
+            canCloseContents="true"
+            icon="/icons/RoleFolder.gif"
+            conditionClass="com.microsoft.intellij.activitylog.ActivityLogToolWindowFactoryCondition"/>
     <projectConfigurable groupId="root"
-                       id="com.microsoft.intellij.AzureConfigurable"
-                       provider="com.microsoft.intellij.AzureConfigurableProvider"
-                       dynamic="true"/>
+                         id="com.microsoft.intellij.AzureConfigurable"
+                         provider="com.microsoft.intellij.AzureConfigurableProvider"
+                         dynamic="true"/>
     <projectService serviceInterface="com.microsoft.intellij.AzureSettings"
-                  serviceImplementation="com.microsoft.intellij.AzureSettings"/>
+                    serviceImplementation="com.microsoft.intellij.AzureSettings"/>
     <applicationService serviceInterface="com.microsoft.intellij.ApplicationSettings"
-                      serviceImplementation="com.microsoft.intellij.ApplicationSettings"/>
+                        serviceImplementation="com.microsoft.intellij.ApplicationSettings"/>
     <fileEditorProvider implementation="com.microsoft.azure.hdinsight.jobs.framework.JobViewEditorProvider" />
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.function.FunctionAppPropertyViewProvider"/>
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.storage.BlobExplorerFileEditorProvider"/>
@@ -87,25 +105,27 @@
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.webapp.DeploymentSlotPropertyViewProvider"/>
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.arm.DeploymentPropertyViewProvider"/>
     <fileEditorProvider implementation="com.microsoft.intellij.helpers.arm.ResourceTemplateViewProvider"/>
+    <fileEditorProvider implementation="com.microsoft.intellij.helpers.springcloud.SpringCloudAppPropertyViewProvider"/>
     <toolWindow
-          anchor="left"
-          factoryClass="com.microsoft.intellij.components.ServerExplorerToolWindowFactory"
-          id="Azure Explorer"
-          canCloseContents="false"
-          icon="/icons/AzureExplorer_16.png"/>
+            anchor="left"
+            factoryClass="com.microsoft.intellij.components.ServerExplorerToolWindowFactory"
+            id="Azure Explorer"
+            canCloseContents="false"
+            icon="/icons/AzureExplorer_16.png"/>
+
+    <toolWindow
+            anchor="bottom"
+            factoryClass="com.microsoft.intellij.helpers.StreamingLogsToolWindowFactory"
+            id="Azure Streaming Log"
+            canCloseContents="true"/>
 
     <moduleBuilder builderClass="com.microsoft.azure.hdinsight.projects.HDInsightModuleBuilder"/>
-    <toolWindow
-        anchor="bottom"
-        factoryClass="com.microsoft.azure.cosmosserverlessspark.spark.ui.CosmosServerlessSparkJobsToolWindowFactory"
-        id="Cosmos Serverless Spark Jobs"
-        canCloseContents="true"/>
 
-<!--    <toolWindow-->
-<!--            anchor="bottom"-->
-<!--            factoryClass="com.microsoft.azure.webapp.ui.WebAppStreamingLogToolWindowFactory"-->
-<!--            id="Azure Streaming Log"-->
-<!--            canCloseContents="true"/>-->
+    <toolWindow
+            anchor="bottom"
+            factoryClass="com.microsoft.azure.cosmosserverlessspark.spark.ui.CosmosServerlessSparkJobsToolWindowFactory"
+            id="Cosmos Serverless Spark Jobs"
+            canCloseContents="true"/>
 
     <executor implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunExecutor" id="SparkJobRun" />
     <executor implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebugExecutor" id="SparkJobDebug" />
@@ -116,6 +136,7 @@
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.ArisSparkConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.ArcadiaSparkConfigurationType"/>
     <configurationType implementation="com.microsoft.intellij.runner.functions.AzureFunctionSupportConfigurationType"/>
+    <configurationType implementation="com.microsoft.intellij.runner.springcloud.SpringCloudConfigurationType"/>
     <configurationType implementation="com.microsoft.azure.hdinsight.spark.run.configuration.SparkFailureTaskDebugConfigurationType"/>
     <actionPromoter implementation="com.microsoft.azure.hdinsight.spark.console.SparkExecuteInConsoleActionPromoter"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.LivySparkRunConfigurationProducer"/>
@@ -126,6 +147,7 @@
     <programRunner implementation="com.microsoft.intellij.runner.functions.localrun.FunctionLocalRunner"/>
     <runConfigurationProducer implementation="com.microsoft.azure.hdinsight.spark.run.ArcadiaSparkRunConfigurationProducer"/>
     <programRunner implementation="com.microsoft.intellij.runner.webapp.webappconfig.WebAppRunner"/>
+    <programRunner implementation="com.microsoft.intellij.runner.springcloud.deploy.SpringCloudDeploymentRunner"/>
     <programRunner implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobRunner" />
     <programRunner implementation="com.microsoft.azure.hdinsight.spark.run.CosmosSparkBatchRunner" />
     <programRunner implementation="com.microsoft.azure.hdinsight.spark.run.SparkBatchJobDebuggerRunner" />
@@ -137,11 +159,11 @@
 
     <fileTypeFactory implementation="com.microsoft.intellij.language.arm.file.ARMFileTypeFactory"/>
     <lang.syntaxHighlighterFactory key="arm"
-      implementationClass="com.microsoft.intellij.language.arm.editor.ARMSyntaxHighlightFactory"/>
+                                   implementationClass="com.microsoft.intellij.language.arm.editor.ARMSyntaxHighlightFactory"/>
     <lang.parserDefinition language="arm"
-      implementationClass="com.microsoft.intellij.language.arm.parser.ARMParserDefinition"/>
+                           implementationClass="com.microsoft.intellij.language.arm.parser.ARMParserDefinition"/>
     <completion.contributor language="JSON" order="first"
-      implementationClass="com.microsoft.intellij.language.arm.codeinsight.ARMCompletionContributor"/>
+                            implementationClass="com.microsoft.intellij.language.arm.codeinsight.ARMCompletionContributor"/>
     <facetType implementation="com.microsoft.intellij.wizards.functions.facet.FunctionsFacetType"/>
     <moduleBuilder builderClass="com.microsoft.intellij.wizards.functions.module.FunctionsModuleBuilder"/>
     <runConfigurationProducer implementation="com.microsoft.intellij.runner.functions.FunctionRunConfigurationProducer"/>
@@ -232,6 +254,11 @@
             icon="/icons/azure-functions-deploy.png">
     </action>
     <!-- Functions End -->
+
+    <action id="Actions.DeploySpringCloud" class="com.microsoft.intellij.actions.DeploySpringCloudAction"
+            text="Deploy to Azure Spring Cloud" description="Deploy Spring Cloud app to Azure"
+            icon="/icons/azure-springcloud-small.png">
+    </action>
     <action id="Actions.AddDockerSupport" class="com.microsoft.intellij.actions.AddDockerSupportAction"
             text="Add Docker Support" description="Add Docker Support"
             icon="/icons/AddDockerSupport_16.png">
@@ -277,11 +304,18 @@
             text="SparkJobRun"/>
     <action id="SparkJobDebug" class="com.microsoft.azure.hdinsight.spark.run.action.SparkJobDebugAction"
             text="SparkJobDebug"/>
+    <action id="Actions.AddAzureDependencyAction" class="com.microsoft.azure.springcloud.dependency.action.AddAzureDependencyAction" text="Add Azure Spring Cloud dependency"  icon="/icons/azure-springcloud-app-dependency.png">
+    </action>
+    <action id="Actions.AddAzureDependencyContextAction" class="com.microsoft.azure.springcloud.dependency.action.AddAzureDependencyContextAction" text="Add Azure Spring Cloud dependency"  icon="/icons/azure-springcloud-app-dependency.png">
+      <add-to-group group-id="RunContextPopupGroup" anchor="last"/>
+    </action>
 
-    <group id="AzurePopupGroup" text="Azure" description="Azure" icon="/icons/azure.png" popup="true"
-           class="com.microsoft.intellij.actions.AzurePopupGroup">
+    <group id="AzurePopupGroup" text="Azure" description="Azure" icon="/icons/azure.png" popup="true" class="com.microsoft.intellij.actions.AzurePopupGroup">
       <reference ref="Actions.RunFunction"/>
       <reference ref="Actions.DeployFunction"/>
+      <separator/>
+      <reference ref="Actions.AddAzureDependencyAction"/>
+      <reference ref="Actions.DeploySpringCloud"/>
       <separator/>
       <reference ref="Actions.WebDeployAction"/>
       <separator/>
@@ -334,9 +368,9 @@
     <group id="Actions.SelectDefaultSparkApplicationTypeActionGroup" text="Default Spark Application Type" description="Select default spark application type" popup="true">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
       <add-to-group group-id="RunContextPopupGroup" anchor="after" relative-to-action="SparkJobDebug"/>
-        <action id="Actions.SelectNoneSparkType"
-                class="com.microsoft.azure.hdinsight.spark.run.action.SelectNoneSparkTypeAction" text="None" >
-        </action>
+      <action id="Actions.SelectNoneSparkType"
+              class="com.microsoft.azure.hdinsight.spark.run.action.SelectNoneSparkTypeAction" text="None" >
+      </action>
       <action id="Actions.SelectCosmosSparkType"
               class="com.microsoft.azure.hdinsight.spark.run.action.SelectCosmosSparkTypeAction" text="Spark on Cosmos" >
       </action>
@@ -390,7 +424,7 @@
             description="Create New Azure Function Class">
       <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
     </action>
-    </actions>
+  </actions>
 
-    <helpset file="azure-toolkit-for-intellij-help.jar" path="/helpset.hs"/>
+  <helpset file="azure-toolkit-for-intellij-help.jar" path="/helpset.hs"/>
 </idea-plugin>

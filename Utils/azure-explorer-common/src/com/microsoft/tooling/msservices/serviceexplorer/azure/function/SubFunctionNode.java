@@ -29,13 +29,13 @@ import com.microsoft.azure.management.appservice.FunctionApp;
 import com.microsoft.azure.management.appservice.FunctionEnvelope;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
-import com.microsoft.azuretools.core.mvp.model.springcloud.IdHelper;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.serviceexplorer.Node;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionEvent;
 import com.microsoft.tooling.msservices.serviceexplorer.NodeActionListener;
 import com.microsoft.tooling.msservices.serviceexplorer.WrappedTelemetryNodeActionListener;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -127,8 +127,8 @@ public class SubFunctionNode extends Node {
     // work around for API getMasterKey failed
     private String getFunctionMasterKey() throws IOException {
         final AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-        final String subscriptionId = IdHelper.getSubscriptionId(functionApp.id());
-        final String resourceGroup = IdHelper.getResourceGroup(functionApp.id());
+        final String subscriptionId = getSegment(functionApp.id(), "subscriptions");
+        final String resourceGroup = getSegment(functionApp.id(), "resourceGroups");
         final String tenant = azureManager.getTenantIdBySubscription(subscriptionId);
         final String authToken = azureManager.getAccessToken(tenant);
         final String targetUrl = String.format("https://management.azure.com/subscriptions/%s/resourceGroups/%s/" +
@@ -189,5 +189,18 @@ public class SubFunctionNode extends Node {
         final String fullName = functionEnvelope.inner().name();
         final String[] splitNames = fullName.split("/");
         return splitNames.length > 1 ? splitNames[1] : fullName;
+    }
+
+    // Todo: Extract this methods to common Utils
+    private static String getSegment(String id, String segment) {
+        if (StringUtils.isEmpty(id)) {
+            return null;
+        }
+        final String[] attributes = id.split("/");
+        int pos = ArrayUtils.indexOf(attributes, segment);
+        if (pos >= 0) {
+            return attributes[pos + 1];
+        }
+        return null;
     }
 }

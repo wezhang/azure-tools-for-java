@@ -28,6 +28,7 @@ import com.intellij.ui.PopupMenuListenerAdapter;
 import com.intellij.ui.ToolbarDecorator;
 import com.microsoft.azure.management.appservice.FunctionApp;
 import com.microsoft.azuretools.core.mvp.model.ResourceEx;
+import com.microsoft.intellij.common.CommonConst;
 import com.microsoft.intellij.helpers.UIHelperImpl;
 import com.microsoft.intellij.runner.functions.AzureFunctionsConstants;
 
@@ -151,13 +152,13 @@ public class ImportAppSettingsDialog extends JDialog implements ImportAppSetting
     public void fillFunctionAppSettings(Map<String, String> appSettings) {
         tblAppSettings.setAppSettings(appSettings);
         if (appSettings.size() == 0) {
-            tblAppSettings.getEmptyText().setText(AzureFunctionsConstants.EMPTY_TEXT);
+            tblAppSettings.getEmptyText().setText(CommonConst.EMPTY_TEXT);
         }
     }
 
     @Override
     public void beforeFillAppSettings() {
-        tblAppSettings.getEmptyText().setText(AzureFunctionsConstants.LOADING_TEXT);
+        tblAppSettings.getEmptyText().setText(CommonConst.LOADING_TEXT);
         tblAppSettings.clear();
     }
 
@@ -171,7 +172,7 @@ public class ImportAppSettingsDialog extends JDialog implements ImportAppSetting
 
     private void createUIComponents() {
         tblAppSettings = new AppSettingsTable("");
-        tblAppSettings.getEmptyText().setText(AzureFunctionsConstants.LOADING_TEXT);
+        tblAppSettings.getEmptyText().setText(CommonConst.LOADING_TEXT);
         pnlAppSettings = ToolbarDecorator.createDecorator(tblAppSettings).createPanel();
     }
 

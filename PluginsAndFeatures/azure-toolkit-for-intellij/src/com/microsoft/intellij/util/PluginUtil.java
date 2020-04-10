@@ -26,6 +26,9 @@ import com.intellij.ide.DataManager;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
 import com.intellij.ide.projectView.impl.ProjectRootsUtil;
+import com.intellij.notification.Notification;
+import com.intellij.notification.NotificationType;
+import com.intellij.notification.Notifications;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DataKeys;
 import com.intellij.openapi.application.ApplicationManager;
@@ -52,8 +55,9 @@ import java.util.HashMap;
 
 
 public class PluginUtil {
-    private static final Logger LOG = Logger.getInstance("#com.microsoft.intellij.util.PluginUtil");
     public static final String BASE_PATH = "${basedir}" + File.separator + "..";
+    private static final Logger LOG = Logger.getInstance("#com.microsoft.intellij.util.PluginUtil");
+    private static final String NOTIFICATION_GROUP_ID = "Azure Plugin";
 
     //todo: check with multiple Idea projects open in separate windows
     private static HashMap<ToolWindowKey, IToolWindowProcessor> toolWindowManagerCollection = new HashMap<>();
@@ -76,7 +80,7 @@ public class PluginUtil {
         return moduleFolder != null && ProjectRootsUtil.isModuleContentRoot(moduleFolder, module.getProject());
     }
 
-    public enum ProjExportType {WAR, EAR, JAR}
+    public enum ProjExportType { WAR, EAR, JAR }
 
     /**
      * This method returns current project.
@@ -182,5 +186,27 @@ public class PluginUtil {
         }
 
         DialogEarthquakeShaker.shake(dialogWrapper.getPeer().getWindow());
+    }
+
+    public static void showInfoNotificationProject(Project project, String title, String message) {
+        new Notification(NOTIFICATION_GROUP_ID, title,
+                message, NotificationType.INFORMATION).notify(project);
+    }
+
+    public static void showErrorNotificationProject(Project project, String title, String message) {
+        new Notification(NOTIFICATION_GROUP_ID, title,
+                         message, NotificationType.ERROR).notify(project);
+    }
+
+    public static void showWarnNotification(String title, String message) {
+        Notification notification = new Notification(NOTIFICATION_GROUP_ID, title,
+                message, NotificationType.WARNING);
+        Notifications.Bus.notify(notification);
+    }
+
+    public static void showErrorNotification(String title, String message) {
+        Notification notification = new Notification(NOTIFICATION_GROUP_ID, title,
+                message, NotificationType.ERROR);
+        Notifications.Bus.notify(notification);
     }
 }

@@ -55,8 +55,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static com.microsoft.intellij.runner.functions.AzureFunctionsConstants.EMPTY_TEXT;
-import static com.microsoft.intellij.runner.functions.AzureFunctionsConstants.LOADING_TEXT;
+import static com.microsoft.intellij.common.CommonConst.EMPTY_TEXT;
+import static com.microsoft.intellij.common.CommonConst.LOADING_TEXT;
+
 
 public class FunctionDeploymentPanel extends AzureSettingPanel<FunctionDeployConfiguration> implements FunctionDeployMvpView {
 

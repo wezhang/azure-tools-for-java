@@ -46,7 +46,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
-import static com.microsoft.intellij.runner.functions.AzureFunctionsConstants.NEED_SIGN_IN;
+import static com.microsoft.intellij.common.CommonConst.NEED_SIGN_IN;
 
 public class FunctionDeployConfiguration extends AzureRunConfigurationBase<FunctionDeployModel>
     implements RunProfileWithCompileBeforeLaunchOption {

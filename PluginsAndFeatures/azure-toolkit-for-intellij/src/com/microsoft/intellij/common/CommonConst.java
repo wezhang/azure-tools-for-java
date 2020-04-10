@@ -33,4 +33,9 @@ public class CommonConst {
     public static final String PLUGIN_NAME = "azure-toolkit-for-intellij";
     public static final String PLUGIN_VERISON = PluginManager.getPlugin(PluginId.getId(PLUGIN_ID)).getVersion();
     public static final String SPARK_APPLICATION_TYPE = "com.microsoft.azure.hdinsight.DefaultSparkApplicationType";
+
+    public static final String NEED_SIGN_IN = "Please sign in with your Azure account.";
+    public static final String LOADING_TEXT = "Loading...";
+    public static final String EMPTY_TEXT = "Empty";
+    public static final String REFRESH_TEXT = "Refreshing...";
 }
