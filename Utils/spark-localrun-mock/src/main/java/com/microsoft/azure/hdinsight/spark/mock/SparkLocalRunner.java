@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -92,7 +93,11 @@ public class SparkLocalRunner {
         new MockUp<FileSystem>() {
 
             @Mock
-            public Class getFileSystemClass(Invocation invocation, String scheme, Configuration conf) {
+            public Class getFileSystemClass(Invocation invocation, String scheme, Configuration conf) throws IOException {
+                if (scheme.toLowerCase().equals("jar")) {
+                    throw new IOException("Unsupported file system scheme: jar");
+                }
+
                 return MockDfs.class;
             }
 

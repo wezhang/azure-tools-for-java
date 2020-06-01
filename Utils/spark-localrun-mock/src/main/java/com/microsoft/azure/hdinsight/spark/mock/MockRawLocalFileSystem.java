@@ -23,11 +23,9 @@
 package com.microsoft.azure.hdinsight.spark.mock;
 
 
-import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.Shell;
 import org.apache.hadoop.util.StringUtils;
 
@@ -220,7 +218,6 @@ class MockRawLocalFileSystem extends RawLocalFileSystem {
 
     @Override
     public File pathToFile(Path path) {
-        @NotNull
         Path realPath;
 
         URI originUri = path.toUri();
