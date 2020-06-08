@@ -27,11 +27,11 @@ import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.ui.ValidationInfo;
-import com.microsoft.applicationinsights.management.rest.model.Resource;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsPageTableElement;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsPageTableElements;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsResource;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsResourceRegistry;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.ijidea.actions.AzureSignInAction;
@@ -139,16 +139,12 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
                 AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
                 List<SubscriptionDetail> subList = azureManager.getSubscriptionManager().getSubscriptionDetails();
                 if (subList.size() > 0) {
-//                if (!AzureSettings.getSafeInstance(myProject).isAppInsightsLoaded()) {
                     updateApplicationInsightsResourceRegistry(subList, myProject);
                 } else {
                     // just show manually added list from preferences
                     // Neither clear subscription list nor show sign in dialog as user may just want to add key manually.
                     keeepManuallyAddedList(myProject);
                 }
-//                } else {
-                // show list from preferences - getTableContent() does it. So nothing to handle here
-//                }
             } else {
                 // just show manually added list from preferences
                 keeepManuallyAddedList(myProject);
@@ -182,7 +178,7 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
             if (sub.isSelected()) {
                 try {
                     // fetch resources available for particular subscription
-                    List<Resource> resourceList = AzureSDKManager.getApplicationInsightsResources(sub);
+                    List<ApplicationInsightsComponent> resourceList = AzureSDKManager.getInsightsResources(sub);
                     // Removal logic
                     List<ApplicationInsightsResource> importedList = ApplicationInsightsResourceRegistry.prepareAppResListFromRes(resourceList, sub);
                     // Addition logic
@@ -212,7 +208,7 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
                 // Neither clear subscription list nor show sign in dialog as user may just want to add key manually.
                 keeepManuallyAddedList(project);
             }
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             AzurePlugin.log(ex.getMessage());
         }
     }
@@ -221,7 +217,7 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
         return e -> {
             try {
                 createNewDilaog();
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 AzurePlugin.log(ex.getMessage(), ex);
             }
         };
@@ -245,7 +241,7 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
                     dialog.show();
                 }
             }, ModalityState.defaultModalityState());
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             AzurePlugin.log(ex.getMessage(), ex);
         }
     }
@@ -365,8 +361,9 @@ public class AppInsightsMngmtPanel implements AzureAbstractConfigurablePanel {
                     return resource.getResourceName();
                 case 1:
                     return resource.getInstrumentationKey();
+                default:
+                    return null;
             }
-            return null;
         }
     }
 }

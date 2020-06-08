@@ -32,14 +32,12 @@ import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 
-import com.microsoft.applicationinsights.management.rest.client.RestOperationException;
-import com.microsoft.applicationinsights.management.rest.model.Resource;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsResource;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsResourceRegistry;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.azurecommons.helpers.AzureCmdException;
 import com.microsoft.azuretools.core.Activator;
-import com.microsoft.tooling.msservices.components.DefaultLoader;
 import com.microsoft.tooling.msservices.helpers.azure.sdk.AzureSDKManager;
 
 
@@ -57,7 +55,7 @@ public class ApplicationInsightsResourceRegistryEclipse {
             if (sub.isSelected()) {
                 try {
                     // fetch resources available for particular subscription
-                    List<Resource> resourceList = AzureSDKManager.getApplicationInsightsResources(sub);
+                    List<ApplicationInsightsComponent> resourceList = AzureSDKManager.getInsightsResources(sub);
 
                     // Removal logic
                     List<ApplicationInsightsResource> registryList = ApplicationInsightsResourceRegistry
@@ -88,13 +86,11 @@ public class ApplicationInsightsResourceRegistryEclipse {
                     // Addition logic
                     List<ApplicationInsightsResource> list = ApplicationInsightsResourceRegistry
                             .getAppInsightsResrcList();
-                    for (Resource resource : resourceList) {
-                        ApplicationInsightsResource resourceToAdd = new ApplicationInsightsResource(resource.getName(),
-                                resource.getInstrumentationKey(), sub.getSubscriptionName(), sub.getSubscriptionId(),
-                                resource.getLocation(), resource.getResourceGroup(), true);
+                    for (ApplicationInsightsComponent resource : resourceList) {
+                        ApplicationInsightsResource resourceToAdd = new ApplicationInsightsResource(resource, sub, true);
                         if (list.contains(resourceToAdd)) {
                             int index = ApplicationInsightsResourceRegistry
-                                    .getResourceIndexAsPerKey(resource.getInstrumentationKey());
+                                    .getResourceIndexAsPerKey(resource.instrumentationKey());
                             ApplicationInsightsResource objectFromRegistry = list.get(index);
                             if (!objectFromRegistry.isImported()) {
                                 ApplicationInsightsResourceRegistry.getAppInsightsResrcList().set(index, resourceToAdd);
@@ -142,16 +138,16 @@ public class ApplicationInsightsResourceRegistryEclipse {
         try {
             IWorkspace workspace = ResourcesPlugin.getWorkspace();
             IWorkspaceRoot root = workspace.getRoot();
-            for (IProject iProject : root.getProjects()) {
-                if (iProject.isOpen() && WebPropertyTester.isWebProj(iProject)) {
+            for (IProject project : root.getProjects()) {
+                if (project.isOpen() && WebPropertyTester.isWebProj(project)) {
                     String aiXMLPath;
-                    if (iProject.hasNature(Messages.natMaven)) {
+                    if (project.hasNature(Messages.natMaven)) {
                         aiXMLPath = Messages.aiXMLPathMaven;
                     } else {
                         aiXMLPath = Messages.aiXMLPath;
                     }
                     AILibraryHandler handler = new AILibraryHandler();
-                    IFile file = iProject.getFile(aiXMLPath);
+                    IFile file = project.getFile(aiXMLPath);
                     if (file.exists()) {
                         handler.parseAIConfXmlPath(file.getLocation().toOSString());
                         String key = handler.getAIInstrumentationKey();
@@ -161,7 +157,7 @@ public class ApplicationInsightsResourceRegistryEclipse {
                     }
                 }
             }
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             Activator.getDefault().log(ex.getMessage(), ex);
         }
         return keyList;

@@ -23,9 +23,9 @@
 package com.microsoft.intellij.ui;
 
 import com.intellij.openapi.ui.TitlePanel;
-import com.microsoft.applicationinsights.management.rest.model.Resource;
 import com.microsoft.applicationinsights.preference.ApplicationInsightsResource;
 import com.microsoft.azure.management.Azure;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 import com.microsoft.azuretools.sdkmanage.AzureManager;
@@ -87,15 +87,7 @@ public class ApplicationInsightsNewDialog extends AzureDialogWrapper {
         };
         createNewBtn.addItemListener(updateListener);
         useExistingBtn.addItemListener(updateListener);
-//        comboReg.setRenderer(new ListCellRendererWrapper<Object>() {
-//
-//            @Override
-//            public void customize(JList jList, Object o, int i, boolean b, boolean b1) {
-//                if (o != null && (o instanceof Location)) {
-//                    setText("  " + ((Location)o).displayName());
-//                }
-//            }
-//        });
+
         createNewBtn.setSelected(true);
         populateValues();
     }
@@ -128,7 +120,7 @@ public class ApplicationInsightsNewDialog extends AzureDialogWrapper {
 
                 populateResourceGroupValues(currentSub.getSubscriptionId(), "");
 
-                List<String> regionList = AzureSDKManager.getLocationsForApplicationInsights(currentSub);
+                List<String> regionList = AzureSDKManager.getLocationsForInsights(currentSub);
                 String[] regionArray = regionList.toArray(new String[regionList.size()]);
                 comboReg.setModel(new DefaultComboBoxModel(regionArray));
                 comboReg.setSelectedItem(regionArray[0]);
@@ -140,8 +132,8 @@ public class ApplicationInsightsNewDialog extends AzureDialogWrapper {
 
     private void populateResourceGroupValues(String subscriptionId, String valtoSet) {
         try {
-            com.microsoft.azuretools.sdkmanage.AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-            Azure azure = azureManager.getAzure(subscriptionId);
+            AzureManager manager = AuthMethodManager.getInstance().getAzureManager();
+            Azure azure = manager.getAzure(subscriptionId);
             List<com.microsoft.azure.management.resources.ResourceGroup> groups = azure.resourceGroups().list();
             List<String> groupStringList = groups.stream().map(com.microsoft.azure.management.resources.ResourceGroup::name).collect(Collectors.toList());
             if (groupStringList.size() > 0) {
@@ -173,7 +165,8 @@ public class ApplicationInsightsNewDialog extends AzureDialogWrapper {
     protected void doOKAction() {
         if (txtName.getText().trim().isEmpty()
                 || comboSub.getSelectedItem() == null
-                || ((((String) comboGrp.getSelectedItem()).isEmpty() && useExistingBtn.isSelected()) || (textGrp.getText().isEmpty() && createNewBtn.isSelected()))
+                || ((((String) comboGrp.getSelectedItem()).isEmpty() && useExistingBtn.isSelected())
+                || (textGrp.getText().isEmpty() && createNewBtn.isSelected()))
                 || ((String) comboReg.getSelectedItem()).isEmpty()) {
             if (comboSub.getSelectedItem() == null || comboSub.getItemCount() <= 0) {
                 PluginUtil.displayErrorDialog(message("aiErrTtl"), message("noSubErrMsg"));
@@ -185,16 +178,23 @@ public class ApplicationInsightsNewDialog extends AzureDialogWrapper {
         } else {
             boolean isNewGroup = createNewBtn.isSelected();
             String resourceGroup = isNewGroup ? textGrp.getText() : (String) comboGrp.getSelectedItem();
-            DefaultLoader.getIdeHelper().runInBackground(null,"Creating Application Insights Resource " + txtName.getText(), false, true,
-                    "Creating Application Insights Resource " + txtName.getText(), new Runnable() {
+            DefaultLoader.getIdeHelper().runInBackground(null,
+                                                         "Creating Application Insights Resource " + txtName.getText(),
+                                                         false,
+                                                         true,
+                                                         "Creating Application Insights Resource " + txtName.getText(),
+                                                         new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                Resource resource = AzureSDKManager.createApplicationInsightsResource(currentSub, resourceGroup, isNewGroup,
-                                        txtName.getText(), (String) comboReg.getSelectedItem());
-                                resourceToAdd = new ApplicationInsightsResource(resource.getName(), resource.getInstrumentationKey(),
-                                        currentSub.getSubscriptionName(), currentSub.getSubscriptionId(), resource.getLocation(),
-                                        resource.getResourceGroup(), true);
+                                ApplicationInsightsComponent resource =
+                                        AzureSDKManager.createInsightsResource(
+                                                currentSub,
+                                                resourceGroup,
+                                                isNewGroup,
+                                                txtName.getText(),
+                                                (String) comboReg.getSelectedItem());
+                                resourceToAdd = new ApplicationInsightsResource(resource, currentSub , true);
                                 if (onCreate != null) {
                                     onCreate.run();
                                 }

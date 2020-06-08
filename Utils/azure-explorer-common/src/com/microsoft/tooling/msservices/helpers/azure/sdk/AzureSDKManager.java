@@ -22,10 +22,14 @@
 
 package com.microsoft.tooling.msservices.helpers.azure.sdk;
 
-import com.microsoft.applicationinsights.management.rest.ApplicationInsightsManagementClient;
-import com.microsoft.applicationinsights.management.rest.client.RestOperationException;
-import com.microsoft.applicationinsights.management.rest.model.Resource;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.microsoft.azure.management.Azure;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationType;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.implementation.InsightsManager;
 import com.microsoft.azure.management.compute.AvailabilitySet;
 import com.microsoft.azure.management.compute.KnownLinuxVirtualMachineImage;
 import com.microsoft.azure.management.compute.KnownWindowsVirtualMachineImage;
@@ -43,15 +47,25 @@ import com.microsoft.azure.management.storage.StorageAccount;
 import com.microsoft.azure.management.storage.StorageAccountSkuType;
 import com.microsoft.azuretools.authmanage.AuthMethodManager;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
-import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
 import com.microsoft.azuretools.azurecommons.helpers.Nullable;
+import com.microsoft.azuretools.sdkmanage.AzureManager;
 import com.microsoft.tooling.msservices.model.vm.VirtualNetwork;
+import com.sun.tools.sjavac.Log;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClients;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class AzureSDKManager {
+
+    private static final String INSIGHTS_REGION_LIST_URL = "https://management.azure.com/providers/microsoft.insights?api-version=2015-05-01";
 
     public static StorageAccount createStorageAccount(String subscriptionId, String name, String region, boolean newResourceGroup, String resourceGroup,
                                                       Kind kind, AccessTier accessTier, boolean enableEncription, String skuName) throws Exception {
@@ -203,47 +217,70 @@ public class AzureSDKManager {
         return withCreate.create();
     }
 
-    public static List<Resource> getApplicationInsightsResources(@NotNull SubscriptionDetail subscription) throws IOException, RestOperationException {
-        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-        if (azureManager == null) { // not signed in
-            return null;
-        }
-        String tenantId = subscription.getTenantId();
-        return getApplicationManagementClient(tenantId, azureManager.getAccessToken(tenantId)).getResources(subscription.getSubscriptionId());
+    public static List<ApplicationInsightsComponent> getInsightsResources(@NotNull SubscriptionDetail subscription) throws IOException {
+        final InsightsManager insightsManager = getInsightsManagerClient(subscription.getSubscriptionId());
+        return insightsManager == null ? null : insightsManager.components().list();
     }
 
-    public static Resource createApplicationInsightsResource(@NotNull SubscriptionDetail subscription,
+    public static ApplicationInsightsComponent createInsightsResource(@NotNull SubscriptionDetail subscription,
                                                              @NotNull String resourceGroupName,
                                                              boolean isNewGroup,
                                                              @NotNull String resourceName,
                                                              @NotNull String location) throws Exception {
-
-        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-        if (azureManager == null) { // not signed in
+        final InsightsManager insightsManager = getInsightsManagerClient(subscription.getSubscriptionId());
+        if (insightsManager == null) { // not signed in
             return null;
         }
-        String tenantId = subscription.getTenantId();
-        ApplicationInsightsManagementClient client = getApplicationManagementClient(tenantId, azureManager.getAccessToken(tenantId));
+        final Azure azure = AuthMethodManager.getInstance().getAzureClient(subscription.getSubscriptionId());
         if (isNewGroup) {
-            client.createResourceGroup(subscription.getSubscriptionId(), resourceGroupName, location);
+            azure.resourceGroups().define(resourceGroupName).withRegion(location).create();
         }
-        return client.createResource(subscription.getSubscriptionId(), resourceGroupName, resourceName, location);
+        return insightsManager.components()
+                .define(resourceName)
+                .withRegion(location)
+                .withExistingResourceGroup(resourceGroupName)
+                .withApplicationType(ApplicationType.WEB)
+                .withKind("web")
+                .create();
     }
 
-    public static List<String> getLocationsForApplicationInsights(SubscriptionDetail subscription) throws Exception {
-        AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
-        if (azureManager == null) { // not signed in
-            return null;
+    // TODO: AI SDK doesn't provide a method to list regions which are available regions to create AI,
+    // we are requiring the SDK to provide that API, before SDK side fix, we will use our own impl
+    public static List<String> getLocationsForInsights(SubscriptionDetail subscription) throws IOException {
+        final HttpGet request = new HttpGet(INSIGHTS_REGION_LIST_URL);
+        final AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
+        if (azureManager == null) {
+            return Collections.emptyList();
         }
-        String tenantId = subscription.getTenantId();
-        return getApplicationManagementClient(tenantId, azureManager.getAccessToken(tenantId))
-                .getAvailableGeoLocations();
+        final String accessToken = azureManager.getAccessToken(azureManager.getTenantIdBySubscription(subscription.getSubscriptionId()));
+        request.setHeader("Authorization", String.format("Bearer %s", accessToken));
+        final CloseableHttpResponse response = HttpClients.createDefault().execute(request);
+        final InputStream responseStream = response.getEntity().getContent();
+        try (final InputStreamReader isr = new InputStreamReader(responseStream)) {
+            final Gson gson = new Gson();
+            final JsonObject jsonContent = (gson).fromJson(isr, JsonObject.class);
+            final JsonArray jsonResourceTypes = jsonContent.getAsJsonArray("resourceTypes");
+            for (int i = 0; i < jsonResourceTypes.size(); ++i) {
+                Object obj = jsonResourceTypes.get(i);
+                if (obj instanceof JsonObject) {
+                    JsonObject jsonResourceType = (JsonObject) obj;
+                    String resourceType = jsonResourceType.get("resourceType").getAsString();
+                    if (resourceType.equalsIgnoreCase("components")) {
+                        JsonArray jsonLocations = jsonResourceType.getAsJsonArray("locations");
+                        return gson.fromJson(jsonLocations, new ArrayList().getClass());
+                    }
+                }
+            }
+        } catch (IOException | JsonParseException e) {
+            Log.error(e);
+        }
+        return Collections.emptyList();
     }
 
     @NotNull
-    private static ApplicationInsightsManagementClient getApplicationManagementClient(@NotNull String tenantId, @NotNull String accessToken)
-            throws RestOperationException, IOException {
-        String userAgent = "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:19.0) Gecko/20100101 Firefox/19.0";
-        return new ApplicationInsightsManagementClient(tenantId, accessToken, userAgent);
+    private static InsightsManager getInsightsManagerClient(@NotNull String subscriptionId)
+            throws IOException {
+        final AzureManager azureManager = AuthMethodManager.getInstance().getAzureManager();
+        return azureManager == null ? null : azureManager.getInsightsManager(subscriptionId);
     }
 }

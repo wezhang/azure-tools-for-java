@@ -97,6 +97,10 @@
     </build>
     <dependencies>
         <dependency>
+            <groupId>com.microsoft.azure.applicationinsights.v2015_05_01</groupId>
+            <artifactId>azure-mgmt-insights</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.spotify</groupId>
             <artifactId>docker-client</artifactId>
             <classifier>shaded</classifier>
@@ -173,11 +177,6 @@
         <dependency>
             <groupId>com.microsoft.azure</groupId>
             <artifactId>applicationinsights-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.microsoft.azure</groupId>
-            <artifactId>applicationinsights-management</artifactId>
-            <version>1.0.3</version>
         </dependency>
         <dependency>
             <groupId>com.microsoft.azure</groupId>

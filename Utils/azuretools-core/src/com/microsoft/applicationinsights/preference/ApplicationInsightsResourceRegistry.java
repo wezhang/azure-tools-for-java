@@ -22,7 +22,7 @@
 
 package com.microsoft.applicationinsights.preference;
 
-import com.microsoft.applicationinsights.management.rest.model.Resource;
+import com.microsoft.azure.management.applicationinsights.v2015_05_01.ApplicationInsightsComponent;
 import com.microsoft.azuretools.authmanage.models.SubscriptionDetail;
 
 import java.util.*;
@@ -103,9 +103,9 @@ public class ApplicationInsightsResourceRegistry {
         List<ApplicationInsightsResourceWithSameName> sameResourceNameList =
                 new ArrayList<ApplicationInsightsResourceWithSameName>();
         for (int i = 0; i < nameList.size(); i++) {
-            for (int j = i+1; j < nameList.size(); j++) {
+            for (int j = i + 1; j < nameList.size(); j++) {
                 // check if duplicate entry present in list.
-                if (i!=j && nameList.get(i).equals(nameList.get(j))) {
+                if (i != j && nameList.get(i).equals(nameList.get(j))) {
                     ApplicationInsightsResourceWithSameName resource =
                             new ApplicationInsightsResourceWithSameName(nameList.get(i));
                     /*
@@ -151,7 +151,6 @@ public class ApplicationInsightsResourceRegistry {
      * @param resourceName
      * @param subName
      * @return String
-     * <sapplication-insight-resource-name> (<subscription name>)
      */
     public static String concatenateRsrcAndSubName(String resourceName, String subName) {
         String resourceAndSub = resourceName + " (" + subName + ")";
@@ -210,13 +209,10 @@ public class ApplicationInsightsResourceRegistry {
      * @return
      */
     public static List<ApplicationInsightsResource> prepareAppResListFromRes(
-            List<Resource> resourceList, SubscriptionDetail sub) {
+            List<ApplicationInsightsComponent> resourceList, SubscriptionDetail sub) {
         List<ApplicationInsightsResource> list = new ArrayList<ApplicationInsightsResource>();
-        for (Resource resource : resourceList) {
-            ApplicationInsightsResource resourceToAdd = new ApplicationInsightsResource(
-                    resource.getName(), resource.getInstrumentationKey(),
-                    sub.toString(), sub.getSubscriptionId(),
-                    resource.getLocation(), resource.getResourceGroup(), true);
+        for (ApplicationInsightsComponent resource : resourceList) {
+            ApplicationInsightsResource resourceToAdd = new ApplicationInsightsResource(resource, sub, true);
             list.add(resourceToAdd);
         }
         return list;
