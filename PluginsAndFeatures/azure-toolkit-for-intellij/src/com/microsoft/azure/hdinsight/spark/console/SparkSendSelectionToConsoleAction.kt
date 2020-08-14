@@ -68,12 +68,16 @@ class SparkSendSelectionToConsoleAction : AzureAnAction(), ILogger {
     }
 
     override fun onActionPerformed(actionEvent: AnActionEvent, operation: Operation?): Boolean {
-        val content = actionEvent.dataContext
-        val editor = CommonDataKeys.EDITOR.getData(content) ?: return true
-        val project = CommonDataKeys.PROJECT.getData(content) ?: return true
-        val selectedText = editor.selectionModel.selectedText ?: return true
+        try {
+            val content = actionEvent.dataContext
+            val editor = CommonDataKeys.EDITOR.getData(content) ?: return true
+            val project = CommonDataKeys.PROJECT.getData(content) ?: return true
+            val selectedText = editor.selectionModel.selectedText ?: return true
 
-        SparkConsoleManager.get(project = project)?.apply { sendSelection(this, selectedText, operation) }
+            SparkConsoleManager.get(project = project)?.apply { sendSelection(this, selectedText, operation) }
+        } catch (ignored: RuntimeException) {
+        }
+
         return true
     }
 
