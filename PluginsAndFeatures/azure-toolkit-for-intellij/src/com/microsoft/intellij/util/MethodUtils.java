@@ -22,12 +22,15 @@
 
 package com.microsoft.intellij.util;
 
-import com.intellij.openapi.module.*;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleManager;
+import com.intellij.openapi.module.ModuleTypeId;
 import com.intellij.openapi.project.Project;
 import com.microsoft.intellij.AzurePlugin;
 import com.microsoft.intellij.ui.libraries.AILibraryHandler;
 
 import java.io.File;
+
 import static com.microsoft.intellij.ui.messages.AzureBundle.message;
 
 public class MethodUtils {
