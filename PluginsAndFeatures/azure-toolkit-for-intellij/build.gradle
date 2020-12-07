@@ -222,7 +222,7 @@ spotbugsMain {
     reportLevel = 'high'
     maxHeapSize = '1g'
     extraArgs = [ '-nested:false' ]
-    jvmArgs = [ '-Duser.language=ja' ]
+    jvmArgs = [ '-Duser.language=en' ]
     includeFilter = file("$rootProject.projectDir/../../tools/spotbugs-security-include.xml")
     excludeFilter = file("$rootProject.projectDir/../../tools/spotbugs-security-exclude.xml")
 }
