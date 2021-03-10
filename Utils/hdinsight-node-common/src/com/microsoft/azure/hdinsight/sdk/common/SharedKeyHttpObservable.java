@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
+import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
+
 public class SharedKeyHttpObservable extends HttpObservable {
     public static String ApiVersion = "2018-11-09";
     private SharedKeyCredential cred;
@@ -63,16 +66,15 @@ public class SharedKeyHttpObservable extends HttpObservable {
             // cannot be added to default header group in case of duplication.
             headerGroup.addHeader(new BasicHeader("Content-Length", String.valueOf(entity.getContentLength())));
         }
-        addOrReplaceHeaders.stream().forEach(header -> headerGroup.addHeader(header));
-        String key = cred.generateSharedKey(httpRequest, headerGroup, parameters);
+        ofNullable(addOrReplaceHeaders).orElse(emptyList()).forEach(headerGroup::addHeader);
+        String key = cred.generateSharedKey(httpRequest, headerGroup, ofNullable(parameters).orElse(emptyList()));
 
         getDefaultHeaderGroup().updateHeader(new BasicHeader("Authorization", key));
 
-        return super.request(httpRequest, entity, parameters, addOrReplaceHeaders);
+        return super.request(httpRequest, entity, ofNullable(parameters).orElse(emptyList()), ofNullable(addOrReplaceHeaders).orElse(emptyList()));
     }
 
     @Override
-    @Nullable
     public Header[] getDefaultHeaders() throws IOException {
         return defaultHeaders.getAllHeaders();
     }

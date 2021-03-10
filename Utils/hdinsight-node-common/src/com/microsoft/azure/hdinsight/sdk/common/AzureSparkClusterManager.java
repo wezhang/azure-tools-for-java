@@ -20,6 +20,7 @@ import org.apache.http.NameValuePair;
 import rx.Observable;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class AzureSparkClusterManager extends AzureSparkCosmosClusterManager implements ILogger {
@@ -33,10 +34,9 @@ public class AzureSparkClusterManager extends AzureSparkCosmosClusterManager imp
         return AzureSparkClusterManager.LazyHolder.INSTANCE;
     }
 
-    @Nullable
     @Override
     public List<NameValuePair> getAccountFilter() {
-        return null;
+        return Collections.emptyList();
     }
 
     public Observable<SubscriptionDetail> getSubscriptionDetailByStoreAccountName(String storeAccountName) {

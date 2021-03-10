@@ -50,7 +50,6 @@ public class OAuthTokenHttpObservable extends HttpObservable {
         return accessToken;
     }
 
-    @Nullable
     @Override
     public Header[] getDefaultHeaders() throws IOException {
         Header[] defaultHeaders = super.getDefaultHeaders();

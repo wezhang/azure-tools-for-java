@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 
 import static com.microsoft.azure.hdinsight.sdk.storage.adlsgen2.ADLSGen2FSOperation.PERMISSIONS_HEADER;
 import static com.microsoft.azure.hdinsight.sdk.storage.adlsgen2.ADLSGen2FSOperation.UMASK_HEADER;
+import static java.util.Collections.emptyList;
+import static java.util.Optional.ofNullable;
 
 public class ADLSGen2OAuthHttpObservable extends OAuthTokenHttpObservable {
     private static final String resource = "https://storage.azure.com/";
@@ -51,15 +53,12 @@ public class ADLSGen2OAuthHttpObservable extends OAuthTokenHttpObservable {
                                                      final List<NameValuePair> parameters,
                                                      final List<Header> addOrReplaceHeaders) {
         // Filter out set permission related headers since they are not supported in request with OAuth
-        List<Header> filteredHeaders = addOrReplaceHeaders;
-        if (filteredHeaders != null) {
-            filteredHeaders =
-                    filteredHeaders.stream()
-                                   .filter(header -> !header.getName().equalsIgnoreCase(PERMISSIONS_HEADER)
-                                           && !header.getName().equalsIgnoreCase(UMASK_HEADER))
-                                   .collect(Collectors.toList());
-        }
+        List<Header> filteredHeaders = ofNullable(addOrReplaceHeaders)
+            .orElse(emptyList())
+            .stream()
+            .filter(header -> !header.getName().equalsIgnoreCase(PERMISSIONS_HEADER) && !header.getName().equalsIgnoreCase(UMASK_HEADER))
+            .collect(Collectors.toList());
 
-        return super.request(httpRequest, entity, parameters, filteredHeaders);
+        return super.request(httpRequest, entity, ofNullable(parameters).orElse(emptyList()), filteredHeaders);
     }
 }

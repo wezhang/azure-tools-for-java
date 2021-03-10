@@ -89,7 +89,6 @@ public class AzureSparkCosmosClusterManager implements ClusterContainer,
     // Getters / setters
     //
 
-    @Nullable
     public List<NameValuePair> getAccountFilter() {
         return Collections.singletonList(ODataParam.filter(ACCOUNT_FILTER));
     }
