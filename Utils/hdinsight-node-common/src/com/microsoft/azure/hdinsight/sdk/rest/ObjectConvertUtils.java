@@ -40,7 +40,11 @@ public final class ObjectConvertUtils {
     }
 
     public static <T> Optional<T> convertEntityToObject(@NotNull HttpEntity entity, @NotNull Class<T> tClass) throws IOException {
-        final String type = entity.getContentType().getValue().toLowerCase();
+        // To handle complex response Content-Type value.
+        // Ref to: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
+        // Like --
+        //   Content-Type: text/html; charset=UTF-8
+        final String type = entity.getContentType().getValue().toLowerCase().split(";")[0].trim();
 
         switch (type) {
             case "application/json" :

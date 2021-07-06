@@ -7,6 +7,9 @@ package com.microsoft.azure.hdinsight.sdk.rest.spark.stage;
 
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class AccumulatorUpdate implements IConvertible {
     private int id;
     private String name;

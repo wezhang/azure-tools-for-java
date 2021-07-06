@@ -6,7 +6,9 @@
 package com.microsoft.azure.hdinsight.sdk.rest.spark.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class StorageLevel {
     @JsonProperty("Use Disk")
     private boolean isUseDisk;

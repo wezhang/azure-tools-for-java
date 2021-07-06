@@ -5,6 +5,7 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.spark.executor;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
 
 /**
@@ -19,6 +20,8 @@ import com.microsoft.azure.hdinsight.sdk.rest.IConvertible;
  * Query Parameters Supported
  *   None
  */
+
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class ExecutorLog implements IConvertible {
     private String stdout;
     private String stderr;

@@ -5,6 +5,9 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.spark.task;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class ShuffleWriteMetrics {
     private long bytesWritten;
 

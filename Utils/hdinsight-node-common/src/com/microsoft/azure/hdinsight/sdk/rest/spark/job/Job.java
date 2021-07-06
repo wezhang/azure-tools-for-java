@@ -23,6 +23,9 @@ import java.util.List;
  * Query Parameters Supported
  *   None
  */
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown=true)
 public class Job implements IConvertible {
     private int jobId;
     private String name;

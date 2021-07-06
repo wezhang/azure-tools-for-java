@@ -13,6 +13,7 @@ import com.microsoft.azure.hdinsight.common.logger.ILogger;
 import com.microsoft.azure.hdinsight.sdk.cluster.IClusterDetail;
 import com.microsoft.azure.hdinsight.sdk.cluster.MfaEspCluster;
 import com.microsoft.azure.hdinsight.sdk.common.AuthType;
+import com.microsoft.azure.hdinsight.sdk.common.HDIException;
 import com.microsoft.azure.hdinsight.sdk.common.HttpObservable;
 import com.microsoft.azure.hdinsight.sdk.common.HttpResponse;
 import com.microsoft.azuretools.azurecommons.helpers.NotNull;
@@ -38,6 +39,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
@@ -72,7 +74,19 @@ public class SparkBatchSubmission implements ILogger {
             String id = ((MfaEspCluster) clusterDetail).getTenantId();
             return new SparkBatchEspMfaSubmission(id, clusterDetail.getName());
         } else {
-            return SparkBatchSubmission.getInstance();
+            final SparkBatchSubmission submission = SparkBatchSubmission.getInstance();
+            try {
+                submission.setUsernamePasswordCredential(
+                        clusterDetail.getHttpUserName(), clusterDetail.getHttpPassword());
+            } catch (HDIException ex) {
+                LoggerFactory
+                    .getLogger(SparkBatchSubmission.class)
+                    .warn("Got exception when try to get cluster username and password: "
+                        + ex.getMessage()
+                        + ", keep no auth.");
+            }
+
+            return submission;
         }
     }
 
