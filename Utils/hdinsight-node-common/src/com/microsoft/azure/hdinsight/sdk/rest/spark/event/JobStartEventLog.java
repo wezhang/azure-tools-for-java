@@ -5,13 +5,12 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.spark.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-@JsonIgnoreProperties(ignoreUnknown=true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class JobStartEventLog {
     @JsonProperty("Event")
     private String event;

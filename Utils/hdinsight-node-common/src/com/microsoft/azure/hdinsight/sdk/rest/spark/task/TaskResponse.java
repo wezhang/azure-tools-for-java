@@ -5,11 +5,11 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.spark.task;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@JsonIgnoreProperties(ignoreUnknown=true)
+import java.util.List;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TaskResponse {
     private List<Task> tasks;
 

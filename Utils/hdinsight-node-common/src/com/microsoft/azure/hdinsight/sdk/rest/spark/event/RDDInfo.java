@@ -5,10 +5,10 @@
 
 package com.microsoft.azure.hdinsight.sdk.rest.spark.event;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-@JsonIgnoreProperties(ignoreUnknown=true)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RDDInfo {
 
     @JsonProperty("RDD ID")
@@ -18,7 +18,7 @@ public class RDDInfo {
     private String name;
 
     @JsonProperty("Scope")
-    private String Scope;
+    private String scope;
 
     @JsonProperty("Callsite")
     private String callSite;
@@ -58,11 +58,11 @@ public class RDDInfo {
     }
 
     public String getScope() {
-        return Scope;
+        return scope;
     }
 
     public void setScope(String scope) {
-        Scope = scope;
+        this.scope = scope;
     }
 
     public String getCallSite() {
