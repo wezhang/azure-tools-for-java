@@ -43,7 +43,7 @@ public final class ObjectConvertUtils {
         // To handle complex response Content-Type value.
         // Ref to: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
         // Like --
-        //   Content-Type: text/html; charset=UTF-8
+        //   Content-Type: application/xml; charset=UTF-8
         final String type = entity.getContentType().getValue().toLowerCase().split(";")[0].trim();
 
         switch (type) {
@@ -57,12 +57,17 @@ public final class ObjectConvertUtils {
     }
 
     public static <T> Optional<List<T>> convertEntityToList(@NotNull HttpEntity entity, @NotNull Class<T> clazz) throws IOException {
-        final String type = entity.getContentType().getValue().toLowerCase();
+        // To handle complex response Content-Type value.
+        // Ref to: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
+        // Like --
+        //   Content-Type: application/xml; charset=UTF-8
+        final String type = entity.getContentType().getValue().toLowerCase().split(";")[0].trim();
+
         switch (type) {
             case "application/json" :
                 return convertJsonToList(EntityUtils.toString(entity), clazz);
             case "application/xml" :
-                return convertJsonToList(EntityUtils.toString(entity), clazz);
+                return convertXmlToList(EntityUtils.toString(entity), clazz);
             default:
         }
         return Optional.empty();
